@@ -134,9 +134,10 @@
         <div id="routeOut" hidden>
           <div id="routeSummary" class="rsum"></div>
           <div id="routeKpis" class="kgrid"></div>
+          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button></div>
           <h3>Block time</h3>
           <svg id="rLadder" viewBox="0 0 340 130" role="img" aria-label="Block time comparison"></svg>
-          <h3>Mach and wind along the route</h3>
+          <h3>Mach and wind along the route <span>Click a point to see it in 3D</span></h3>
           <svg id="rprof" viewBox="0 0 340 200" role="img" aria-label="Mach and wind along route"></svg>
           <div class="keyrow">
             <span><i class="sw" style="background:var(--route-boomless)"></i>Boomless over land</span>
@@ -233,19 +234,31 @@
     <div class="d3body">
       <div id="c3Canvas" class="c3canvas"></div>
       <div class="c3side">
+        <div id="c3Route" class="c3route" hidden>
+          <div class="k">Along the route</div>
+          <svg id="c3Strip" viewBox="0 -2 280 30"></svg>
+          <div class="c3play">
+            <button class="play" id="c3Play" aria-label="Fly the route"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" fill="currentColor"/></svg></button>
+            <input type="range" id="c3Pos" min="0" max="100" step="1" value="0" aria-label="Position along the route">
+          </div>
+          <p class="fine" id="c3PosLbl"></p>
+        </div>
         <label class="k">Mach <output id="c3MachLbl"></output></label>
         <input type="range" id="c3Mach" min="1.00" max="1.50" step="0.005">
         <label class="k">Direction of travel <output id="c3HdLbl"></output></label>
         <input type="range" id="c3Hd" min="0" max="350" step="10">
-        <label class="k">Flight level</label>
-        <select id="c3Fl"></select>
+        <div class="c3pair">
+          <label class="k">Flight level<select id="c3Fl"></select></label>
+          <label class="k">Vertical scale<select id="c3Ve"><option value="1">True scale</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select></label>
+        </div>
         <div id="c3Stats" class="c3stats"></div>
         <div class="keyrow col">
-          <span><i class="sw" style="background:#1a9850"></i>Ray turns above the 1 km buffer</span>
-          <span><i class="sw" style="background:#e8a33d"></i>Turns inside the buffer</span>
-          <span><i class="sw" style="background:#c62d36"></i>Reaches the ground</span>
+          <span><i class="sw" style="background:#2fbf71"></i>Ray turns above the 1 km buffer</span>
+          <span><i class="sw" style="background:#f2b33d"></i>Turns inside the buffer</span>
+          <span><i class="sw" style="background:#ff4d5e"></i>Reaches the ground</span>
+          <span><i class="sw" style="background:linear-gradient(90deg,#1f57d6,#dfe8f6,#ff7a2f)"></i>Air layers: slower than the aircraft, to faster</span>
         </div>
-        <p class="fine">Vertical scale ×4. Terrain from AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1), water in blue. Atmosphere from the nearest 2° GFS column. Drag to orbit, scroll to zoom.</p>
+        <p class="fine">Terrain from AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1), water in blue. Atmosphere from the nearest 2° GFS column. Drag to orbit, scroll to zoom.</p>
       </div>
     </div>
   </dialog>

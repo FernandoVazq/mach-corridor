@@ -46,7 +46,7 @@
     const [field, fieldB] = await Promise.all([RT.makeField(MC.S.fl, MC.S.fi), RT.makeField(RT.nearestFL(base.fl), MC.S.fi)]);
     if (my !== seq) return;
     const gc = [A, B];
-    const r = { A, B, names, ac, obj,
+    const r = { A, B, names, ac, obj, fl: MC.S.fl, fi: MC.S.fi,
       base: RT.evalPath(fieldB, base, gc, "ban", e), ban: RT.evalPath(field, ac, gc, "ban", e), gc: RT.evalPath(field, ac, gc, "corr", e) };
     r.opt = ac.supersonic ? RT.evalPath(field, ac, RT.optimise(field, ac, A, B, obj, e), "corr", e) : r.gc;
     R = r; MC.fit && MC.fit([...r.opt.path, ...r.gc.path]); MC.schedule(); render(r); window.dispatchEvent(new Event("mc-route"));
@@ -130,6 +130,7 @@
     g2.append("text").attr("x", 0).attr("y", -3).text("Wind along track, kt (green tailwind, red headwind)");
     g2.append("g").attr("class", "axis").attr("transform", `translate(0,${h2})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat(d => d3.format(",")(d) + (d === 0 ? " nm" : ""))).call(s => s.select(".domain").attr("stroke", "var(--rule)"));
     svg.attr("viewBox", `0 0 340 ${6 + h1 + gap + h2 + 22}`);
+    svg.on("click", ev => { const [px] = d3.pointer(ev, g.node()); window.MC3D?.openRoute(Math.max(0, Math.min(e.dist, x.invert(px)))); });
   }
 
   function renderFl(rows) {
@@ -152,6 +153,15 @@
       planRoute([a[3], a[2]], [b[3], b[2]], [a[0], b[0]]);
     };
     $("routeGo").onclick = go;
+    $("fly3d").onclick = () => window.MC3D?.openRoute(0);
+    $("routeHd").onclick = () => {
+      if (!R) return;
+      const segs = R.opt.segs.filter(s => s.landish).length ? R.opt.segs.filter(s => s.landish) : R.opt.segs;
+      const sx = segs.reduce((a, s) => a + Math.sin(s.brg * Math.PI / 180) * s.d, 0), cy = segs.reduce((a, s) => a + Math.cos(s.brg * Math.PI / 180) * s.d, 0);
+      const brg = ((Math.round(Math.atan2(sx, cy) * 180 / Math.PI / 10) * 10) % 360 + 360) % 360;
+      document.querySelector('#hdSeg [data-v="hd"]').click();
+      const sl = $("hdSlider"); sl.value = brg; sl.dispatchEvent(new Event("input"));
+    };
     for (const id of ["fromIn", "toIn"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") go(); });
     for (const id of ["acSel", "objSel"]) $(id).onchange = () => { if (R) planRoute(R.A, R.B, R.names); };
     MC.on("shiftSelect", (a, b) => {

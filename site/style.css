@@ -227,3 +227,12 @@ dialog.big[open] { display: flex; flex-direction: column; }
   .kpi { border-right: 0; border-bottom: 1px solid var(--rule); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+#rprof { cursor: pointer; }
+.c3route { border-bottom: 1px solid var(--rule); padding-bottom: 10px; margin-bottom: 4px; }
+#c3Strip { width: 100%; height: auto; overflow: visible; margin-top: 4px; }
+.c3play { display: flex; gap: 10px; align-items: center; }
+.c3play .play.on { background: var(--route-boomless); }
+.c3pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.c3pair .k { flex-direction: column; gap: 4px; }
