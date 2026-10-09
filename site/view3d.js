@@ -291,7 +291,7 @@ function renderColumn() {
   grp.add(lineOf([[-70000, 0, za], [190000, 0, za]], 0xe2ebfc, 0.35));
   let nTurn = 0, nLow = 0, nGround = 0, lowest = Infinity;
   if (M > 1.0005) {
-    const mu = Math.asin(1 / M), Lc = 22000, nA = 64, nL = 16, vs = [], idx = [];
+    const mu = Math.asin(1 / M), Lc = Math.min(22000, 0.4 * (za - ground) / Math.sin(mu)), nA = 64, nL = 16, vs = [], idx = [];
     for (let i = 0; i <= nL; i++) for (let j = 0; j <= nA; j++) {
       const sDist = Lc * i / nL, ph = 2 * Math.PI * j / nA;
       vs.push(V3(-sDist * Math.cos(mu), sDist * Math.sin(mu) * Math.sin(ph), za - sDist * Math.sin(mu) * Math.cos(ph)));
@@ -299,10 +299,13 @@ function renderColumn() {
     for (let i = 0; i < nL; i++) for (let j = 0; j < nA; j++) { const a = i * (nA + 1) + j, b = a + nA + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const cg = new THREE.BufferGeometry().setFromPoints(vs); cg.setIndex(idx); cg.computeVertexNormals();
     grp.add(new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: 0xbfd6ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false })));
-    for (const sD of [7000, 14000, 22000]) {          // shock rings
+    for (const sD of [Lc / 3, 2 * Lc / 3, Lc]) {          // shock rings
       const ring = []; for (let j = 0; j <= nA; j++) { const ph = 2 * Math.PI * j / nA; ring.push([-sD * Math.cos(mu), sD * Math.sin(mu) * Math.sin(ph), za - sD * Math.sin(mu) * Math.cos(ph)]); }
       grp.add(lineOf(ring, 0xdbe7ff, 0.45));
     }
+    const lc = textSprite("Mach cone (shock wave)", "#dbe7ff", 22); lc.position.copy(V3(-Lc * Math.cos(mu), 0, za + Lc * Math.sin(mu) * 0.55)); lc.center.set(1, 0.5); grp.add(lc);
+    const r0 = trace(F, za, ground, M, 0), mid = r0.pts[Math.floor(r0.pts.length * 0.7)];
+    if (mid) { const lr = textSprite("Boom rays", "#9ff0c4", 22); lr.position.copy(V3(mid[0] + 4000, mid[1], mid[2])); grp.add(lr); }
     for (let phi = -80; phi <= 80; phi += 10) {
       const r = trace(F, za, ground, M, phi);
       let col = green;

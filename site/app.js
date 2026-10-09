@@ -163,7 +163,7 @@
     for (let v = 0; v < 256; v++) lut.push(colorFor(toM(v) - S.margin));
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
       const c = lut[raw(current, tile, i, j)], o = (j * NX + i) * 4;
-      const isLand = raw(current, A().tile_land, i, j) > 127;
+      const isLand = restricted ? true : raw(current, A().tile_land, i, j) > 127;
       img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2];
       img.data[o + 3] = S.fade && !isLand ? 70 : 240;
     }
@@ -186,6 +186,10 @@
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
         ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
+        if (S.fade && dimCanvas) {
+          const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
+          ctx.drawImage(dimCanvas, tx + ox, ty, ux - tx, uy - ty);
+        }
         if (S.relief && shade) {
           ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.95;
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
@@ -245,6 +249,55 @@
     }
     const fx = Math.round(c.width * Math.min(0.3, (S.thresh || 1.05) - 1.0) / 0.30);
     g.fillStyle = "#ff8c1a"; g.fillRect(fx - 1, 0, 2, c.height);
+  }
+
+  // ---------- regulatory zone: national territory (land, lakes, internal waters) + 12 nm territorial sea
+  // + boom-carpet half-width. 14 CFR 91.817(b): a sonic boom may not reach the surface within the United
+  // States, which includes its territorial sea (12 nm, Proclamation 5928) and the Great Lakes. Most other
+  // states ban civil supersonic flight over their territory too. Inside this zone a flight must be
+  // boomless (Mach cutoff) or subsonic; full supersonic is allowed only beyond it.
+  const TERR_SEA_NM = 12, CARPET_NM = 24, RNX = 1440, RNY = 720;
+  let restricted = null;
+  function buildRestricted() {
+    const c = document.createElement("canvas"); c.width = RNX; c.height = RNY;
+    const g = c.getContext("2d", { willReadFrequently: true });
+    const pr = d3.geoEquirectangular().scale(RNX / (2 * Math.PI)).translate([RNX / 2, RNY / 2]).precision(0.1);
+    g.fillStyle = "#fff"; g.beginPath(); d3.geoPath(pr, g)(landGeo); g.fill();
+    const d = g.getImageData(0, 0, RNX, RNY).data, m = new Uint8Array(RNX * RNY);
+    for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 64 ? 1 : 0;
+    const bufDeg = (TERR_SEA_NM + CARPET_NM) / 60, ry = Math.ceil(bufDeg * RNY / 180);
+    const tmp = new Uint8Array(m.length);
+    for (let j = 0; j < RNY; j++) {               // dilate along longitude (radius grows with 1/cos lat)
+      const lat = 90 - (j + 0.5) * 180 / RNY, rx = Math.min(RNX / 2, Math.ceil(bufDeg / Math.max(0.05, Math.cos(lat * Math.PI / 180)) * RNX / 360));
+      let cnt = 0; const row = j * RNX;
+      for (let k = -rx; k <= rx; k++) cnt += m[row + ((k % RNX) + RNX) % RNX];
+      for (let i = 0; i < RNX; i++) {
+        tmp[row + i] = cnt > 0 ? 1 : 0;
+        cnt += m[row + ((i + rx + 1) % RNX)] - m[row + ((i - rx) % RNX + RNX) % RNX];
+      }
+    }
+    const out = new Uint8Array(m.length);
+    for (let i = 0; i < RNX; i++) {               // then along latitude
+      let cnt = 0;
+      for (let k = -ry; k <= ry; k++) if (k >= 0 && k < RNY) cnt += tmp[k * RNX + i];
+      for (let j = 0; j < RNY; j++) {
+        out[j * RNX + i] = cnt > 0 ? 1 : 0;
+        if (j + ry + 1 < RNY) cnt += tmp[(j + ry + 1) * RNX + i];
+        if (j - ry >= 0) cnt -= tmp[(j - ry) * RNX + i];
+      }
+    }
+    restricted = out;
+    // smooth dimming overlay for open ocean (outside the regulated zone)
+    dimCanvas = document.createElement("canvas"); dimCanvas.width = RNX; dimCanvas.height = RNY;
+    const dg = dimCanvas.getContext("2d"), di = dg.createImageData(RNX, RNY);
+    for (let i = 0; i < out.length; i++) { di.data[i * 4] = 6; di.data[i * 4 + 1] = 16; di.data[i * 4 + 2] = 41; di.data[i * 4 + 3] = out[i] ? 0 : 175; }
+    dg.putImageData(di, 0, 0);
+  }
+  let dimCanvas = null;
+  function restrictedAt(lon, lat) {
+    if (!restricted) return null;
+    const i = Math.floor((((lon + 180) % 360) + 360) % 360 / 360 * RNX) % RNX, j = Math.min(RNY - 1, Math.max(0, Math.floor((90 - lat) / 180 * RNY)));
+    return restricted[j * RNX + i] === 1;
   }
 
   // ---------- terrain / hillshade ----------
@@ -502,7 +555,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
-    get terrain() { return terrain; }, get shade() { return shade; }, elevAt,
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt,
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 
@@ -526,6 +579,7 @@
       land = topojson.mesh(topo, topo.objects.countries, (a, b) => a === b);
       borders = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
       landGeo = topojson.merge(topo, topo.objects.countries.geometries);
+      buildRestricted();
       const p = readHash();
       buildControls();
       const rt = new Date(man.run_time), gen = new Date(man.generated);

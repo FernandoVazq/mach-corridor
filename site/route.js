@@ -46,7 +46,9 @@
     const brg = bearing(p, q), [a0, a1, w] = field.at(tHr), L = f => f(a0) * (1 - w) + f(a1) * w;
     const c = L(a => m.cAt(a, lon, lat));
     const u = L(a => m.windAt(a, lon, lat)[0]), v = L(a => m.windAt(a, lon, lat)[1]);
-    const landish = m.landAt(a0, lon, lat) > COAST;
+    // inside national territory + 12 nm territorial sea + boom-carpet buffer: boomless or subsonic only
+    const rz = m.restrictedAt ? m.restrictedAt(lon, lat) : null;
+    const landish = rz == null ? m.landAt(a0, lon, lat) > COAST : rz;
     let M, type, mcut = null;
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {

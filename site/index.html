@@ -75,7 +75,7 @@
         <canvas id="legendBar" width="240" height="10"></canvas>
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
         <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
-        <label class="chk"><input type="checkbox" id="fadeOcean" checked> Dim oceans</label>
+        <label class="chk"><input type="checkbox" id="fadeOcean" checked> Dim open ocean (outside the regulated zone)</label>
         <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
       </div>
 
@@ -218,6 +218,7 @@
         <li>Ray acoustics only: no overpressure (psf) and no secondary booms. Not a 14 CFR 91.817 compliance determination.</li>
         <li>The 1 km buffer and the 0.03 margin are provisional until validated against a year of soundings, GFS forecast error and the XB-1 flight days.</li>
         <li>Climb or descent angle is not modelled (a −3° descent costs about 0.03 Mach), and horizontal gradients along the ~40 km ray path are ignored.</li>
+        <li>Regulated zone: under 14 CFR 91.817(b) a sonic boom may not reach the surface within the United States, which includes the 12 nm territorial sea and the Great Lakes. Routes treat every country's territory (land, lakes and internal waters) plus 12 nm of territorial sea plus a 24 nm boom-carpet half-width as a zone where the aircraft must be boomless or subsonic. Full supersonic speed is used only beyond that line.</li>
         <li>The FAA proposal (docket FAA-2026-6935) covers the United States. Other countries keep overland bans, so the global map shows physics only.</li>
       </ul>
       <h2>Sanity check</h2>
