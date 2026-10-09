@@ -69,7 +69,12 @@ function showGlobe(el) {
     });
     renderer.domElement.addEventListener("pointerleave", () => { $("tip").hidden = true; });
     G = { renderer, scene, camera, controls, tex, cnv, globe, el, dirty: true };
-    const resize = () => { const r = el.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
+    const resize = () => {
+      const r = el.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height);
+      // portrait phones: keep the whole globe in view by holding the horizontal field of view
+      camera.fov = camera.aspect < 1 ? 2 * Math.atan(Math.tan(17.5 * Math.PI / 180) / camera.aspect) * 180 / Math.PI : 35;
+      camera.updateProjectionMatrix();
+    };
     new ResizeObserver(resize).observe(el); resize();
     // start looking at the selected point (or the Atlantic)
     const look = (lon, lat) => { const v = new THREE.Vector3().setFromSphericalCoords(3.4, (90 - lat) * RAD, (lon + 90) * RAD); camera.position.copy(v); };
@@ -424,6 +429,7 @@ async function loadAt(lon, lat, fhIndex) {
 function header() {
   const MC = window.MC;
   $("c3Loc").textContent = `${MC.fmtLat(state.lat)} ${MC.fmtLon(state.lon)}`;
+  $("c3Sub").onclick = e => e.currentTarget.classList.toggle("open");
   $("c3Sub").textContent = `GFS valid ${d3.utcFormat("%a %d %b, %H:%M UTC")(new Date(MC.S.man.valid_times[state.fhIndex]))}. Each line is one boom ray leaving the Mach cone. Wall colours: blue where sound is slower than the aircraft (the boom keeps descending), orange where it is faster (the boom turns back up).`;
 }
 async function openColumn() {

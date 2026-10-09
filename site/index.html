@@ -36,6 +36,7 @@
       <div id="globe" class="globe" hidden></div>
       <div class="tip" id="tip" hidden></div>
 
+      <button class="float layersToggle" id="layersToggle" aria-expanded="false" aria-controls="mapControls"><span id="layersSummary">Settings</span><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3 6 L8 11 L13 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
       <div class="float layers" id="mapControls" aria-label="Map settings">
         <div class="row">
           <span class="k">Flight level</span>
@@ -68,6 +69,13 @@
           <span class="k">View</span>
           <div class="seg" id="viewSeg" aria-label="View"><button data-v="2d">Flat map</button><button data-v="3d">Globe</button></div>
         </div>
+        <div class="row">
+          <span class="k">Show</span>
+          <div class="chks">
+            <label class="chk"><input type="checkbox" id="fadeOcean"> Dim open ocean</label>
+            <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
+          </div>
+        </div>
       </div>
 
       <div class="float legend" id="legend">
@@ -75,8 +83,6 @@
         <canvas id="legendBar" width="240" height="10"></canvas>
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
         <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
-        <label class="chk"><input type="checkbox" id="fadeOcean"> Dim open ocean (outside the regulated zone)</label>
-        <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
       </div>
 
       <div class="float timeline">
@@ -90,6 +96,7 @@
         <output id="timeLbl" class="tval"></output>
       </div>
       <div class="hint" id="hint">Click to inspect a point. Shift-click a second point to plan a route.</div>
+      <div class="pickhint" id="pickHint" hidden>Tap the destination</div>
     </section>
 
     <aside class="drawer">
@@ -102,7 +109,7 @@
 
       <section class="sec" id="inspectPanel">
         <h2>Point</h2>
-        <p class="empty" id="inspHint">Click anywhere on the map.</p>
+        <p class="empty" id="inspHint">Tap or click a point on the map.</p>
         <div id="inspBody" hidden>
           <div class="insphead"><b id="inspLoc"></b><span id="inspSurf"></span></div>
           <div class="inspgrid">
@@ -110,6 +117,7 @@
             <dl class="facts" id="inspFacts"></dl>
           </div>
           <button class="btn" id="open3d">Open 3D column</button>
+          <div class="btnrow"><button class="btn" id="routeFromHere">Start route here</button><button class="btn" id="routeToHere">End route here</button></div>
           <h3>Next 48 hours <span id="tsSub"></span></h3>
           <svg id="ts" viewBox="0 0 320 130" role="img" aria-label="Boomless Mach over forecast time"></svg>
         </div>
@@ -145,7 +153,7 @@
             <span><i class="sw" style="background:var(--route-sub)"></i>Subsonic</span>
           </div>
           <h3>Every altitude, same route</h3>
-          <table class="tbl" id="flTable"></table>
+          <div class="tblwrap"><table class="tbl" id="flTable"></table></div>
           <p class="fine" id="optNote"></p>
         </div>
       </section>

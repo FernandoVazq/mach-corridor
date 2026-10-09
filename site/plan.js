@@ -165,6 +165,27 @@
     };
     for (const id of ["fromIn", "toIn"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") go(); });
     for (const id of ["acSel", "objSel"]) $(id).onchange = () => { if (R) planRoute(R.A, R.B, R.names); };
+    // tap-friendly routing: start here / end here (works without a keyboard)
+    let pendingStart = null;
+    $("routeFromHere").onclick = () => {
+      pendingStart = MC.S.sel.slice(); $("pickHint").hidden = false;
+      $("pickHint").textContent = "Now tap the destination on the map";
+      document.getElementById("mapWrap").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    $("routeToHere").onclick = () => {
+      const start = pendingStart || (R ? R.A : null);
+      if (!start) { pendingStart = null; $("pickHint").hidden = false; $("pickHint").textContent = "Pick a start first: tap a point, then Start route here"; setTimeout(() => $("pickHint").hidden = true, 2500); return; }
+      const b = MC.S.sel.slice(); pendingStart = null; $("pickHint").hidden = true;
+      const names = [ptName(start), ptName(b)]; planRoute(start, b, names);
+      document.getElementById("routePanel").scrollIntoView({ behavior: "smooth" });
+    };
+    MC.on("select", p => {
+      if (!pendingStart) return;
+      const a = pendingStart; pendingStart = null; $("pickHint").hidden = true;
+      const names = [ptName(a), ptName(p)];
+      $("fromIn").value = MC.APT[names[0]] ? names[0] : ""; $("toIn").value = MC.APT[names[1]] ? names[1] : "";
+      planRoute(a, p.slice(), names);
+    });
     MC.on("shiftSelect", (a, b) => {
       const names = [ptName(a), ptName(b)];
       $("fromIn").value = MC.APT[names[0]] ? names[0] : ""; $("toIn").value = MC.APT[names[1]] ? names[1] : "";

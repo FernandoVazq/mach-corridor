@@ -81,6 +81,10 @@ input[list], input:not([type]) { text-transform: uppercase; }
 .layers .v { font-size: 12.5px; min-width: 40px; text-align: right; color: var(--ink); }
 .layers select { height: 28px; width: auto; }
 .legend { left: 12px; bottom: 76px; padding: 10px 12px; width: 268px; font-size: 12px; }
+.layersToggle { display: none; }
+.chks { display: flex; flex-wrap: wrap; gap: 4px 14px; grid-column: 2 / 4; }
+.pickhint { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--route-boomless); color: #fff; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 999px; z-index: 3; }
+#routeFromHere, #routeToHere { width: 100%; }
 .lt { font-weight: 600; font-size: 12.5px; margin-bottom: 6px; }
 #legendBar { display: block; width: 240px; height: 10px; border-radius: 2px; outline: 1px solid var(--rule); }
 .lticks { width: 240px; height: 16px; position: relative; color: var(--ink-2); margin-top: 2px; }
@@ -210,19 +214,41 @@ dialog.big[open] { display: flex; flex-direction: column; }
 
 @media (max-width: 1000px) { .grid2 { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
-  .app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; }
+  .app { height: auto; min-height: 100dvh; grid-template-rows: auto 1fr; }
+  input, select, textarea { font-size: 16px !important; }
+  .layersToggle { display: flex; gap: 8px; align-items: center; top: 10px; left: 10px; padding: 7px 12px; font-size: 13px; font-weight: 500; color: var(--ink); }
+  .layers { top: 52px; left: 10px; right: 10px; width: auto; display: none; z-index: 4; max-height: calc(100% - 120px); overflow-y: auto; }
+  .layers.open { display: grid; }
+  .layers .row { grid-template-columns: 70px 1fr auto; }
+  .layers .seg button { padding: 6px 9px; font-size: 13px; }
+  .legend { display: block; left: auto; right: 10px; top: 10px; bottom: auto; width: auto; padding: 6px 9px 4px; font-size: 10.5px; }
+  .legend .ln { display: none; }
+  .legend .lt { font-size: 11px; margin-bottom: 4px; }
+  #legendBar, .lticks { width: 132px; }
+  .lticks { height: 13px; }
+  .lticks span:nth-child(2) { display: none; }
+  .layers .row > .seg { justify-self: stretch; display: flex; }
+  .layers .row > .seg button { flex: 1; padding: 6px 4px; }
+  .timeline { left: 10px; right: 10px; bottom: 10px; }
+  .stage { min-height: 0; height: 64dvh; }
+  .einputs { display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; }
+  .einputs label { width: auto; }
+  .einputs .btn { grid-column: 1 / 4; }
+  .progress { flex-wrap: wrap; }
+  dialog.big { width: 100vw; height: 100dvh; max-height: none; margin: 0; border-radius: 0; padding: 12px; }
+  .d3body { overflow-y: auto; }
+  .c3canvas { min-height: 44dvh; }
+  .routeparams, .routein { grid-template-columns: 1fr 1fr; }
+  .routein .btn { grid-column: 1 / 3; }
   .bar { flex-wrap: wrap; gap: 8px 16px; padding: 8px 16px 0; }
   .tabs { order: 3; width: 100%; height: 38px; }
   #runInfo { display: none; }
   .mapview { grid-template-columns: 1fr; }
-  .stage { min-height: 74vh; }
-  .layers { width: auto; right: 12px; }
-  .legend, .hint { display: none; }
+  .hint { display: none; }
   .tval { min-width: 0; font-size: 11.5px; }
   .tticks { display: none; }
   .drawer { border-left: 0; border-top: 1px solid var(--rule); }
   .d3body { grid-template-columns: 1fr; }
-  .c3canvas { min-height: 46vh; }
   .page { padding: 20px 16px 40px; }
   .kpi { border-right: 0; border-bottom: 1px solid var(--rule); }
 }
@@ -239,3 +265,31 @@ dialog.big[open] { display: flex; flex-direction: column; }
 
 .inset { position: absolute; right: 12px; bottom: 12px; width: 168px; height: 168px; z-index: 2; pointer-events: none;
   background: rgba(6, 16, 41, .78); border: 1px solid rgba(226, 235, 252, .22); border-radius: 50%; }
+
+/* phone-only overrides that must follow the base rules above */
+@media (max-width: 900px) {
+  .inset { width: 104px; height: 104px; right: 8px; bottom: 8px; }
+  .btn, .seg button, .play { min-height: 38px; }
+  .chk { min-height: 32px; display: flex; align-items: center; gap: 8px; }
+  .chk input { width: 18px; height: 18px; }
+  .pickhint { top: 56px; max-width: calc(100% - 24px); text-align: center; }
+}
+@media (max-width: 420px) {
+  .layers .row { grid-template-columns: 60px 1fr auto; }
+}
+
+@media (max-width: 900px) {
+  .tblwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
+  #c3Sub { font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #c3Sub.open { -webkit-line-clamp: unset; }
+  .acchips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .acchips button { flex: none; }
+  .timeline { padding: 6px 10px 6px 6px; gap: 10px; }
+  .timeline .play { width: 36px; height: 36px; min-height: 36px; }
+}
+@media (max-width: 600px) {
+  /* keep chart text legible on phones: charts keep a minimum width and scroll sideways */
+  .grid2 figure.panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .grid2 figure.panel > svg { min-width: 460px; }
+  .grid2 figure.panel figcaption { position: sticky; left: 0; }
+}

@@ -130,7 +130,10 @@
     const r = canvas.getBoundingClientRect();
     dpr = window.devicePixelRatio || 1; W = r.width; H = r.height;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    W0 = W / H < 1.3 ? W * 1.6 : Math.max(W, 2 * H * 0.92); H0 = W0 / 2; x0 = (W - W0) / 2; y0 = (H - H0) / 2;
+    const portrait = W / H < 1.3;
+    W0 = portrait ? Math.max(W * 1.6, H * 2) : Math.max(W, 2 * H * 0.92); H0 = W0 / 2; y0 = (H - H0) / 2;
+    // on a phone the world doesn't fit; open on the North Atlantic (Americas to Europe)
+    x0 = portrait ? Math.min(0, Math.max(W - W0, W / 2 - (-40 + 180) / 360 * W0)) : (W - W0) / 2;
     zoom.extent([[0, 0], [W, H]]).translateExtent([[Math.min(0, x0) - W0, Math.min(0, y0)], [Math.max(W, x0 + W0) + W0, Math.max(H, y0 + H0)]]);
   }
   const toScreen = (lon, lat) => [S.t.x + S.t.k * (x0 + (lon + 180) / 360 * W0), S.t.y + S.t.k * (y0 + (90 - lat) / 180 * H0)];
@@ -429,6 +432,7 @@
     $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC`;
     $("hdLbl").textContent = S.hd === "hd" ? `${String(S.hdDeg).padStart(3, "0")}°` : "";
     $("hdRow").hidden = S.hd !== "hd";
+    $("layersSummary").textContent = `FL${S.fl}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
     $("legendNote").textContent = S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.";
     $("marginLbl").textContent = S.margin.toFixed(3);
   }
@@ -500,6 +504,7 @@
     $("playBtn").onclick = togglePlay;
     $("apts").innerHTML = AIRPORTS.map(a => `<option value="${a[0]}">${a[1]}</option>`).join("");
     $("protoBadge").onclick = () => setTab("method");
+    $("layersToggle").onclick = () => { const o = $("mapControls").classList.toggle("open"); $("layersToggle").setAttribute("aria-expanded", o); };
     $("tticks").innerHTML = S.man.valid_times.map((v, i) => i % 2 ? "" : `<span style="left:${100 * i / (fhs().length - 1)}%">${d3.utcFormat("%a %HZ")(new Date(v))}</span>`).join("");
     seg($("viewSeg"), null, () => S.view, v => { S.view = v; setView(); });
     document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -507,7 +512,7 @@
   function setView() {
     const g = S.view === "3d";
     $("globe").hidden = !g; canvas.style.visibility = g ? "hidden" : "visible";
-    $("hint").textContent = g ? "Drag to rotate · click: inspect · shift-click: route" : "Click: inspect + 3D column · Shift-click: route to here · scroll to zoom";
+    $("hint").textContent = g ? "Drag to rotate. Click to inspect, shift-click to route." : "Click to inspect a point. Shift-click a second point to plan a route.";
     if (g && window.MC3D) window.MC3D.showGlobe($("globe"));
     writeHash();
   }
