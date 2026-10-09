@@ -6,7 +6,7 @@
   const AC_COLOR = { overture: "#2a78d6", concorde: "#eb6834", as2: "#1baf7a", nplus3: "#c98500", b789: "#7d8797", a321lr: "#a3abb8" };
   let MC, ACS, RT, focus = "overture", selRoute = 0, data = [], running = false, lastE = null;
 
-  const E = () => ({ fuel: +$("fuelPrice").value || 1.42, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
+  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
   const sst = () => ACS.filter(a => a.supersonic);
   const fmtT = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   const mins = h => Math.round(h * 60);
@@ -60,10 +60,27 @@
   }
 
   // ---------- render ----------
-  function renderAll() { renderChips(); renderKpis(); chWorth(); chCorr(); chWind(); chCost(); chCo2(); chTornado(); renderCards(); renderAcTable(); }
+  function renderAll() { renderChips(); renderPlain(); renderKpis(); chWorth(); chCorr(); chWind(); chCost(); chCo2(); chTornado(); renderCards(); renderAcTable(); }
   function renderChips() {
     $("acChips").innerHTML = sst().map(a => `<button role="radio" aria-checked="${a.id === focus}" class="${a.id === focus ? "on" : ""}" data-id="${a.id}"><i style="background:${AC_COLOR[a.id]}"></i>${a.name}</button>`).join("");
     $("acChips").querySelectorAll("button").forEach(b => b.onclick = () => { focus = b.dataset.id; if (data.length) renderAll(); else renderChips(); });
+  }
+  // the whole page in five sentences, for the focus aircraft
+  function renderPlain() {
+    const s = stats(focus), e = lastE || E(), ac = ACS.find(a => a.id === focus);
+    if (!s.length) { $("econPlain").innerHTML = ""; return; }
+    let ex = null;
+    for (const row of data) for (const { d, x } of rec(row, focus)) if (!ex && d.from === "EGLL" && d.to === "KJFK" && x.opt.inRange) ex = { d, x };
+    if (!ex) for (const row of data) for (const { d, x } of rec(row, focus)) if (!ex && x.opt.inRange) ex = { d, x };
+    const be = med(s.map(x => x.be)), extra = med(s.map(x => x.extra)), corr = mins(med(s.map(x => x.corr))), fx = med(s.map(x => x.fuelX));
+    const nm = id => (MC.APT[id] ? MC.APT[id][1] : id).replace(/ (Heathrow|JFK|CDG|Intl.*)$/, "");
+    const worth = be <= e.vot;
+    $("econPlain").innerHTML = `<h3>In plain words: ${ac.name.split(" (")[0]}, at today's fuel price</h3><ol>
+      <li><b>It's fast.</b> ${nm(ex.d.from)} to ${nm(ex.d.to)} takes <b>${fmtT(ex.x.opt.block)}</b> instead of ${fmtT(ex.d.base.block)} on a 787, about ${fmtT(ex.d.base.block - ex.x.opt.block)} saved.</li>
+      <li><b>Corridors help a bit.</b> Flying over land without a boom, instead of slowing down as today's rules require, saves about <b>${corr} more minutes</b> per flight.</li>
+      <li><b>It's expensive.</b> Each seat costs about <b>${money(extra)} more</b> than a 787 seat. Put another way, you pay about <b>${money(be)} for every hour saved</b>.</li>
+      <li><b>${worth ? "Worth it" : "Not worth it"} for most people.</b> It only pays off if an hour of your time is worth more than ${money(be)}. You set ${money(e.vot)}/h.</li>
+      <li><b>It burns a lot more fuel.</b> About <b>${fx.toFixed(0)}× the fuel</b> per passenger of a 787, so ${fx.toFixed(0)}× the CO₂. Fuel is the main reason it's expensive.</li></ol>`;
   }
   function renderKpis() {
     const s = stats(focus), e = lastE || E(), inRange = data.reduce((n, row) => n + rec(row, focus).filter(o => o.x.opt.inRange).length, 0), total = data.length * 2;
@@ -282,5 +299,7 @@
     MC = window.MC; ACS = window.AIRCRAFT; RT = window.ROUTE;
     renderChips(); renderAcTable();
     $("econRun").onclick = run;
+    // run once by itself the first time the tab is opened, so the answer is there without a click
+    new MutationObserver(() => { if (!$("tab-econ").hidden && !data.length && !running) run(); }).observe($("tab-econ"), { attributes: true, attributeFilter: ["hidden"] });
   });
 })();

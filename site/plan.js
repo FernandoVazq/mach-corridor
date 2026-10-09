@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   let MC, ACS, RT, R = null, seq = 0;
 
-  const E = () => ({ fuel: +$("fuelPrice").value || 1.42, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
+  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
   const fmtT = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   const fmtMin = h => { const m = Math.round(h * 60), a = Math.abs(m), sg = m > 0 ? "+" : m < 0 ? "−" : "";
     return a >= 90 ? `${sg}${Math.floor(a / 60)}h ${String(a % 60).padStart(2, "0")}m` : `${sg}${a} min`; };

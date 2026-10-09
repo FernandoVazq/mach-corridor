@@ -167,7 +167,7 @@
         <p>Eight common routes, flown in both directions with the forecast winds, by four supersonic designs against a Boeing 787-9. Every supersonic flight is computed three ways: under today's overland ban, on the direct great circle using boomless corridors, and on the optimised corridor route.</p>
       </div>
       <div class="einputs">
-        <label>Fuel, $/kg<input type="number" id="fuelPrice" step="0.05" value="1.42"></label>
+        <label>Fuel, $/kg<input type="number" id="fuelPrice" step="0.05" value="1.47"></label>
         <label>Value of time, $/h<input type="number" id="vot" step="5" value="85"></label>
         <label>Load factor<input type="number" id="lf" step="0.05" min="0.3" max="1" value="0.8"></label>
         <button class="btn primary" id="econRun">Run analysis</button>
@@ -176,6 +176,7 @@
     <div class="acchips" id="acChips" role="radiogroup" aria-label="Focus aircraft"></div>
     <div class="progress" id="econProgress"><div class="pbar"><i id="pbarFill"></i></div><span id="econProgText">Run the analysis to compute every route with the current forecast.</span></div>
     <div id="econBody" hidden>
+      <div class="plain" id="econPlain"></div>
       <div class="kpirow" id="econKpis"></div>
       <div class="grid2">
         <figure class="panel">
@@ -213,11 +214,22 @@
 
   <main class="page method" id="tab-method" hidden>
     <article>
+      <h1>What the model tells us</h1>
+      <ol class="insights">
+        <li><b>Altitude is the lever.</b> Over a year of real soundings (6 US stations, 4,283 launches), the any-direction boomless Mach has a median of 1.067 at FL350 but 1.147 at FL550. With a 0.03 safety margin a usable corridor (≥ M1.05) exists 38% of the time at FL350, 85% at FL500 and 93% at FL550.</li>
+        <li><b>Winter and the north are the weak spots; the tropics are the best.</b> At FL500 the corridor is usable 69% of the time in winter against 99% in summer. International Falls (48.6°N) manages 57% at FL500; San Juan is usable essentially always from FL500 up.</li>
+        <li><b>The limit is really a ground-speed limit.</b> The boom stays up when the aircraft moves over the ground slower than sound travels in the air below it. Into the wind you can fly a higher Mach because the wind slows you down, which is why the best-direction arrows point upwind. With the wind behind you the allowed Mach is lower, but you still cover more ground: in strong winds at FL400 the median is M1.25 and 635 kt over the ground into the wind, against M1.05 and 681 kt with it. The tailwind aircraft is faster at 94% of those points.</li>
+        <li><b>The forecast is good enough.</b> Against real soundings, GFS misses the boomless Mach by about ±0.015 a day ahead. A 0.03 margin (about 2σ) covers 95% of the cases where the forecast promised too much.</li>
+        <li><b>Corridors only matter over land and coasts.</b> Over open ocean full design Mach is already allowed, so routes ignore bright areas at sea. Where a route can stay over water longer, for example through the Mediterranean, it does.</li>
+        <li><b>Corridors save time but don't fix the economics.</b> For a Boom Overture-type aircraft they save about 45 minutes per flight against today's overland ban. A seat still costs about $2,300 more than on a 787-9, and the aircraft burns about 11× the fuel per passenger at today's $1.47/kg, so it pays off only if an hour is worth more than about $1,250 to the passenger.</li>
+        <li><b>Still unproven: the 1 km safety buffer.</b> On Boom XB-1's 28 Jan 2025 flight the model places M1.12 right at the grazing limit. Without the actual flight track and microphone positions the buffer can't be calibrated yet.</li>
+      </ol>
+      <p class="muted">Findings 1, 2, 4 and 7 come from the validation in <code>validation/</code> (soundings Oct 2025 – Sep 2026, GFS forecasts Sep – Oct 2026). Findings 3, 5 and 6 come from the live forecast and the Economics tab.</p>
       <h1>How the map is made</h1>
       <p class="lead">Sound travels faster in warm air. A boom created high up, in cold air, bends upward as it descends into warmer layers. If a layer under the aircraft carries sound faster than the aircraft moves over it, the boom turns around before it reaches the ground. This is Mach cutoff.</p>
       <h2>The calculation</h2>
       <p class="eq">M<sub>α</sub> = ( max<sub>z<sub>f</sub> ≤ z &lt; z<sub>a</sub></sub> [ c + w·e<sub>α</sub> ] − w<sub>a</sub>·e<sub>α</sub> ) / ( c<sub>a</sub> cos α ),&nbsp;&nbsp; M = min over rays α</p>
-      <p>For every 1° column of the NOAA GFS forecast, six flight levels (FL350 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin (default 0.03) is subtracted.</p>
+      <p>For every 1° column of the NOAA GFS forecast, six flight levels (FL350 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: validation supports 0.03 (about 2σ of the day-ahead error); the map opens at 0.01 and the slider changes it.</p>
       <h2>Routes</h2>
       <p>Routes come from a time-dependent search on a 1° grid in 16 directions, refined continuously from two independent starting routes. The aircraft meets the forecast for the time it gets there, and ground speed comes from the wind triangle. Climb and descent are subsonic, acceleration and deceleration take time and fuel, and boomless legs are flown in constant-Mach blocks of at least 300 nm.</p>
       <h2>Limits</h2>

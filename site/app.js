@@ -34,7 +34,8 @@
   const $ = id => document.getElementById(id);
   const canvas = $("map"), ctx = canvas.getContext("2d");
   let W = 0, H = 0, W0 = 0, H0 = 0, x0 = 0, y0 = 0, dpr = 1, land = null, borders = null, landGeo = null;
-  const off = document.createElement("canvas"); off.width = NX; off.height = NY;
+  const UP = 4;                                    // global raster: 4 pixels per 1° cell, values interpolated before colouring
+  const off = document.createElement("canvas"); off.width = NX * UP; off.height = NY * UP;
   const offCtx = off.getContext("2d");
   let colorKey = "", current = null;
   const listeners = { refresh: [], select: [], shiftSelect: [], texture: [], ready: [] };
@@ -157,24 +158,73 @@
     emit("refresh");
   }
 
+  // Colour is applied after interpolating Mach (not before), so contours and the threshold edge stay smooth
+  // at any zoom instead of showing the 1° grid as blocks.
+  const LUT_N = 1024, LUT_M0 = 0.96, LUT_M1 = 1.66;
+  let lutCache = null;
+  function colorLut() {
+    const k = [S.thresh, S.margin].join("|");
+    if (lutCache && lutCache.k === k) return lutCache.lut;
+    const lut = new Uint8ClampedArray(LUT_N * 3), th = S.thresh;
+    for (let n = 0; n < LUT_N; n++) {
+      const M = LUT_M0 + (LUT_M1 - LUT_M0) * n / (LUT_N - 1);
+      let c = colorFor(Math.max(M, th ? th + 1e-6 : M));
+      if (th) { const t = Math.max(0, Math.min(1, (M - (th - 0.006)) / 0.012)), s2 = t * t * (3 - 2 * t); c = c.map((v, q) => NAVY[q] + (v - NAVY[q]) * s2); }
+      lut[n * 3] = c[0]; lut[n * 3 + 1] = c[1]; lut[n * 3 + 2] = c[2];
+    }
+    lutCache = { k, lut }; return lut;
+  }
+  // fill an ImageData; px(x, y) -> [fi, fj] fractional grid coordinates (fi along longitude, fj from the north pole)
+  function rasterize(img, w, h, px) {
+    const a = current, tile = curTile(), cols = A().cols, aw = AW();
+    const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX;
+    const lt = A().tile_land, lbase = Math.floor(lt / cols) * NY * aw + (lt % cols) * NX;
+    const lut = colorLut(), m0 = enc().M0 - S.margin, ms = enc().M_step, nz = 0.98 - S.margin, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0);
+    const fadeOcean = S.fade && !restricted, d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
+      if (fj0 < -0.5 || fj0 > 180.5) { d[o + 3] = 0; continue; }
+      const fi = ((fi0 % 360) + 360) % 360, fj = Math.min(180, Math.max(0, fj0));
+      const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), di = fi - i0, dj = fj - j0, i1 = (i0 + 1) % NX;
+      const r0 = base + j0 * aw, r1 = r0 + aw;
+      const v00 = a[r0 + i0], v10 = a[r0 + i1], v01 = a[r1 + i0], v11 = a[r1 + i1];
+      const M = ((v00 ? m0 + ms * v00 : nz) * (1 - di) + (v10 ? m0 + ms * v10 : nz) * di) * (1 - dj) + ((v01 ? m0 + ms * v01 : nz) * (1 - di) + (v11 ? m0 + ms * v11 : nz) * di) * dj;
+      const n = Math.max(0, Math.min(LUT_N - 1, Math.round((M - LUT_M0) * sc))) * 3;
+      d[o] = lut[n]; d[o + 1] = lut[n + 1]; d[o + 2] = lut[n + 2];
+      if (fadeOcean) {
+        const l0 = lbase + j0 * aw, l1 = l0 + aw;
+        const L = ((a[l0 + i0] * (1 - di) + a[l0 + i1] * di) * (1 - dj) + (a[l1 + i0] * (1 - di) + a[l1 + i1] * di) * dj) / 255;
+        d[o + 3] = 70 + 170 * Math.max(0, Math.min(1, (L - 0.3) / 0.4));
+      } else d[o + 3] = 240;
+    }
+  }
   function paintData() {
     const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, S.thresh].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
-    const img = offCtx.createImageData(NX, NY), tile = curTile();
-    const lut = [];
-    for (let v = 0; v < 256; v++) lut.push(colorFor(toM(v) - S.margin));
-    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-      const c = lut[raw(current, tile, i, j)], o = (j * NX + i) * 4;
-      const isLand = restricted ? true : raw(current, A().tile_land, i, j) > 127;
-      img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2];
-      img.data[o + 3] = S.fade && !isLand ? 70 : 240;
-    }
+    const w = NX * UP, h = NY * UP, img = offCtx.createImageData(w, h);
+    rasterize(img, w, h, (x, y) => [(x + 0.5) / UP - 0.5, (y + 0.5) / UP - 0.5]);
     offCtx.putImageData(img, 0, 0);
     drawLegend();
     return true;
   }
-
+  // when zoomed in, re-render just the visible window at screen resolution (after the view settles)
+  let vp = null, vpTimer = null;
+  const vpCanvas = document.createElement("canvas"), vpCtx = vpCanvas.getContext("2d");
+  function viewportKey() { return [colorKey, S.t.x.toFixed(1), S.t.y.toFixed(1), S.t.k.toFixed(4), W, H].join("|"); }
+  function requestViewport() {
+    if (S.t.k < 2 || !current) { vp = null; return; }
+    if (vp && vp.key === viewportKey()) return;
+    clearTimeout(vpTimer);
+    vpTimer = setTimeout(() => {
+      const r = Math.min(2, dpr), w = Math.ceil(W * r / 1.5), h = Math.ceil(H * r / 1.5);
+      vpCanvas.width = w; vpCanvas.height = h;
+      const img = vpCtx.createImageData(w, h);
+      rasterize(img, w, h, (x, y) => { const [lon, lat] = toLonLat((x + 0.5) * W / w, (y + 0.5) * H / h); return [lon + 180, 90 - lat]; });
+      vpCtx.putImageData(img, 0, 0);
+      vp = { key: viewportKey() }; schedule();
+    }, 160);
+  }
   function draw() {
     rafPending = false;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -184,11 +234,14 @@
     const wraps = [-W0, 0, W0];
     if (current) {
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      requestViewport();
+      const sharp = vp && vp.key === viewportKey();
+      if (sharp) ctx.drawImage(vpCanvas, 0, 0, W, H);
       for (const dx of wraps) {
         const [ax, ay] = toScreen(-180.5, 90.5), [bx, by] = toScreen(179.5, -90.5);
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
-        ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
+        if (!sharp) ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
         if (S.fade && dimCanvas) {
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(dimCanvas, tx + ox, ty, ux - tx, uy - ty);

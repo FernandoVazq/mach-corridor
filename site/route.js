@@ -116,6 +116,9 @@
       if (s.M > 1) dSuper += s.d;
       if (s.accel || s.decel) tAcc += s.t;
     }
+    // take-off, climb and transonic acceleration burn more than the cruise-rate segments above account for:
+    // a fixed allowance per flight (aircraft.js climbFuel; calibrated to Concorde, energy estimate for the others)
+    if (ac.supersonic && dSuper > 0) fuel += ac.climbFuel || 0;
     const block = t + BLOCK_EXTRA_H, nonFuel = ac.nonFuelPerBH * block, op = fuel * E.fuel + nonFuel;
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,

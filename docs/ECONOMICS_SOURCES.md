@@ -68,7 +68,8 @@ Confidence: H = primary/official; M = secondary or derived; L = estimate/unverif
 ## 6. Cost inputs
 | Parameter | Value | Source | Conf. |
 |---|---|---|---|
-| Jet fuel (wk to 11 Sep 2026) | $181.46/bbl = **$4.32/gal ≈ $1.42/kg** (3.04 kg/gal) | [Oman Observer / Jet Fuel Price Monitor](https://www.omanobserver.om/article/1196292/business/aviation/as-aviation-fuel-climbs-to-181-pressure-on-airlines-operating-costs) | H (derived units) |
+| Jet fuel (IATA weekly average, early Oct 2026) | $187.34/bbl = **$4.46/gal ≈ $1.47/kg** (3.04 kg/gal) | [IATA Jet Fuel Price Monitor](https://www.iata.org/en/publications/economics/fuel-monitor/) | H (derived units) |
+| Jet fuel (wk to 11 Sep 2026, previous default) | $181.46/bbl ≈ $1.42/kg | [Oman Observer](https://www.omanobserver.om/article/1196292/business/aviation/as-aviation-fuel-climbs-to-181-pressure-on-airlines-operating-costs) | H |
 | IATA original 2026 forecast | $88/bbl (prices ~+90% YoY) | [Oman Observer](https://www.omanobserver.om/article/1187735/business/aviation/jet-fuel-beats-2026-forecast-of-88-per-barrel-to-all-time-high) | H |
 | Value of time (air, 2015$) | **Business $63.20/h**; personal $36.10; all $47.10 | [FAA](https://www.faa.gov/regulations_policies/policy_guidance/benefit_cost/econ-value-section-1-tx-time.pdf) | H |
 | Supersonic crew+mx/bh | No published figure; use widebody ×1.5–3 as scenario | — | L |
@@ -81,3 +82,12 @@ Confidence: H = primary/official; M = secondary or derived; L = estimate/unverif
 
 ## Fuel-per-nm vs Mach (M0.9–2)
 Specific range SR ∝ M·(L/D)/TSFC. Concorde-like: L/D ≈ 12 (M0.95), ~8 (M1.15, unverified interpolation through the wave-drag peak), 7.5 (M2); TSFC ≈ 0.95 (unverified) / 1.10 / 1.17 lb/lbf·h → relative SR ≈ 12.0 : 8.4 : 12.8. So fuel/nm is **worst at M1.1–1.3** (~+40% vs M0.95) and recovers at M2 — matches Starr's 14 vs 23 pax-mi/gal shape. Overture-like (M1.7 design, unverified): L/D ≈ 13 / 9 / 9 (M0.95/1.15/1.7), TSFC held at ~1.0 → SR ≈ 12.4 : 10.3 : 15.3 (relative). Empirical anchor: DLR mission fuel +15–25% at M≈1.11 vs M0.95, i.e. fuel/nm ≈ 1.2× and fuel/h ≈ 1.4×. Usable fit: fuel/nm(M) ≈ f₀·[1 + 0.25·exp(−((M−1.15)/0.15)²)] for M∈[0.9,1.4], then linear to f₀·(0.9–1.0) at design Mach. Conclusion: M1.15 overland is **not** more fuel-efficient per nm than M0.95.
+
+## Fuel model check (2026-10-09)
+| Item | Before | Check | Now |
+|---|---|---|---|
+| Aerion AS2 cruise fuel | 2.95 kg/nm (ICCT airliner-seat ratio) | 26.8 t fuel for 4,200 nm ⇒ ~5.6 kg/nm trip average | **5.0 kg/nm** cruise at M1.4 (M) |
+| Climb + transonic acceleration | only +35% fuel while accelerating | Model gave ~58 t LHR–JFK for Concorde vs ~72 t (BA 20.5 t/h × 3.5 h, L) | **+5% MTOW** per flight with afterburners (Concorde), **+3% MTOW** without (energy estimate, L) |
+| Boom Overture | 19.2 kg/nm at M1.7 | Breguet: MTOW 188 t ([Wikipedia](https://en.wikipedia.org/wiki/Boom_Overture)), L/D ≈ 9, TSFC ≈ 1.0 ⇒ ~17–19 kg/nm | unchanged |
+| Concorde cruise | 17.9 kg/nm at M2 | BA 20.5 t/h ÷ 1,147 kt | unchanged |
+| 787-9 | 10.7 kg/nm | 5.77 kg/km trip average | unchanged |
