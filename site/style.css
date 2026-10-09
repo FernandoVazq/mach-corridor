@@ -236,3 +236,6 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .c3play .play.on { background: var(--route-boomless); }
 .c3pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .c3pair .k { flex-direction: column; gap: 4px; }
+
+.inset { position: absolute; right: 12px; bottom: 12px; width: 168px; height: 168px; z-index: 2; pointer-events: none;
+  background: rgba(6, 16, 41, .78); border: 1px solid rgba(226, 235, 252, .22); border-radius: 50%; }
