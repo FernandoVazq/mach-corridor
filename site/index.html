@@ -4,203 +4,259 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mach Corridor</title>
-<meta name="description" content="Research prototype: forecast map of Mach-cutoff (boomless) supersonic corridors from NOAA GFS, with route and economics analysis.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 6 L28 22' fill='none' stroke='%231a9850' stroke-width='3'/%3E%3Cpath d='M2 27 Q16 17 30 27' fill='none' stroke='%23b2182b' stroke-width='2.5'/%3E%3C/svg%3E">
+<meta name="description" content="Research prototype: forecast map of Mach-cutoff (boomless) supersonic corridors from NOAA GFS, with route optimisation and economics.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div class="brand">
-      <h1>Mach Corridor</h1>
-      <p class="sub">Boomless supersonic corridors — Mach-cutoff forecast · research prototype</p>
-    </div>
-    <nav class="tabs" role="tablist">
+  <header class="bar">
+    <a class="brand" href="#" aria-label="Mach Corridor home">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
+      <span class="name">Mach Corridor</span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" data-tab="map" class="on" aria-selected="true">Map</button>
       <button role="tab" data-tab="econ" aria-selected="false">Economics</button>
+      <button role="tab" data-tab="method" aria-selected="false">Method</button>
     </nav>
-    <div class="run" id="runInfo">Loading forecast…</div>
-    <button class="ghost" id="aboutBtn">How it works</button>
+    <div class="status">
+      <span id="runInfo">Loading forecast</span>
+      <button class="badge" id="protoBadge" title="Research prototype, not for flight planning">Prototype</button>
+    </div>
   </header>
 
-  <div class="limits" id="limits">
-    <b>Research prototype — not for flight planning.</b> Ray-acoustics model on NOAA GFS forecasts; no overpressure (psf) calculation, no secondary booms, not a 14 CFR 91.817 compliance determination. Forecast-error margin is provisional until validation. Not affiliated with Boom, NASA or the FAA.
-    <button class="x" id="limitsX" aria-label="Dismiss">✕</button>
-  </div>
-
-  <section class="controls" id="mapControls" aria-label="Map controls">
-    <div class="ctl">
-      <span class="lbl">Flight level</span>
-      <div class="seg" id="flSeg" role="radiogroup" aria-label="Flight level"></div>
-    </div>
-    <div class="ctl">
-      <span class="lbl">Direction of travel <b id="hdLbl">any</b></span>
-      <div class="dirrow">
-        <div class="seg" id="hdSeg" role="radiogroup" aria-label="Direction mode">
-          <button data-v="min">Any</button><button data-v="max">Best</button><button data-v="hd">Heading</button>
-        </div>
-        <input type="range" id="hdSlider" min="0" max="350" step="10" value="90" aria-label="Heading in degrees" disabled>
-      </div>
-    </div>
-    <div class="ctl grow">
-      <span class="lbl">Valid time <b id="timeLbl">—</b></span>
-      <div class="timerow">
-        <button class="icon" id="playBtn" aria-label="Play forecast animation">▶</button>
-        <input type="range" id="timeSlider" min="0" max="8" step="1" value="0" aria-label="Forecast hour">
-      </div>
-    </div>
-    <div class="ctl">
-      <span class="lbl">Forecast margin <b id="marginLbl">0.030</b></span>
-      <input type="range" id="marginSlider" min="0" max="0.06" step="0.005" value="0.03" aria-label="Safety margin in Mach">
-    </div>
-    <div class="ctl">
-      <span class="lbl">Show only ≥</span>
-      <select id="threshSel" aria-label="Highlight threshold">
-        <option value="0">All values</option><option value="1.05">M 1.05</option><option value="1.10">M 1.10</option>
-        <option value="1.15">M 1.15</option><option value="1.20">M 1.20</option><option value="1.25">M 1.25</option><option value="1.30">M 1.30</option>
-      </select>
-    </div>
-    <div class="ctl">
-      <span class="lbl">View</span>
-      <div class="seg" id="viewSeg">
-        <button data-v="2d" class="on">2D</button><button data-v="3d">3D globe</button>
-      </div>
-    </div>
-  </section>
-
-  <main class="main" id="tab-map">
-    <div class="mapwrap" id="mapWrap">
+  <main class="mapview" id="tab-map">
+    <section class="stage" id="mapWrap">
       <canvas id="map" aria-label="World map of boomless cruise Mach"></canvas>
       <div id="globe" class="globe" hidden></div>
       <div class="tip" id="tip" hidden></div>
-      <div class="legend" id="legend">
-        <div class="ltitle">Boomless cruise Mach <span class="muted">(boom turns ≥ 1 km above terrain, minus margin)</span></div>
-        <canvas id="legendBar" width="280" height="12"></canvas>
-        <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30+</span></div>
-        <div class="lnote">dark = little or no boomless Mach · white = most Mach allowed · orange tick = M 1.05 usable floor</div>
-        <label class="chk"><input type="checkbox" id="fadeOcean" checked> Fade oceans (regulatory status not modelled)</label>
-        <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief (topography, 3D on globe)</label>
-      </div>
-      <div class="hint" id="hint">Click: inspect + 3D column · Shift-click: route to here · scroll to zoom</div>
-    </div>
 
-    <aside class="side">
-      <div class="kpis">
-        <div class="kpi"><div class="kv" id="kpiLand">—</div><div class="kl">Median boomless Mach over land, any direction (area-weighted)</div></div>
-        <div class="kpi"><div class="kv" id="kpiPct">—</div><div class="kl">Land area with a usable corridor (≥ M 1.05) in any direction</div></div>
+      <div class="float layers" id="mapControls" aria-label="Map settings">
+        <div class="row">
+          <span class="k">Flight level</span>
+          <div class="seg" id="flSeg" role="radiogroup" aria-label="Flight level"></div>
+        </div>
+        <div class="row">
+          <span class="k">Direction</span>
+          <div class="seg" id="hdSeg" role="radiogroup" aria-label="Direction mode">
+            <button data-v="min" title="Worst case over all directions">Any</button><button data-v="max" title="Most favourable direction">Best</button><button data-v="hd">Heading</button>
+          </div>
+        </div>
+        <div class="row" id="hdRow">
+          <span class="k"></span>
+          <input type="range" id="hdSlider" min="0" max="350" step="10" value="90" aria-label="Heading in degrees" disabled>
+          <output id="hdLbl" class="v"></output>
+        </div>
+        <div class="row">
+          <span class="k">Margin</span>
+          <input type="range" id="marginSlider" min="0" max="0.06" step="0.005" value="0.03" aria-label="Forecast-error margin in Mach">
+          <output id="marginLbl" class="v"></output>
+        </div>
+        <div class="row">
+          <span class="k">Highlight</span>
+          <select id="threshSel" aria-label="Only show Mach at or above">
+            <option value="0">All values</option><option value="1.05">M 1.05 and up</option><option value="1.10">M 1.10 and up</option>
+            <option value="1.15">M 1.15 and up</option><option value="1.20">M 1.20 and up</option><option value="1.25">M 1.25 and up</option><option value="1.30">M 1.30 and up</option>
+          </select>
+        </div>
+        <div class="row">
+          <span class="k">View</span>
+          <div class="seg" id="viewSeg" aria-label="View"><button data-v="2d">Flat map</button><button data-v="3d">Globe</button></div>
+        </div>
       </div>
 
-      <div class="panel" id="inspectPanel">
-        <h2>Point <span class="muted small" id="inspHint">— click the map</span></h2>
+      <div class="float legend" id="legend">
+        <div class="lt">Boomless cruise Mach</div>
+        <canvas id="legendBar" width="240" height="10"></canvas>
+        <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
+        <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
+        <label class="chk"><input type="checkbox" id="fadeOcean" checked> Dim oceans</label>
+        <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
+      </div>
+
+      <div class="float timeline">
+        <button class="play" id="playBtn" aria-label="Play forecast">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" fill="currentColor"/></svg>
+        </button>
+        <div class="tl">
+          <input type="range" id="timeSlider" min="0" max="8" step="1" value="0" aria-label="Forecast valid time">
+          <div class="tticks" id="tticks"></div>
+        </div>
+        <output id="timeLbl" class="tval"></output>
+      </div>
+      <div class="hint" id="hint">Click to inspect a point. Shift-click a second point to plan a route.</div>
+    </section>
+
+    <aside class="drawer">
+      <section class="sec">
+        <div class="stats">
+          <div><div class="sv" id="kpiLand">–</div><div class="sk">Median boomless Mach over land, any direction</div></div>
+          <div><div class="sv" id="kpiPct">–</div><div class="sk">Land area with a usable corridor</div></div>
+        </div>
+      </section>
+
+      <section class="sec" id="inspectPanel">
+        <h2>Point</h2>
+        <p class="empty" id="inspHint">Click anywhere on the map.</p>
         <div id="inspBody" hidden>
-          <div class="insphead"><b id="inspLoc"></b><span class="muted" id="inspSurf"></span></div>
+          <div class="insphead"><b id="inspLoc"></b><span id="inspSurf"></span></div>
           <div class="inspgrid">
             <svg id="polar" viewBox="-120 -120 240 240" role="img" aria-label="Boomless Mach by direction"></svg>
             <dl class="facts" id="inspFacts"></dl>
           </div>
-          <button class="primary wide" id="open3d">Open 3D column view ↗</button>
-          <h3>Next 48 h here <span class="muted" id="tsSub"></span></h3>
+          <button class="btn" id="open3d">Open 3D column</button>
+          <h3>Next 48 hours <span id="tsSub"></span></h3>
           <svg id="ts" viewBox="0 0 320 130" role="img" aria-label="Boomless Mach over forecast time"></svg>
         </div>
-      </div>
+      </section>
 
-      <div class="panel" id="routePanel">
-        <h2>Route <span class="muted small">— shift-click a destination</span></h2>
+      <section class="sec" id="routePanel">
+        <h2>Route</h2>
         <div class="routein">
-          <label>From <input list="apts" id="fromIn" placeholder="EGLL" autocomplete="off"></label>
-          <label>To <input list="apts" id="toIn" placeholder="KJFK" autocomplete="off"></label>
-          <button class="primary" id="routeGo">Plan</button>
+          <label>From<input list="apts" id="fromIn" placeholder="EGLL" autocomplete="off"></label>
+          <label>To<input list="apts" id="toIn" placeholder="KJFK" autocomplete="off"></label>
+          <button class="btn primary" id="routeGo">Plan</button>
         </div>
         <datalist id="apts"></datalist>
         <div class="routeparams">
-          <label>Aircraft <select id="acSel"></select></label>
-          <label>Optimise for <select id="objSel">
+          <label>Aircraft<select id="acSel"></select></label>
+          <label>Optimise for<select id="objSel">
             <option value="time">Time</option>
             <option value="cost">Operating cost</option>
-            <option value="gen" selected>Cost + passenger time</option>
+            <option value="gen" selected>Cost and passenger time</option>
           </select></label>
         </div>
         <div id="routeOut" hidden>
           <div id="routeSummary" class="rsum"></div>
-          <table class="rt" id="routeTable"></table>
-          <h3>Same route at every flight level <span class="muted">(optimised path)</span></h3>
-          <table class="rt" id="flTable"></table>
-          <h3>Mach along the optimised route</h3>
-          <svg id="rprof" viewBox="0 0 320 150" role="img" aria-label="Planned Mach along route"></svg>
-          <div class="rlegend">
-            <span><i class="sw sw-opt"></i>Optimised route</span>
-            <span><i class="sw sw-gc"></i>Great circle</span>
-            <span><i class="sw sw-sub"></i>Subsonic segment</span>
+          <div id="routeKpis" class="kgrid"></div>
+          <h3>Block time</h3>
+          <svg id="rLadder" viewBox="0 0 340 130" role="img" aria-label="Block time comparison"></svg>
+          <h3>Mach and wind along the route</h3>
+          <svg id="rprof" viewBox="0 0 340 200" role="img" aria-label="Mach and wind along route"></svg>
+          <div class="keyrow">
+            <span><i class="sw" style="background:var(--route-boomless)"></i>Boomless over land</span>
+            <span><i class="sw" style="background:var(--route-super)"></i>Supersonic over water</span>
+            <span><i class="sw" style="background:var(--route-sub)"></i>Subsonic</span>
           </div>
+          <h3>Every altitude, same route</h3>
+          <table class="tbl" id="flTable"></table>
+          <p class="fine" id="optNote"></p>
         </div>
-      </div>
+      </section>
     </aside>
   </main>
 
-  <main class="econ" id="tab-econ" hidden>
-    <div class="econhead">
+  <main class="page" id="tab-econ" hidden>
+    <div class="phead">
       <div>
-        <h2>Economic evaluation</h2>
-        <p class="muted">Each route is flown three ways per aircraft: great circle under today's overland ban, great circle using boomless corridors, and the cost-optimised corridor route. Uses the selected forecast time and each aircraft's cruise level. One forecast snapshot — not a climatology.</p>
+        <h1>Economics</h1>
+        <p>Eight common routes, flown in both directions with the forecast winds, by four supersonic designs against a Boeing 787-9. Every supersonic flight is computed three ways: under today's overland ban, on the direct great circle using boomless corridors, and on the optimised corridor route.</p>
       </div>
-      <div class="econin">
-        <label>Jet fuel $/kg <input type="number" id="fuelPrice" step="0.05" value="1.42"></label>
-        <label>Value of time $/h <input type="number" id="vot" step="5" value="85"></label>
-        <label>Load factor <input type="number" id="lf" step="0.05" min="0.3" max="1" value="0.8"></label>
-        <button class="primary" id="econRun">Run analysis</button>
+      <div class="einputs">
+        <label>Fuel, $/kg<input type="number" id="fuelPrice" step="0.05" value="1.42"></label>
+        <label>Value of time, $/h<input type="number" id="vot" step="5" value="85"></label>
+        <label>Load factor<input type="number" id="lf" step="0.05" min="0.3" max="1" value="0.8"></label>
+        <button class="btn primary" id="econRun">Run analysis</button>
       </div>
     </div>
-    <div id="econProgress" class="muted"></div>
-    <div id="econOut"></div>
-    <h3>Aircraft assumptions</h3>
-    <div id="acTable"></div>
-    <p class="muted small">Sources: Concorde (BA, Orlebar via L/D tables), Boom Overture fact sheet 2025, Aerion AS2 (public specs), ICCT 2019/2022 supersonic fuel studies, NASA N+3 goals, DLR (Liebhardt et al. 2021, AIAA) Mach-cutoff fuel penalty, United/MIT cost per block hour (2016, inflated ×1.35), jet fuel $181/bbl (Sep 2026), FAA value of time ($63.20 in 2015$). Full table: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/docs/ECONOMICS_SOURCES.md">docs/ECONOMICS_SOURCES.md</a>. Values marked L are estimates.</p>
+    <div class="acchips" id="acChips" role="radiogroup" aria-label="Focus aircraft"></div>
+    <div class="progress" id="econProgress"><div class="pbar"><i id="pbarFill"></i></div><span id="econProgText">Run the analysis to compute every route with the current forecast.</span></div>
+    <div id="econBody" hidden>
+      <div class="kpirow" id="econKpis"></div>
+      <div class="grid2">
+        <figure class="panel">
+          <figcaption><b>Is it worth the fare?</b><span>Hours saved against a 787-9 versus extra cost per seat. Points below your value-of-time line pay off.</span></figcaption>
+          <svg id="chWorth" viewBox="0 0 520 330"></svg>
+        </figure>
+        <figure class="panel">
+          <figcaption><b>What boomless corridors add</b><span>Minutes saved over today's overland ban, by route, for the focus aircraft.</span></figcaption>
+          <svg id="chCorr" viewBox="0 0 520 330"></svg>
+        </figure>
+        <figure class="panel">
+          <figcaption><b>Wind changes the answer</b><span>Block time each way with the forecast winds, focus aircraft against the 787-9.</span></figcaption>
+          <svg id="chWind" viewBox="0 0 520 330"></svg>
+        </figure>
+        <figure class="panel">
+          <figcaption><b>Where the money goes</b><span>Cost per seat on the selected route, split into fuel and everything else.</span></figcaption>
+          <svg id="chCost" viewBox="0 0 520 330"></svg>
+        </figure>
+        <figure class="panel">
+          <figcaption><b>Fuel and CO₂ per seat</b><span>Multiple of the 787-9 on the same route, both directions averaged.</span></figcaption>
+          <svg id="chCo2" viewBox="0 0 520 330"></svg>
+        </figure>
+        <figure class="panel">
+          <figcaption><b>What moves the break-even</b><span>Break-even value of time for the focus aircraft on the selected route when one assumption changes.</span></figcaption>
+          <svg id="chTornado" viewBox="0 0 520 330"></svg>
+        </figure>
+      </div>
+      <h2 class="h2">Routes <span class="muted">Select one to update the route charts above. Open it on the map from its card.</span></h2>
+      <div class="routegrid" id="routeCards"></div>
+      <h2 class="h2">Aircraft assumptions</h2>
+      <div class="tscroll"><table class="tbl" id="acTable"></table></div>
+      <p class="fine">Sources: Concorde (British Airways; L/D from Orlebar), Boom Overture fact sheet 2025, Aerion AS2 public specifications, ICCT 2019 and 2022 supersonic fuel studies, NASA N+3 goals, DLR (Liebhardt et al., AIAA 2021) for the Mach-cutoff fuel penalty, United/MIT cost per block hour 2016 inflated by 1.35, jet fuel $181/bbl (September 2026), FAA value of time. Values marked L are estimates. Full table in <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/docs/ECONOMICS_SOURCES.md">docs/ECONOMICS_SOURCES.md</a>.</p>
+    </div>
+  </main>
+
+  <main class="page method" id="tab-method" hidden>
+    <article>
+      <h1>How the map is made</h1>
+      <p class="lead">Sound travels faster in warm air. A boom created high up, in cold air, bends upward as it descends into warmer layers. If a layer under the aircraft carries sound faster than the aircraft moves over it, the boom turns around before it reaches the ground. This is Mach cutoff.</p>
+      <h2>The calculation</h2>
+      <p class="eq">M<sub>α</sub> = ( max<sub>z<sub>f</sub> ≤ z &lt; z<sub>a</sub></sub> [ c + w·e<sub>α</sub> ] − w<sub>a</sub>·e<sub>α</sub> ) / ( c<sub>a</sub> cos α ),&nbsp;&nbsp; M = min over rays α</p>
+      <p>For every 1° column of the NOAA GFS forecast, six flight levels (FL350 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin (default 0.03) is subtracted.</p>
+      <h2>Routes</h2>
+      <p>Routes come from a time-dependent search on a 1° grid in 16 directions, refined continuously from two independent starting routes. The aircraft meets the forecast for the time it gets there, and ground speed comes from the wind triangle. Climb and descent are subsonic, acceleration and deceleration take time and fuel, and boomless legs are flown in constant-Mach blocks of at least 300 nm.</p>
+      <h2>Limits</h2>
+      <ul>
+        <li>Research prototype, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>
+        <li>Ray acoustics only: no overpressure (psf) and no secondary booms. Not a 14 CFR 91.817 compliance determination.</li>
+        <li>The 1 km buffer and the 0.03 margin are provisional until validated against a year of soundings, GFS forecast error and the XB-1 flight days.</li>
+        <li>Climb or descent angle is not modelled (a −3° descent costs about 0.03 Mach), and horizontal gradients along the ~40 km ray path are ignored.</li>
+        <li>The FAA proposal (docket FAA-2026-6935) covers the United States. Other countries keep overland bans, so the global map shows physics only.</li>
+      </ul>
+      <h2>Sanity check</h2>
+      <p>A standard atmosphere with no wind gives M 1.15 at FL400 without the buffer and M 1.14 with it, within the range Boom's XB-1 flew without an audible boom in 2025 (M 1.12–1.18). This is a sanity check, not validation.</p>
+      <p class="fine">Data: NOAA GFS via AWS Open Data, updated four times a day. Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
+    </article>
   </main>
 
   <dialog id="col3d" class="big">
     <div class="d3head">
-      <div><h2>3D column view <span class="muted" id="c3Loc"></span></h2>
-        <p class="muted small" id="c3Sub"></p></div>
-      <form method="dialog"><button class="ghost" aria-label="Close">✕</button></form>
+      <div><h2>3D column <span id="c3Loc"></span></h2><p id="c3Sub"></p></div>
+      <form method="dialog"><button class="icon" aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6"/></svg></button></form>
     </div>
     <div class="d3body">
       <div id="c3Canvas" class="c3canvas"></div>
       <div class="c3side">
-        <label class="lbl">Mach <b id="c3MachLbl"></b></label>
+        <label class="k">Mach <output id="c3MachLbl"></output></label>
         <input type="range" id="c3Mach" min="1.00" max="1.50" step="0.005">
-        <label class="lbl">Direction of travel <b id="c3HdLbl"></b></label>
+        <label class="k">Direction of travel <output id="c3HdLbl"></output></label>
         <input type="range" id="c3Hd" min="0" max="350" step="10">
-        <label class="lbl">Flight level</label>
+        <label class="k">Flight level</label>
         <select id="c3Fl"></select>
         <div id="c3Stats" class="c3stats"></div>
-        <div class="rlegend col">
-          <span><i class="sw sw-green"></i>Ray turns above the 1 km buffer</span>
-          <span><i class="sw sw-amber"></i>Turns inside the buffer (caustic too low)</span>
-          <span><i class="sw sw-red"></i>Reaches the ground (boom)</span>
+        <div class="keyrow col">
+          <span><i class="sw" style="background:#1a9850"></i>Ray turns above the 1 km buffer</span>
+          <span><i class="sw" style="background:#e8a33d"></i>Turns inside the buffer</span>
+          <span><i class="sw" style="background:#c62d36"></i>Reaches the ground</span>
         </div>
-        <p class="muted small">Vertical scale ×4. Low-poly terrain from AWS Terrain Tiles (Mapzen; SRTM, GMTED2010, ETOPO1), water in blue. Atmosphere from the nearest 2° GFS column; the map uses 1°. Drag to orbit, scroll to zoom.</p>
+        <p class="fine">Vertical scale ×4. Terrain from AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1), water in blue. Atmosphere from the nearest 2° GFS column. Drag to orbit, scroll to zoom.</p>
       </div>
     </div>
-  </dialog>
-
-  <dialog id="about">
-    <form method="dialog"><button class="ghost close" aria-label="Close">✕</button></form>
-    <h2>How it works</h2>
-    <p><b>Mach cutoff.</b> Sound travels faster in warm air. A boom made high up in cold air bends upward as it descends into warmer layers. If some layer under the aircraft has an effective sound speed (sound + wind along the ray) at least as fast as the aircraft, the boom turns around before reaching the ground.</p>
-    <p class="eq">M<sub>α</sub> = ( max<sub>z<sub>f</sub> ≤ z &lt; z<sub>a</sub></sub> [ c + w·e<sub>α</sub> ] − w<sub>a</sub>·e<sub>α</sub> ) / ( c<sub>a</sub> cos α ),&nbsp; M = min over rays α</p>
-    <p>The turning point is a caustic (focused boom), so v2 requires it to sit at least <b>1 km above the highest terrain</b> under the boom footprint (z<sub>f</sub>). Lateral rays (α ≠ 0) with crosswinds are included, the speed of sound uses virtual temperature, and the map subtracts a provisional forecast-error margin (default 0.03).</p>
-    <p>Data: NOAA GFS 1° pressure levels + 0.25° orography, 0–48 h every 6 h, updated 4× daily. 6 flight levels × 36 directions.</p>
-    <p><b>Sanity check (not validation):</b> a standard atmosphere gives M 1.15 at FL400 with no buffer (M 1.14 with 1 km), in the range Boom XB-1 flew boomless (M 1.12–1.18, 2025).</p>
-    <p><b>Not included:</b> overpressure (psf) and secondary booms, horizontal gradients along the ~40 km ray path, climb/descent angle (−3° costs ≈0.03 M), aircraft-specific near field. Global map shown for physics only; the FAA NPRM (docket FAA-2026-6935) covers the US, and other countries keep overland bans.</p>
-    <p class="muted small">Red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor/tree/main/docs">github.com/FernandoVazq/mach-corridor/docs</a></p>
   </dialog>
 </div>
 <script src="vendor/d3.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="aircraft.js"></script>
 <script src="app.js"></script>
+<script src="route.js"></script>
 <script src="plan.js"></script>
+<script src="econ.js"></script>
 <script type="module" src="view3d.js"></script>
 </body>
 </html>

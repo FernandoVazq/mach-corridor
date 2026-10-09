@@ -48,8 +48,12 @@
   };
   // sequential: very dark blue (little or no boomless Mach) -> white (lots of Mach allowed)
   const RAMP = d3.interpolateRgbBasis(["#030b26", "#0a1f5c", "#17408f", "#3a6fbf", "#7fa6db", "#c3d6ef", "#ffffff"]);
+  const NAVY = [3, 11, 38];
   function colorFor(M) {
-    const c = d3.rgb(RAMP(Math.max(0, Math.min(1, (M - 0.98) / (1.30 - 0.98)))));
+    const lo = S.thresh || 0.98, hi = Math.max(1.30, lo + 0.15);
+    if (S.thresh && M < S.thresh) return NAVY;
+    const f = S.thresh ? 0.35 + 0.65 * Math.max(0, Math.min(1, (M - lo) / (hi - lo))) : Math.max(0, Math.min(1, (M - lo) / (hi - lo)));
+    const c = d3.rgb(RAMP(f));
     return [c.r, c.g, c.b];
   }
 
@@ -151,18 +155,17 @@
   }
 
   function paintData() {
-    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, S.thresh, isDark()].join("|");
+    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, S.thresh].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
     const img = offCtx.createImageData(NX, NY), tile = curTile();
     const lut = [];
-    const grey = isDark() ? [40, 40, 38] : [226, 225, 220];
-    for (let v = 0; v < 256; v++) { const m = toM(v) - S.margin; lut.push(S.thresh && m < S.thresh ? null : colorFor(m)); }
+    for (let v = 0; v < 256; v++) lut.push(colorFor(toM(v) - S.margin));
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-      const c = lut[raw(current, tile, i, j)] || grey, o = (j * NX + i) * 4;
+      const c = lut[raw(current, tile, i, j)], o = (j * NX + i) * 4;
       const isLand = raw(current, A().tile_land, i, j) > 127;
       img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2];
-      img.data[o + 3] = (S.fade && !isLand ? 80 : 235) * (lut[raw(current, tile, i, j)] ? 1 : 0.7);
+      img.data[o + 3] = S.fade && !isLand ? 70 : 240;
     }
     offCtx.putImageData(img, 0, 0);
     drawLegend();
@@ -184,7 +187,7 @@
         if (bx + ox < 0 || ax + ox > W) continue;
         ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
         if (S.relief && shade) {
-          ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = isDark() ? 0.45 : 0.6;
+          ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.95;
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(shade, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
         }
@@ -210,9 +213,9 @@
     const c = $("legendBar"), g = c.getContext("2d");
     for (let x = 0; x < c.width; x++) {
       const M = 1.0 + (x / (c.width - 1)) * 0.30;
-      g.fillStyle = S.thresh && M < S.thresh ? (isDark() ? "rgb(40,40,38)" : "rgb(226,225,220)") : `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
+      g.fillStyle = `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
     }
-    const fx = Math.round(c.width * 0.05 / 0.30);
+    const fx = Math.round(c.width * Math.min(0.3, (S.thresh || 1.05) - 1.0) / 0.30);
     g.fillStyle = "#ff8c1a"; g.fillRect(fx - 1, 0, 2, c.height);
   }
 
@@ -342,8 +345,10 @@
       $("kpiPct").textContent = `${Math.round(pct * 100)}%`;
     }
     const vt = new Date(S.man.valid_times[S.fi]);
-    $("timeLbl").textContent = `${d3.utcFormat("%a %d %b %H:%M")(vt)} UTC (+${fhs()[S.fi]}h)`;
-    $("hdLbl").textContent = S.hd === "min" ? "any (worst case)" : S.hd === "max" ? "best" : `${String(S.hdDeg).padStart(3, "0")}°`;
+    $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC`;
+    $("hdLbl").textContent = S.hd === "hd" ? `${String(S.hdDeg).padStart(3, "0")}°` : "";
+    $("hdRow").hidden = S.hd !== "hd";
+    $("legendNote").textContent = S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.";
     $("marginLbl").textContent = S.margin.toFixed(3);
   }
 
@@ -397,7 +402,7 @@
     mark(); return mark;
   }
   function buildControls() {
-    seg($("flSeg"), S.man.flight_levels.map(f => [f, `FL${f}`]), () => S.fl, v => { S.fl = v; refresh(); });
+    seg($("flSeg"), S.man.flight_levels.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft`]), () => S.fl, v => { S.fl = v; refresh(); });
     seg($("hdSeg"), null, () => S.hd, v => { S.hd = v; $("hdSlider").disabled = v !== "hd"; refresh(); });
     $("hdSlider").value = S.hdDeg; $("hdSlider").disabled = S.hd !== "hd";
     $("hdSlider").oninput = e => { S.hdDeg = +e.target.value; refresh(); };
@@ -408,12 +413,12 @@
     $("fadeOcean").onchange = e => { S.fade = e.target.checked; schedule(); };
     $("relief").checked = S.relief;
     $("relief").onchange = e => { S.relief = e.target.checked; schedule(); emit("texture"); };
-    $("threshSel").value = String(S.thresh || 0);
+    $("threshSel").value = [...$("threshSel").options].find(o => +o.value === (S.thresh || 0))?.value ?? "0";
     $("threshSel").onchange = e => { S.thresh = +e.target.value; refresh(); };
     $("playBtn").onclick = togglePlay;
     $("apts").innerHTML = AIRPORTS.map(a => `<option value="${a[0]}">${a[1]}</option>`).join("");
-    $("aboutBtn").onclick = () => $("about").showModal();
-    $("limitsX").onclick = () => { $("limits").hidden = true; };
+    $("protoBadge").onclick = () => setTab("method");
+    $("tticks").innerHTML = S.man.valid_times.map((v, i) => i % 2 ? "" : `<span style="left:${100 * i / (fhs().length - 1)}%">${d3.utcFormat("%a %HZ")(new Date(v))}</span>`).join("");
     seg($("viewSeg"), null, () => S.view, v => { S.view = v; setView(); });
     document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
   }
@@ -426,7 +431,7 @@
   }
   function setTab(t) {
     document.querySelectorAll(".tabs button").forEach(b => { const on = b.dataset.tab === t; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
-    $("tab-map").hidden = t !== "map"; $("mapControls").hidden = t !== "map"; $("tab-econ").hidden = t !== "econ";
+    for (const k of ["map", "econ", "method"]) $("tab-" + k).hidden = t !== k;
     if (t === "map") { layout(); schedule(); }
   }
   function togglePlay() {
@@ -460,7 +465,14 @@
   // ---------- public API for plan.js / view3d.js ----------
   window.MC = {
     S, APT, AIRPORTS, FLOOR, KT, loadAtlas, loadProfiles, profileAt, mAt, mHeading, cAt, landAt, windAt, tileOf, curTile,
-    colorFor, toM, raw, off, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
+    colorFor, toM, raw, off, setTab: t => setTab(t), fit: pts => {
+      const ls = pts.map(p => normLon(p[0])), as = pts.map(p => p[1]);
+      if (Math.max(...ls) - Math.min(...ls) > 180) return;
+      const [ax, ay] = [x0 + (Math.min(...ls) + 180) / 360 * W0, y0 + (90 - Math.max(...as)) / 180 * H0];
+      const [bx, by] = [x0 + (Math.max(...ls) + 180) / 360 * W0, y0 + (90 - Math.min(...as)) / 180 * H0];
+      const k = Math.max(1, Math.min(8, 0.55 / Math.max((bx - ax) / W, (by - ay) / H, 0.02)));
+      d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
+    }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
     get terrain() { return terrain; }, get shade() { return shade; }, elevAt,
     on: (ev, f) => listeners[ev].push(f), css, isDark,

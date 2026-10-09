@@ -15,7 +15,7 @@ function paintTexture(cnv) {
   const proj = d3.geoEquirectangular().scale(w / (2 * Math.PI)).translate([w / 2, h / 2]);
   const path = d3.geoPath(proj, g);
   g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = MC.css("--grat"); g.lineWidth = 1; g.stroke();
-  if (MC.S.relief && MC.shade) { g.save(); g.globalCompositeOperation = "multiply"; g.globalAlpha = 0.6; g.drawImage(MC.shade, 0, 0, w, h); g.restore(); }
+  if (MC.S.relief && MC.shade) { g.save(); g.globalCompositeOperation = "soft-light"; g.globalAlpha = 0.95; g.drawImage(MC.shade, 0, 0, w, h); g.restore(); }
   if (MC.landMesh) { g.beginPath(); path(MC.landMesh); g.strokeStyle = MC.css("--coast"); g.lineWidth = 1.6; g.stroke(); }
   const R = window.MCPLAN?.getRoute?.();
   if (R && R.opt) {
