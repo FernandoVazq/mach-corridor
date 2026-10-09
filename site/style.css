@@ -16,7 +16,7 @@
   --water: #52514e;
   --casing: #ffffff;
   --red: #c62d36; --red-soft: rgba(198,45,54,.10); --green: #1a8a47; --amber: #e8a33d;
-  --route-boomless: #1d4ed8; --route-super: #111111; --route-sub: #e07b00;
+  --route-boomless: #e0218a; --route-super: #111111; --route-sub: #ff8c1a; --mach: #17408f; --low-soft: rgba(10,31,92,.10);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,7 +24,7 @@
     --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --ocean: #101417;
     --line: #34342f; --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86; --accent: #3987e5;
     --coast: rgba(255, 255, 255, .7); --border-c: rgba(255, 255, 255, .25); --grat: rgba(255, 255, 255, .07);
-    --boomless: #199e70; --subsonic: #d95926; --water: #c3c2b7; --casing: #0b0b0b; --red: #e0545c; --red-soft: rgba(224,84,92,.14); --green: #4cc37a; --route-boomless: #7aa7ff; --route-super: #f2f2f2; --route-sub: #ffa940;
+    --boomless: #199e70; --subsonic: #d95926; --water: #c3c2b7; --casing: #0b0b0b; --red: #e0545c; --red-soft: rgba(224,84,92,.14); --green: #4cc37a; --route-boomless: #ff4fa8; --route-super: #f2f2f2; --route-sub: #ffa940; --mach: #9fbdf0; --low-soft: rgba(159,189,240,.10);
     color-scheme: dark;
   }
 }
@@ -32,7 +32,7 @@
   --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --ocean: #101417;
   --line: #34342f; --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86; --accent: #3987e5;
   --coast: rgba(255, 255, 255, .7); --border-c: rgba(255, 255, 255, .25); --grat: rgba(255, 255, 255, .07);
-  --boomless: #199e70; --subsonic: #d95926; --water: #c3c2b7; --casing: #0b0b0b; --red: #e0545c; --red-soft: rgba(224,84,92,.14); --green: #4cc37a; --route-boomless: #7aa7ff; --route-super: #f2f2f2; --route-sub: #ffa940;
+  --boomless: #199e70; --subsonic: #d95926; --water: #c3c2b7; --casing: #0b0b0b; --red: #e0545c; --red-soft: rgba(224,84,92,.14); --green: #4cc37a; --route-boomless: #ff4fa8; --route-super: #f2f2f2; --route-sub: #ffa940; --mach: #9fbdf0; --low-soft: rgba(159,189,240,.10);
   color-scheme: dark;
 }
 
@@ -199,3 +199,5 @@ dialog.big[open] { display: flex; flex-direction: column; }
 }
 
 [hidden] { display: none !important; }
+
+#legendBar { outline: 1px solid var(--line); }

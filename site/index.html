@@ -78,7 +78,7 @@
         <div class="ltitle">Boomless cruise Mach <span class="muted">(boom turns ≥ 1 km above terrain, minus margin)</span></div>
         <canvas id="legendBar" width="280" height="12"></canvas>
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30+</span></div>
-        <div class="lnote"><span class="sw sw-red"></span>no usable corridor (&lt; M 1.05) <span class="sw sw-green"></span>corridor</div>
+        <div class="lnote">dark = little or no boomless Mach · white = most Mach allowed · orange tick = M 1.05 usable floor</div>
         <label class="chk"><input type="checkbox" id="fadeOcean" checked> Fade oceans (regulatory status not modelled)</label>
         <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief (topography, 3D on globe)</label>
       </div>
@@ -179,7 +179,7 @@
           <span><i class="sw sw-amber"></i>Turns inside the buffer (caustic too low)</span>
           <span><i class="sw sw-red"></i>Reaches the ground (boom)</span>
         </div>
-        <p class="muted small">Vertical scale ×4. Profile from the nearest 2° GFS column; the map uses 1°. Drag to orbit, scroll to zoom.</p>
+        <p class="muted small">Vertical scale ×4. Low-poly terrain from AWS Terrain Tiles (Mapzen; SRTM, GMTED2010, ETOPO1), water in blue. Atmosphere from the nearest 2° GFS column; the map uses 1°. Drag to orbit, scroll to zoom.</p>
       </div>
     </div>
   </dialog>

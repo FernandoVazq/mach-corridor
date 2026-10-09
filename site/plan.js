@@ -140,7 +140,37 @@
       }
       out.push(path[best]); i = best;
     }
-    return out;
+    // continuous refinement on the FULL cost model (accel/decel, climb, constant-Mach blocks),
+    // from two independent starts: the grid optimum and the great circle. Keep the better one.
+    const objOf = p => { const e = evalPath(atl, ac, p, "corr"); return obj === "time" ? e.block : obj === "cost" ? e.op : e.gen; };
+    const densify = (p, k) => { const o = [p[0]]; for (let i = 0; i < p.length - 1; i++) { const f = d3.geoInterpolate(p[i], p[i + 1]); for (let j = 1; j <= k; j++) o.push(j === k ? p[i + 1] : f(j / k)); } return o; };
+    const gridStart = out.length <= 2 ? densify(out, 4) : out;
+    const r1 = refine(gridStart, objOf), r2 = refine(densify([A, [bLon, B[1]]], 5), objOf);
+    const best = r1.v <= r2.v ? r1 : r2;
+    best.p.info = { gridV: objOf(out), v: best.v, otherV: Math.max(r1.v, r2.v), obj, startsAgree: Math.abs(r1.v - r2.v) / best.v };
+    return best.p;
+  }
+  function refine(path, f) {
+    let p = path.map(q => q.slice()), v = f(p), step = 2.0;
+    const D = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    let evals = 0;
+    while (step >= 0.125 && evals < 2500) {
+      let improved = false;
+      for (let i = 1; i < p.length - 1; i++) {
+        for (const [dx, dy] of D) {
+          const c = p.map(q => q.slice());
+          c[i] = [p[i][0] + dx * step / Math.max(0.3, Math.cos(p[i][1] * RAD)), Math.max(-85, Math.min(85, p[i][1] + dy * step))];
+          const cv = f(c); evals++;
+          if (cv < v - 1e-9) { p = c; v = cv; improved = true; }
+        }
+        if (p.length > 3) {             // try dropping the waypoint
+          const c = p.filter((_, k) => k !== i), cv = f(c); evals++;
+          if (cv <= v) { p = c; v = cv; improved = true; i--; }
+        }
+      }
+      if (!improved) step /= 2;
+    }
+    return { p, v };
   }
 
   // ---- route panel ----
@@ -219,7 +249,8 @@
       ${!r.opt.inRange ? `<br><b class="warn">Beyond ${r.ac.name.split(" (")[0]} range (${r.ac.rangeNm.toLocaleString()} nm) — would need a fuel stop.</b>` : ""}
       <div class="verdict">${vsBan.t < 0 ? `Using corridors saves <b>${fmtT(-vsBan.t)}</b>` : `No time saved`} vs today's rules
       (${vsBan.c <= 0 ? "and " + k$(-vsBan.c) + " less" : "for " + k$(vsBan.c) + " more"} operating cost, ${sgn$(vsBan.c / pax)}/seat).
-      The alternate route vs the direct corridor great circle: ${fmtDT(vsGc.t)}, ${sgn$(vsGc.c)}.</div>`;
+      The alternate route vs the direct corridor great circle: ${fmtDT(vsGc.t)}, ${sgn$(vsGc.c)}.</div>
+      ${r.opt.path.info ? `<div class="muted small">Optimiser: global search on a 1° grid, then continuous refinement of the waypoints on the full cost model from two independent starts (grid optimum and great circle); the two starts ${r.opt.path.info.startsAgree < 0.002 ? "converged to the same answer" : "differ by " + (100 * r.opt.path.info.startsAgree).toFixed(1) + "% — the better one is shown"}. Optimal for this forecast snapshot and cost model, not a proof of the global optimum.</div>` : ""}`;
     const row = (lbl, e, hl) => `<tr${hl ? " class='hl'" : ""}><td>${lbl}</td><td>${Math.round(e.dist).toLocaleString()}</td><td>${fmtT(e.block)}</td><td>${(e.fuel / 1000).toFixed(1)}</td><td>${k$(e.op)}</td><td>${k$(e.perSeat)}</td></tr>`;
     $("routeTable").innerHTML = `<tr><th>Flight</th><th>nm</th><th>Block</th><th>Fuel t</th><th>Op cost</th><th>$/seat</th></tr>
       ${row("787-9 today (subsonic)", r.base)}

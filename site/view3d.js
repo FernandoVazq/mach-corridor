@@ -198,29 +198,36 @@ function renderColumn() {
   const green = new THREE.Color("#1a9850"), amber = new THREE.Color("#e8a33d"), red = new THREE.Color("#c62d36");
   // ground + terrain + buffer planes
   const size = 260;
-  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: css("--surface-2"), side: THREE.DoubleSide }));
-  gnd.rotation.x = -Math.PI / 2; gnd.position.set(60, 0, 0); grp.add(gnd);
-  const grid = new THREE.GridHelper(size, 26, 0x888888, 0x888888); grid.position.set(60, 0.02, 0); grid.material.opacity = 0.25; grid.material.transparent = true; grp.add(grid);
-  // terrain surface around the point (GFS 0.25° orography), in track coordinates
-  if (MC.terrain) {
-    const n = 64, geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position, cols = [], sH = Math.sin(hd * RAD), cH = Math.cos(hd * RAD);
-    let zmax = 0;
-    for (let i = 0; i < pos.count; i++) {
-      const xk = pos.getX(i) + 60, yk = pos.getZ(i);            // km along track, km to the right
-      const east = xk * sH + yk * cH, north = xk * cH - yk * sH;
-      const la = state.lat + north / 111.32, lo = state.lon + east / (111.32 * Math.cos(state.lat * RAD));
-      const hgt = Math.max(0, MC.elevAt(lo, la)); zmax = Math.max(zmax, hgt);
-      pos.setX(i, xk); pos.setY(i, K(hgt) * VE + 0.05);
-      const f = Math.min(1, hgt / 4000), c = new THREE.Color().setHSL(0.28 - 0.22 * f, 0.35, 0.42 + 0.35 * f * f);
-      cols.push(c.r, c.g, c.b);
+  // low-poly terrain of the real area: AWS Terrain Tiles DEM (fallback: GFS 0.25° orography); water in blue
+  const sH = Math.sin(hd * RAD), cH = Math.cos(hd * RAD);
+  const toLL = (xk, yk) => { const east = xk * sH + yk * cH, north = xk * cH - yk * sH;
+    const la = state.lat + north / 111.32; return [state.lon + east / (111.32 * Math.cos(state.lat * RAD)), la]; };
+  const elev = (lo, la) => { const d = state.dem ? state.dem(lo, la) : null; return d != null ? d : (MC.terrain ? MC.elevAt(lo, la) : 0); };
+  const n = 56, geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2);
+  const flat = geo.toNonIndexed(), pos = flat.attributes.position, cache = new Map(), cols = [];
+  let demMax = 0, demMaxNear = 0;
+  const hypso = d3.scaleLinear([0, 400, 1200, 2000, 3000, 4300], ["#5f8f4a", "#86a457", "#b8a56c", "#9a7652", "#8f8a85", "#f4f4f4"]).clamp(true);
+  const info = (x, z) => {
+    const k = x.toFixed(2) + "," + z.toFixed(2);
+    if (!cache.has(k)) {
+      const xk = x + 60, [lo, la] = toLL(xk, z), h = elev(lo, la);
+      const water = h < -30 || (h <= 0 && MC.landAt(MC.current, MC.normLon(lo), la) < 0.5);
+      const hh = water ? 0 : Math.max(0, h);
+      demMax = Math.max(demMax, hh); if (Math.abs(z) < 30) demMaxNear = Math.max(demMaxNear, hh);
+      cache.set(k, { xk, h: hh, water });
     }
-    geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
-    grp.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
-  } else if (ground > 50) {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(size, K(ground) * VE, size), new THREE.MeshLambertMaterial({ color: 0x8a6d4b, transparent: true, opacity: 0.35 }));
-    t.position.set(60, K(ground) * VE / 2, 0); grp.add(t);
+    return cache.get(k);
+  };
+  for (let i = 0; i < pos.count; i += 3) {
+    const tri = [0, 1, 2].map(k => info(pos.getX(i + k), pos.getZ(i + k)));
+    tri.forEach((t, k) => { pos.setX(i + k, t.xk); pos.setY(i + k, K(t.h) * VE + 0.05); });
+    const wet = tri.filter(t => t.water).length >= 2, mean = (tri[0].h + tri[1].h + tri[2].h) / 3;
+    const c = new THREE.Color(wet ? "#2f74d0" : hypso(mean));
+    for (let k = 0; k < 3; k++) cols.push(c.r, c.g, c.b);
   }
+  flat.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3)); flat.computeVertexNormals();
+  grp.add(new THREE.Mesh(flat, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide })));
+  state.demMax = demMax; state.demMaxNear = demMaxNear;
   const buf = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color: amber, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
   buf.rotation.x = -Math.PI / 2; buf.position.set(60, K(zf) * VE, 0); grp.add(buf);
   // atmosphere column: horizontal discs at each level coloured by c_eff along track
@@ -258,7 +265,8 @@ function renderColumn() {
     <div><b>${nTurn}</b> rays turn above the buffer · <b>${nLow}</b> inside it · <b class="${nGround ? "warn" : ""}">${nGround}</b> reach the ground</div>
     <div>Lowest turning point: ${isFinite(lowest) ? (lowest / 1000).toFixed(1) + " km above terrain" : "—"}</div>
     <div>Boomless limit here (2° column, 1 km buffer): <b>${mb ? "M " + mb.toFixed(3) : "none"}</b>; map value (1°): <b>${state.mapM >= 1 ? "M " + (state.mapM).toFixed(3) : "none"}</b> before the ${MC.S.margin.toFixed(3)} margin</div>
-    <div>Cruise ${Math.round(za)} m · terrain ${Math.round(ground)} m · buffer top ${Math.round(zf)} m</div>`;
+    <div>Cruise ${Math.round(za)} m · model terrain (footprint max) ${Math.round(ground)} m · buffer top ${Math.round(zf)} m</div>
+    <div>Real terrain in view (${state.dem ? "DEM" : "GFS"}): highest ${Math.round(state.demMax)} m${state.demMaxNear > ground + 300 ? ` · <b class="warn">peaks within 30 km of track reach ${Math.round(state.demMaxNear)} m, above the model terrain</b>` : ""}</div>`;
   drawCeff(F, za, ground, zf, M);
 }
 function drawCeff(F, za, ground, zf, M) {
@@ -274,11 +282,40 @@ function drawCeff(F, za, ground, zf, M) {
   g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(5).tickFormat(d => d / 1000 + " km").tickSize(0).tickPadding(3)).call(s => s.select(".domain").remove());
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(4).tickSize(3)).call(s => s.select(".domain").attr("stroke", "var(--line)"));
   g.append("text").attr("x", w).attr("y", h + 22).attr("text-anchor", "end").text("sound speed + wind along track (m/s)");
-  g.append("path").datum(pts).attr("fill", "none").attr("stroke", "var(--green)").attr("stroke-width", 2).attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1])));
+  g.append("path").datum(pts).attr("fill", "none").attr("stroke", "var(--mach)").attr("stroke-width", 2).attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1])));
   g.append("line").attr("x1", x(Iv)).attr("x2", x(Iv)).attr("y1", 0).attr("y2", h).attr("stroke", "var(--text)").attr("stroke-dasharray", "4 3");
   g.append("text").attr("x", x(Iv) + 3).attr("y", 10).text("aircraft ground speed");
   g.append("text").attr("x", 2).attr("y", y(za) - 3).text("cruise");
   g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(za)).attr("y2", y(za)).attr("stroke", "var(--text-2)").attr("stroke-width", 0.6);
+}
+
+/* real terrain: AWS Terrain Tiles (Terrarium encoding, CORS-enabled public bucket), zoom 8 ≈ 600 m/px */
+const demTiles = new Map();
+async function loadDEM(lat, lon) {
+  const z = 8, N = 2 ** z, rLat = 1.6, rLon = 1.6 / Math.cos(lat * RAD);
+  const tx = lo => (lo + 180) / 360 * N, ty = la => { const p = la * RAD; return (1 - Math.log(Math.tan(p) + 1 / Math.cos(p)) / Math.PI) / 2 * N; };
+  const x0 = Math.floor(tx(lon - rLon)), x1 = Math.floor(tx(lon + rLon)), y0 = Math.floor(ty(Math.min(85, lat + rLat))), y1 = Math.floor(ty(Math.max(-85, lat - rLat)));
+  const jobs = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+    const xx = ((x % N) + N) % N, key = `${xx}/${y}`;
+    if (demTiles.has(key)) continue;
+    demTiles.set(key, new Promise(res => {
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0); res(g.getImageData(0, 0, 256, 256).data); };
+      img.onerror = () => res(null);
+      img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${xx}/${y}.png`;
+    }));
+    jobs.push(demTiles.get(key));
+  }
+  await Promise.all([...demTiles.values()]);
+  const data = new Map(); for (const [k, p] of demTiles) data.set(k, await p);
+  if (![...data.values()].some(Boolean)) return null;
+  return (lo, la) => {
+    const fx = tx(lo), fy = ty(la), X = ((Math.floor(fx) % N) + N) % N, Y = Math.floor(fy);
+    const d = data.get(`${X}/${Y}`); if (!d) return null;
+    const px = Math.min(255, Math.floor((fx - Math.floor(fx)) * 256)), py = Math.min(255, Math.floor((fy - Y) * 256)), o = (py * 256 + px) * 4;
+    return d[o] * 256 + d[o + 1] + d[o + 2] / 256 - 32768;
+  };
 }
 
 async function openColumn() {
@@ -294,7 +331,8 @@ async function openColumn() {
     const i = MC.S.hd === "max" ? ms.indexOf(Math.max(...ms)) : ms.indexOf(Math.min(...ms)); return MC.S.man.headings[i];
   })();
   $("c3Fl").innerHTML = MC.S.man.flight_levels.map(f => `<option value="${f}"${f === MC.S.fl ? " selected" : ""}>FL${f}</option>`).join("");
-  Object.assign(state, { P, lon, lat, fl: MC.S.fl, hd });
+  Object.assign(state, { P, lon, lat, fl: MC.S.fl, hd, dem: null });
+  try { state.dem = await loadDEM(lat, lon); } catch (e) { state.dem = null; }
   const recompute = async () => {
     const F = profileFns(state.P, state.hd), za = cruiseZ(state.P, state.fl);
     state.mb = boomlessM(F, za, Math.max(0, state.P.ground) + H_BUF);

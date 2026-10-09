@@ -46,12 +46,10 @@
     const a = document.documentElement.getAttribute("data-theme");
     return a ? a === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   };
-  const RED = d3.interpolateRgbBasis(["#8e0f22", "#c62d36", "#e8735f", "#f6c9a8"]);
-  const GREEN = d3.interpolateRgbBasis(["#d9efb0", "#8fcf6b", "#3aa356", "#137a3b", "#04492a"]);
+  // sequential: very dark blue (little or no boomless Mach) -> white (lots of Mach allowed)
+  const RAMP = d3.interpolateRgbBasis(["#030b26", "#0a1f5c", "#17408f", "#3a6fbf", "#7fa6db", "#c3d6ef", "#ffffff"]);
   function colorFor(M) {
-    let c;
-    if (M < FLOOR) c = d3.rgb(RED(Math.max(0, Math.min(1, (M - 0.98) / (FLOOR - 0.98)))));
-    else c = d3.rgb(GREEN(Math.min(1, (M - FLOOR) / (1.30 - FLOOR))));
+    const c = d3.rgb(RAMP(Math.max(0, Math.min(1, (M - 0.98) / (1.30 - 0.98)))));
     return [c.r, c.g, c.b];
   }
 
@@ -158,7 +156,7 @@
     colorKey = k;
     const img = offCtx.createImageData(NX, NY), tile = curTile();
     const lut = [];
-    const grey = isDark() ? [58, 58, 55] : [214, 213, 208];
+    const grey = isDark() ? [40, 40, 38] : [226, 225, 220];
     for (let v = 0; v < 256; v++) { const m = toM(v) - S.margin; lut.push(S.thresh && m < S.thresh ? null : colorFor(m)); }
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
       const c = lut[raw(current, tile, i, j)] || grey, o = (j * NX + i) * 4;
@@ -212,8 +210,10 @@
     const c = $("legendBar"), g = c.getContext("2d");
     for (let x = 0; x < c.width; x++) {
       const M = 1.0 + (x / (c.width - 1)) * 0.30;
-      g.fillStyle = S.thresh && M < S.thresh ? (isDark() ? "rgb(58,58,55)" : "rgb(214,213,208)") : `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
+      g.fillStyle = S.thresh && M < S.thresh ? (isDark() ? "rgb(40,40,38)" : "rgb(226,225,220)") : `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
     }
+    const fx = Math.round(c.width * 0.05 / 0.30);
+    g.fillStyle = "#ff8c1a"; g.fillRect(fx - 1, 0, 2, c.height);
   }
 
   // ---------- terrain / hillshade ----------
@@ -286,7 +286,7 @@
   function drawPolar(ms, selI) {
     const svg = d3.select("#polar"); svg.selectAll("*").remove();
     const R = 92, r = d3.scaleLinear([0.98, 1.3], [0, R]).clamp(true);
-    svg.append("circle").attr("r", r(FLOOR)).attr("fill", "var(--red-soft)").attr("stroke", "var(--red)").attr("stroke-dasharray", "3 3");
+    svg.append("circle").attr("r", r(FLOOR)).attr("fill", "var(--low-soft)").attr("stroke", "var(--text-2)").attr("stroke-dasharray", "3 3");
     for (const v of [1.1, 1.2, 1.3]) {
       svg.append("circle").attr("r", r(v)).attr("fill", "none").attr("stroke", "var(--line)");
       svg.append("text").attr("x", 3).attr("y", -r(v) + 10).text(v.toFixed(1));
@@ -298,9 +298,9 @@
     const pt = (m, i) => { const t = S.man.headings[i] * Math.PI / 180; return [Math.sin(t) * r(m), -Math.cos(t) * r(m)]; };
     const pts = ms.map(pt);
     svg.append("path").attr("d", d3.line().curve(d3.curveLinearClosed)(pts))
-      .attr("fill", "var(--green)").attr("fill-opacity", 0.15).attr("stroke", "var(--green)").attr("stroke-width", 2);
+      .attr("fill", "var(--mach)").attr("fill-opacity", 0.15).attr("stroke", "var(--mach)").attr("stroke-width", 2);
     svg.append("g").selectAll("circle").data(pts).join("circle").attr("cx", d => d[0]).attr("cy", d => d[1])
-      .attr("r", (d, i) => i === selI ? 5 : 1.8).attr("fill", (d, i) => i === selI ? "var(--text)" : "var(--green)")
+      .attr("r", (d, i) => i === selI ? 5 : 1.8).attr("fill", (d, i) => i === selI ? "var(--text)" : "var(--mach)")
       .attr("stroke", "var(--surface)").attr("stroke-width", (d, i) => i === selI ? 1.5 : 0)
       .append("title").text((d, i) => `${S.man.headings[i]}°: ${ms[i] < 1 ? "no corridor" : "M " + ms[i].toFixed(3)}`);
   }
@@ -316,15 +316,15 @@
     const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
     const x = d3.scaleUtc(d3.extent(vt), [0, w]);
     const y = d3.scaleLinear([0.98, Math.max(1.3, d3.max(data, d => d.m))], [h, 0]);
-    g.append("rect").attr("x", 0).attr("width", w).attr("y", y(FLOOR)).attr("height", h - y(FLOOR)).attr("fill", "var(--red-soft)");
+    g.append("rect").attr("x", 0).attr("width", w).attr("y", y(FLOOR)).attr("height", h - y(FLOOR)).attr("fill", "var(--low-soft)");
     g.append("g").selectAll("line").data(y.ticks(4)).join("line").attr("class", "gridl").attr("x1", 0).attr("x2", w).attr("y1", y).attr("y2", y);
     g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(4).tickFormat(d3.format(".2f"))).call(s => s.select(".domain").remove());
     g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`)
       .call(d3.axisBottom(x).ticks(d3.utcHour.every(12)).tickSize(3).tickFormat(d3.utcFormat("%a %HZ"))).call(s => s.select(".domain").attr("stroke", "var(--line)"));
     g.append("line").attr("x1", x(vt[S.fi])).attr("x2", x(vt[S.fi])).attr("y1", 0).attr("y2", h).attr("stroke", "var(--text-2)").attr("stroke-dasharray", "3 3");
-    g.append("path").datum(data).attr("fill", "none").attr("stroke", "var(--green)").attr("stroke-width", 2).attr("d", d3.line().x(d => x(d.t)).y(d => y(Math.max(0.98, d.m))));
+    g.append("path").datum(data).attr("fill", "none").attr("stroke", "var(--mach)").attr("stroke-width", 2).attr("d", d3.line().x(d => x(d.t)).y(d => y(Math.max(0.98, d.m))));
     g.append("g").selectAll("circle").data(data).join("circle").attr("cx", d => x(d.t)).attr("cy", d => y(Math.max(0.98, d.m))).attr("r", (d, i) => i === S.fi ? 4.5 : 3)
-      .attr("fill", (d, i) => i === S.fi ? "var(--text)" : (d.m >= FLOOR ? "var(--green)" : "var(--red)")).attr("stroke", "var(--surface)").attr("stroke-width", 1.5)
+      .attr("fill", (d, i) => i === S.fi ? "var(--text)" : (d.m >= FLOOR ? "var(--mach)" : "var(--text-2)")).attr("stroke", "var(--surface)").attr("stroke-width", 1.5)
       .append("title").text(d => `${d3.utcFormat("%a %d %HZ")(d.t)}: ${d.m < 1 ? "no corridor" : "M " + d.m.toFixed(3)}`);
     $("tsSub").textContent = `· FL${fl}, ${S.hd === "min" ? "any direction" : S.hd === "max" ? "best direction" : S.hdDeg + "°"}`;
   }
