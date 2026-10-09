@@ -58,5 +58,9 @@ def fields(fh, land):
 if __name__ == "__main__":
     land = land_mask(sys.argv[1])
     build.fetch_fields = lambda run, fh: fields(fh, land)
-    build.fetch_orog = lambda run, F0: (F0[("HGT", "surface")] * 1.3, "synthetic")
+    def orog(run, F0):
+        z = F0[("HGT", "surface")] * 1.3
+        build.TERRAIN["z"] = np.kron(z, np.ones((4, 4)))[:721, :1440]
+        return z, "synthetic"
+    build.fetch_orog = orog
     build.build("2026100912", sys.argv[2])

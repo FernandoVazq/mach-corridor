@@ -21,6 +21,17 @@ Rule: validation code imports `engine/physics.py` (`mmax_grid`); never re-implem
 ## Red-team register
 See `docs/REDTEAM.md`. Kill shot K1 (v1 value = grazing/caustic Mach) is fixed in v2.
 
+## v2 live results (GFS 2026-10-09 12Z, f000; land excl. Antarctica, area-weighted, worst direction, 1 km buffer, BEFORE margin)
+| FL | Median | 10th pct | % land >= 1.05 | % land >= 1.08 (=1.05 after 0.03 margin) |
+|---|---|---|---|---|
+| 350 | 1.072 | 1.018 | 70% | 42% |
+| 400 | 1.085 | 1.030 | 78% | 54% |
+| 450 | 1.100 | 1.042 | 85% | 63% |
+| 500 | 1.125 | 1.052 | 91% | 75% |
+| 550 | 1.145 | 1.056 | 92% | 79% |
+| 600 | 1.148 | 1.059 | 93% | 82% |
+Reading: FL350–400 fails the kill line once a 0.03 margin is applied (median ~1.04–1.055); **FL500+ passes** (median ~1.10–1.12 after margin). Altitude is the lever. Validation must test this per FL.
+
 ## Open validation work (Local)
 1. Climatology: 1 yr of 00Z/12Z soundings, ~6 stations, with physics v2 -> % of days above M 1.05 (+ margin) by season and heading. Kill criterion.
 2. Forecast error: GFS f24/f48 vs observed soundings -> sigma_M. Replaces the provisional 0.03 margin.

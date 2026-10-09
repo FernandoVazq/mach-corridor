@@ -15,6 +15,7 @@ function paintTexture(cnv) {
   const proj = d3.geoEquirectangular().scale(w / (2 * Math.PI)).translate([w / 2, h / 2]);
   const path = d3.geoPath(proj, g);
   g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = MC.css("--grat"); g.lineWidth = 1; g.stroke();
+  if (MC.S.relief && MC.shade) { g.save(); g.globalCompositeOperation = "multiply"; g.globalAlpha = 0.6; g.drawImage(MC.shade, 0, 0, w, h); g.restore(); }
   if (MC.landMesh) { g.beginPath(); path(MC.landMesh); g.strokeStyle = MC.css("--coast"); g.lineWidth = 1.6; g.stroke(); }
   const R = window.MCPLAN?.getRoute?.();
   if (R && R.opt) {
@@ -38,8 +39,11 @@ function showGlobe(el) {
     camera.position.set(0, 0.9, 3.4);
     const cnv = document.createElement("canvas"); cnv.width = 2048; cnv.height = 1024;
     const tex = new THREE.CanvasTexture(cnv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-    const globe = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 80), new THREE.MeshBasicMaterial({ map: tex }));
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0, displacementScale: 0 });
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(1, 720, 360), mat);
     scene.add(globe);
+    scene.add(new THREE.AmbientLight(0xffffff, 2.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-3, 3, 4); scene.add(sun);
     const halo = new THREE.Mesh(new THREE.SphereGeometry(1.03, 64, 32),
       new THREE.MeshBasicMaterial({ color: 0x6aa9ff, transparent: true, opacity: 0.08, side: THREE.BackSide }));
     scene.add(halo);
@@ -77,7 +81,12 @@ function showGlobe(el) {
     const loop = () => {
       requestAnimationFrame(loop);
       if (el.hidden) return;
-      if (G.dirty) { paintTexture(cnv); tex.needsUpdate = true; G.dirty = false; }
+      if (G.dirty) {
+        paintTexture(cnv); tex.needsUpdate = true; G.dirty = false;
+        const T = MC.terrain;
+        if (T && !mat.displacementMap) { const d = new THREE.Texture(T.img); d.needsUpdate = true; mat.displacementMap = d; mat.needsUpdate = true; }
+        mat.displacementScale = MC.S.relief && T ? 0.035 : 0;   // ≈ ×35 vertical exaggeration
+      }
       controls.update(); renderer.render(scene, camera);
     };
     loop();
@@ -192,7 +201,23 @@ function renderColumn() {
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ color: css("--surface-2"), side: THREE.DoubleSide }));
   gnd.rotation.x = -Math.PI / 2; gnd.position.set(60, 0, 0); grp.add(gnd);
   const grid = new THREE.GridHelper(size, 26, 0x888888, 0x888888); grid.position.set(60, 0.02, 0); grid.material.opacity = 0.25; grid.material.transparent = true; grp.add(grid);
-  if (ground > 50) {
+  // terrain surface around the point (GFS 0.25° orography), in track coordinates
+  if (MC.terrain) {
+    const n = 64, geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position, cols = [], sH = Math.sin(hd * RAD), cH = Math.cos(hd * RAD);
+    let zmax = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const xk = pos.getX(i) + 60, yk = pos.getZ(i);            // km along track, km to the right
+      const east = xk * sH + yk * cH, north = xk * cH - yk * sH;
+      const la = state.lat + north / 111.32, lo = state.lon + east / (111.32 * Math.cos(state.lat * RAD));
+      const hgt = Math.max(0, MC.elevAt(lo, la)); zmax = Math.max(zmax, hgt);
+      pos.setX(i, xk); pos.setY(i, K(hgt) * VE + 0.05);
+      const f = Math.min(1, hgt / 4000), c = new THREE.Color().setHSL(0.28 - 0.22 * f, 0.35, 0.42 + 0.35 * f * f);
+      cols.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
+    grp.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  } else if (ground > 50) {
     const t = new THREE.Mesh(new THREE.BoxGeometry(size, K(ground) * VE, size), new THREE.MeshLambertMaterial({ color: 0x8a6d4b, transparent: true, opacity: 0.35 }));
     t.position.set(60, K(ground) * VE / 2, 0); grp.add(t);
   }

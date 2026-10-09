@@ -55,6 +55,13 @@
       <input type="range" id="marginSlider" min="0" max="0.06" step="0.005" value="0.03" aria-label="Safety margin in Mach">
     </div>
     <div class="ctl">
+      <span class="lbl">Show only ≥</span>
+      <select id="threshSel" aria-label="Highlight threshold">
+        <option value="0">All values</option><option value="1.05">M 1.05</option><option value="1.10">M 1.10</option>
+        <option value="1.15">M 1.15</option><option value="1.20">M 1.20</option><option value="1.25">M 1.25</option><option value="1.30">M 1.30</option>
+      </select>
+    </div>
+    <div class="ctl">
       <span class="lbl">View</span>
       <div class="seg" id="viewSeg">
         <button data-v="2d" class="on">2D</button><button data-v="3d">3D globe</button>
@@ -73,6 +80,7 @@
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30+</span></div>
         <div class="lnote"><span class="sw sw-red"></span>no usable corridor (&lt; M 1.05) <span class="sw sw-green"></span>corridor</div>
         <label class="chk"><input type="checkbox" id="fadeOcean" checked> Fade oceans (regulatory status not modelled)</label>
+        <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief (topography, 3D on globe)</label>
       </div>
       <div class="hint" id="hint">Click: inspect + 3D column · Shift-click: route to here · scroll to zoom</div>
     </div>

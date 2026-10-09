@@ -111,14 +111,19 @@ def fetch_fields(run, fh):
     return F
 
 
+TERRAIN = {}   # raw orography for the app's relief/topography layer
+
+
 def fetch_orog(run, F0):
     """Max terrain over the boom footprint (+/-0.5 deg) from GFS 0.25-deg orography."""
     try:
         q = fetch(run, 0, {("HGT", "surface")}, res="0p25")[("HGT", "surface")]
+        TERRAIN["z"] = q
         return footprint_max(q, radius_cells=2), "GFS 0.25 deg orography, max over +/-0.5 deg"
     except Exception as e:  # fall back to 1-deg max over neighbours
         print("0.25 orography failed, using 1-deg:", e, file=sys.stderr)
         z = F0[("HGT", "surface")]
+        TERRAIN["z"] = z
         m = z.copy()
         for dj in (-1, 1):
             m = np.maximum(m, np.roll(z, dj, axis=1))
@@ -205,6 +210,14 @@ def build(run, out_dir):
             })
         print(f"f{fh:03d} done in {time.time() - t0:.1f}s", flush=True)
 
+    terrain_meta = None
+    if "z" in TERRAIN:
+        z = np.maximum(TERRAIN["z"], 0)
+        zt = np.roll(z, z.shape[1] // 2, axis=1)          # lon -180 .. +180
+        Image.fromarray(np.clip(np.round(zt / 25.0), 0, 255).astype(np.uint8), "L").save(
+            os.path.join(out_dir, "terrain.png"), optimize=True)
+        terrain_meta = {"file": "terrain.png", "nx": int(zt.shape[1]), "ny": int(zt.shape[0]), "step_m": 25,
+                        "lon0": -180, "lat0": 90, "source": "GFS surface geopotential height (smoothed orography)"}
     run_t = dt.datetime.strptime(run, "%Y%m%d%H").replace(tzinfo=dt.timezone.utc)
     iso = lambda t: t.isoformat().replace("+00:00", "Z")
     manifest = {
@@ -226,6 +239,7 @@ def build(run, out_dir):
         "encoding": {"M0": 1.0, "M_step": M_STEP, "c_offset": 200, "wind_offset": 128},
         "profiles": {"pattern": "prof_f{fh:03d}.bin", "nx": 180, "ny": 91, "lon0": -180, "lat0": 90, "d": 2,
                      "fields": ["c*10", "u*10", "v*10", "z"], "levels": len(PLEV), "extra": "ground_m"},
+        "terrain": terrain_meta,
         "stats_thresholds": thresholds,
         "file_pattern": "f{fh:03d}_FL{fl}.png",
         "stats": stats,

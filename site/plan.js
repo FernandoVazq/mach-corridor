@@ -7,6 +7,9 @@
   const $ = id => document.getElementById(id);
   const NM = 3440.065, RAD = Math.PI / 180;
   const CLIMB_NM = 150, DESC_NM = 150, BLOCK_EXTRA_H = 0.5, BLOCK_NM = 300;
+  // speed changes are not instant: Mach per minute while accelerating / decelerating (estimates;
+  // Concorde took roughly 15–20 min from M0.95 to M2 while climbing), extra fuel while accelerating
+  const ACC_MPM = 0.06, DEC_MPM = 0.10, ACC_FUEL = 1.35;
   const COAST = 0.12;   // land fraction above which a cell counts as land/coastal (approx. 30 nm buffer at 1°)
   let MC, ACS;
 
@@ -66,10 +69,19 @@
       for (let j = i + 1; j < segs.length && segs[j].x0 - segs[i].x1 < BLOCK_NM / 2 && segs[j].type === "boomless"; j++) m = Math.min(m, base[j]);
       segs[i].M = m;
     }
-    let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0;
+    // acceleration / deceleration limits: forward pass caps speed-ups, backward pass makes the
+    // aircraft slow down BEFORE a slower leg (e.g. decelerate over water before a coast)
+    if (ac.supersonic) {
+      const dtMin = s => 60 * s.d / Math.max(150, s.M * s.c * MC.KT);
+      for (let i = 1; i < segs.length; i++) segs[i].M = Math.min(segs[i].M, segs[i - 1].M + ACC_MPM * dtMin(segs[i]));
+      for (let i = segs.length - 2; i >= 0; i--) segs[i].M = Math.min(segs[i].M, segs[i + 1].M + DEC_MPM * dtMin(segs[i]));
+      for (let i = 1; i < segs.length; i++) { segs[i].accel = segs[i].M > segs[i - 1].M + 1e-3; segs[i].decel = segs[i].M < segs[i - 1].M - 1e-3; }
+    }
+    let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, tAcc = 0;
     for (const s of segs) {
       const tas = s.M * s.c * MC.KT, gs = Math.max(150, tas + s.along * MC.KT);
-      s.t = s.d / gs; s.fuel = ac.fuelPerNm(s.M) * s.d * tas / gs;
+      s.t = s.d / gs; s.fuel = ac.fuelPerNm(s.M) * s.d * tas / gs * (s.accel ? ACC_FUEL : 1);
+      if (s.accel || s.decel) tAcc += s.t;
       t += s.t; fuel += s.fuel;
       if (s.landish) dLand += s.d;
       if (s.type === "boomless") dBoomless += s.d;
@@ -77,7 +89,7 @@
     }
     const block = t + BLOCK_EXTRA_H, op = fuel * E.fuel + ac.nonFuelPerBH * block;
     const pax = ac.seats * E.lf;
-    return { path, segs, dist: total, air: t, block, fuel, op, perSeat: op / pax, gen: op + E.vot * pax * block,
+    return { path, segs, dist: total, air: t, block, fuel, op, perSeat: op / pax, gen: op + E.vot * pax * block, tAcc,
              dLand, dBoomless, dSuper, inRange: total <= ac.rangeNm, mode, ac };
   }
 
@@ -203,6 +215,7 @@
       Great circle ${Math.round(r.gc.dist).toLocaleString()} nm · optimised ${Math.round(r.opt.dist).toLocaleString()} nm
       (${r.opt.dist >= r.gc.dist ? "+" : ""}${Math.round(r.opt.dist - r.gc.dist)} nm) · ${Math.round(100 * r.opt.dLand / r.opt.dist)}% over land/coast,
       ${r.opt.dLand ? Math.round(100 * r.opt.dBoomless / r.opt.dLand) : 0}% of that boomless.
+      · ${Math.round(r.opt.tAcc * 60)} min spent changing speed.
       ${!r.opt.inRange ? `<br><b class="warn">Beyond ${r.ac.name.split(" (")[0]} range (${r.ac.rangeNm.toLocaleString()} nm) — would need a fuel stop.</b>` : ""}
       <div class="verdict">${vsBan.t < 0 ? `Using corridors saves <b>${fmtT(-vsBan.t)}</b>` : `No time saved`} vs today's rules
       (${vsBan.c <= 0 ? "and " + k$(-vsBan.c) + " less" : "for " + k$(vsBan.c) + " more"} operating cost, ${sgn$(vsBan.c / pax)}/seat).
@@ -237,13 +250,14 @@
     g.append("g").selectAll("line").data(y.ticks(5)).join("line").attr("class", "gridl").attr("x1", 0).attr("x2", w).attr("y1", y).attr("y2", y);
     g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(5).tickSize(0).tickPadding(4).tickFormat(d3.format(".1f"))).call(s => s.select(".domain").remove());
     g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat(d3.format(","))).call(s => s.select(".domain").attr("stroke", "var(--line)"));
-    g.append("text").attr("x", w).attr("y", h + 20).attr("text-anchor", "end").text("nm along route (shaded = land/coast)");
+    g.append("text").attr("x", w).attr("y", -1).attr("text-anchor", "end").text("nm along route · shaded = land/coast");
     const mc = e.segs.filter(s => s.landish && s.mcut != null);
     g.append("g").selectAll("line").data(mc).join("line").attr("x1", s => x(s.x0)).attr("x2", s => x(s.x1))
       .attr("y1", s => y(Math.max(0.7, Math.min(s.mcut, yMax)))).attr("y2", s => y(Math.max(0.7, Math.min(s.mcut, yMax))))
       .attr("stroke", "var(--text-2)").attr("stroke-width", 1).attr("stroke-dasharray", "2 2");
     const col = colors();
-    g.append("g").selectAll("line").data(e.segs).join("line").attr("x1", s => x(s.x0)).attr("x2", s => x(s.x1)).attr("y1", s => y(s.M)).attr("y2", s => y(s.M))
+    g.append("g").selectAll("line").data(e.segs).join("line").attr("x1", s => x(s.x0)).attr("x2", s => x(s.x1))
+      .attr("y1", (s, i) => y(i ? e.segs[i - 1].M : s.M)).attr("y2", s => y(s.M))
       .attr("stroke", s => col[s.type]).attr("stroke-width", 2.5).attr("stroke-linecap", "round");
     g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(1)).attr("y2", y(1)).attr("stroke", "var(--text-2)").attr("stroke-width", 0.8);
     g.append("text").attr("x", 2).attr("y", y(1) - 3).text("Mach 1 · dashed = boomless limit");
@@ -291,7 +305,7 @@
           <td>${bevot != null ? k$(bevot) + "/h" : "—"}</td></tr>`;
       }).join("")}
       </table></div></section>`).join("") +
-      `<p class="muted small">Break-even VOT = extra fare-cost per seat ÷ hours saved vs the 787-9. A traveller who values an hour above it comes out ahead (at cost, before margins). Your input: ${k$(E.vot)}/h. Block = airborne + 30 min; 150 nm climb and descent subsonic; boomless legs flown in ≥300 nm constant-Mach blocks; winds at cruise applied.</p>`;
+      `<p class="muted small">Break-even VOT = extra fare-cost per seat ÷ hours saved vs the 787-9. A traveller who values an hour above it comes out ahead (at cost, before margins). Your input: ${k$(E.vot)}/h. Block = airborne + 30 min; 150 nm climb and descent subsonic; speed changes limited to +0.06 M/min accelerating (35% extra fuel) and −0.10 M/min decelerating, so the aircraft slows before reaching a coast; boomless legs flown in ≥300 nm constant-Mach blocks; winds at cruise applied.</p>`;
   }
   function renderAcTable() {
     $("acTable").innerHTML = `<div class="tscroll"><table class="rt"><tr><th>Aircraft</th><th>Seats</th><th>Design M</th><th>Range nm</th><th>Fuel kg/nm @M0.95 · 1.15 · design</th><th>Non-fuel $/bh</th><th>Notes</th></tr>` +

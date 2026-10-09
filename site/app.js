@@ -28,7 +28,7 @@
   ];
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
-  const S = { man: null, fl: 450, hd: "min", hdDeg: 90, fi: 0, margin: 0.03, fade: true, view: "2d",
+  const S = { man: null, fl: 450, hd: "min", hdDeg: 90, fi: 0, margin: 0.03, fade: true, view: "2d", thresh: 0, relief: true,
               t: d3.zoomIdentity, sel: null, playing: null };
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -153,17 +153,18 @@
   }
 
   function paintData() {
-    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, isDark()].join("|");
+    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, S.thresh, isDark()].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
     const img = offCtx.createImageData(NX, NY), tile = curTile();
     const lut = [];
-    for (let v = 0; v < 256; v++) lut.push(colorFor(toM(v) - S.margin));
+    const grey = isDark() ? [58, 58, 55] : [214, 213, 208];
+    for (let v = 0; v < 256; v++) { const m = toM(v) - S.margin; lut.push(S.thresh && m < S.thresh ? null : colorFor(m)); }
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-      const c = lut[raw(current, tile, i, j)], o = (j * NX + i) * 4;
+      const c = lut[raw(current, tile, i, j)] || grey, o = (j * NX + i) * 4;
       const isLand = raw(current, A().tile_land, i, j) > 127;
       img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2];
-      img.data[o + 3] = S.fade && !isLand ? 80 : 235;
+      img.data[o + 3] = (S.fade && !isLand ? 80 : 235) * (lut[raw(current, tile, i, j)] ? 1 : 0.7);
     }
     offCtx.putImageData(img, 0, 0);
     drawLegend();
@@ -184,6 +185,11 @@
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
         ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
+        if (S.relief && shade) {
+          ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = isDark() ? 0.45 : 0.6;
+          const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
+          ctx.drawImage(shade, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
+        }
       }
     }
     for (const dx of wraps) {
@@ -206,8 +212,49 @@
     const c = $("legendBar"), g = c.getContext("2d");
     for (let x = 0; x < c.width; x++) {
       const M = 1.0 + (x / (c.width - 1)) * 0.30;
-      g.fillStyle = `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
+      g.fillStyle = S.thresh && M < S.thresh ? (isDark() ? "rgb(58,58,55)" : "rgb(214,213,208)") : `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
     }
+  }
+
+  // ---------- terrain / hillshade ----------
+  let terrain = null, shade = null;
+  async function loadTerrain() {
+    const T = S.man.terrain; if (!T) return;
+    const img = new Image(); img.crossOrigin = "anonymous";
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = DATA + T.file + "?r=" + S.man.run; });
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data, nx = c.width, ny = c.height;
+    const z = new Float32Array(nx * ny);
+    for (let i = 0; i < z.length; i++) z[i] = d[i * 4] * T.step_m;
+    terrain = { z, nx, ny, img, dLon: 360 / nx, dLat: 180 / (ny - 1) };
+    // hillshade (sun from NW, 45° up), vertical exaggeration so 25-km cells show relief
+    const sh = document.createElement("canvas"); sh.width = nx; sh.height = ny;
+    const sg = sh.getContext("2d"), out = sg.createImageData(nx, ny), VEX = 25;
+    const az = 315 * Math.PI / 180, alt = 45 * Math.PI / 180, cellY = terrain.dLat * 111320;
+    for (let j = 0; j < ny; j++) {
+      const cellX = Math.max(2000, terrain.dLon * 111320 * Math.cos((90 - j * terrain.dLat) * Math.PI / 180));
+      for (let i = 0; i < nx; i++) {
+        const at = (ii, jj) => z[Math.min(ny - 1, Math.max(0, jj)) * nx + ((ii + nx) % nx)];
+        const h = at(i, j), o = (j * nx + i) * 4;
+        let v = 255;
+        if (h > 0) {
+          const dzdx = (at(i + 1, j) - at(i - 1, j)) / (2 * cellX) * VEX, dzdy = (at(i, j - 1) - at(i, j + 1)) / (2 * cellY) * VEX;
+          const slope = Math.atan(Math.hypot(dzdx, dzdy)), aspect = Math.atan2(dzdy, -dzdx);
+          const hs = Math.cos(Math.PI / 2 - alt) * Math.cos(slope) + Math.sin(Math.PI / 2 - alt) * Math.sin(slope) * Math.cos(az - Math.PI / 2 - aspect);
+          v = Math.round(255 * Math.max(0.25, Math.min(1, 0.35 + 0.75 * hs)));
+        }
+        out.data[o] = out.data[o + 1] = out.data[o + 2] = v; out.data[o + 3] = 255;
+      }
+    }
+    sg.putImageData(out, 0, 0); shade = sh; schedule(); emit("texture");
+  }
+  function elevAt(lon, lat) {
+    if (!terrain) return 0;
+    const fi = (((lon + 180) % 360 + 360) % 360) / terrain.dLon, fj = Math.min(terrain.ny - 1.001, Math.max(0, (90 - lat) / terrain.dLat));
+    const i0 = Math.floor(fi) % terrain.nx, j0 = Math.floor(fj), di = fi - Math.floor(fi), dj = fj - j0, i1 = (i0 + 1) % terrain.nx;
+    const z = (i, j) => terrain.z[j * terrain.nx + i];
+    return (z(i0, j0) * (1 - di) + z(i1, j0) * di) * (1 - dj) + (z(i0, j0 + 1) * (1 - di) + z(i1, j0 + 1) * di) * dj;
   }
 
   // ---------- inspector ----------
@@ -359,6 +406,10 @@
     $("marginSlider").value = S.margin;
     $("marginSlider").oninput = e => { S.margin = +e.target.value; refresh(); };
     $("fadeOcean").onchange = e => { S.fade = e.target.checked; schedule(); };
+    $("relief").checked = S.relief;
+    $("relief").onchange = e => { S.relief = e.target.checked; schedule(); emit("texture"); };
+    $("threshSel").value = String(S.thresh || 0);
+    $("threshSel").onchange = e => { S.thresh = +e.target.value; refresh(); };
     $("playBtn").onclick = togglePlay;
     $("apts").innerHTML = AIRPORTS.map(a => `<option value="${a[0]}">${a[1]}</option>`).join("");
     $("aboutBtn").onclick = () => $("about").showModal();
@@ -390,6 +441,7 @@
   function writeHash() {
     if (!S.man) return;
     const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.margin, v: S.view });
+    if (S.thresh) p.set("th", S.thresh);
     for (const [k, v] of Object.entries(hashExtra)) if (v != null) p.set(k, v);
     history.replaceState(null, "", "#" + p.toString());
   }
@@ -401,6 +453,7 @@
     if (p.get("t")) S.fi = Math.min(fhs().length - 1, Math.max(0, +p.get("t")));
     if (p.get("mg") != null) S.margin = Math.max(0, +p.get("mg"));
     if (p.get("v") === "3d") S.view = "3d";
+    if (p.get("th")) S.thresh = +p.get("th");
     return p;
   }
 
@@ -409,6 +462,7 @@
     S, APT, AIRPORTS, FLOOR, KT, loadAtlas, loadProfiles, profileAt, mAt, mHeading, cAt, landAt, windAt, tileOf, curTile,
     colorFor, toM, raw, off, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt,
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 
@@ -437,6 +491,7 @@
       const rt = new Date(man.run_time), gen = new Date(man.generated);
       $("runInfo").innerHTML = `GFS ${d3.utcFormat("%d %b %Y %HZ")(rt)} run · updated ${d3.utcFormat("%d %b %H:%MZ")(gen)}`;
       await refresh();
+      loadTerrain().catch(e => console.warn("terrain", e));
       if (S.view === "3d") setView();
       emit("ready", p);
       window.dispatchEvent(new CustomEvent("mc-ready", { detail: p }));
