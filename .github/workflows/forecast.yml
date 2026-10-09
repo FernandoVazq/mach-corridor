@@ -9,7 +9,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -36,6 +36,14 @@ jobs:
       - name: Build forecast atlases from latest GFS
         working-directory: engine
         run: python build.py --out ../site/data
+      - name: Publish latest data snapshot to forecast-data branch
+        run: |
+          cd site/data
+          git init -q -b forecast-data
+          git -c user.name="mach-corridor-bot" -c user.email="actions@users.noreply.github.com" add -A
+          git -c user.name="mach-corridor-bot" -c user.email="actions@users.noreply.github.com" commit -q -m "GFS $(python -c 'import json;print(json.load(open("manifest.json"))["run"])')"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" forecast-data
+          rm -rf .git
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
