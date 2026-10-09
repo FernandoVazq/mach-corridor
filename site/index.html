@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mach Corridor</title>
+<meta name="description" content="Forecast map of where supersonic aircraft can fly without the sonic boom reaching the ground (Mach cutoff), from NOAA GFS.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 6 L28 22' fill='none' stroke='%232a78d6' stroke-width='3'/%3E%3Cpath d='M2 27 Q16 17 30 27' fill='none' stroke='%231baf7a' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Mach Corridor</h1>
+      <p class="sub">Where supersonic flight stays boomless — Mach cutoff forecast</p>
+    </div>
+    <div class="run" id="runInfo">Loading forecast…</div>
+    <button class="ghost" id="aboutBtn" aria-expanded="false">How it works</button>
+  </header>
+
+  <section class="controls" aria-label="Map controls">
+    <div class="ctl">
+      <span class="lbl">Flight level</span>
+      <div class="seg" id="flSeg" role="radiogroup" aria-label="Flight level"></div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Direction of travel</span>
+      <div class="seg" id="hdSeg" role="radiogroup" aria-label="Direction"></div>
+    </div>
+    <div class="ctl grow">
+      <span class="lbl">Valid time <b id="timeLbl">—</b></span>
+      <div class="timerow">
+        <button class="icon" id="playBtn" aria-label="Play forecast animation">▶</button>
+        <input type="range" id="timeSlider" min="0" max="8" step="1" value="0" aria-label="Forecast hour">
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Safety margin <b id="marginLbl">0.00</b> M</span>
+      <input type="range" id="marginSlider" min="0" max="0.05" step="0.005" value="0" aria-label="Safety margin in Mach">
+    </div>
+    <div class="ctl">
+      <span class="lbl">Tool</span>
+      <div class="seg" id="modeSeg" role="radiogroup" aria-label="Tool">
+        <button data-mode="inspect" class="on" role="radio" aria-checked="true">Inspect</button>
+        <button data-mode="route" role="radio" aria-checked="false">Route</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="main">
+    <div class="mapwrap" id="mapWrap">
+      <canvas id="map" aria-label="World map of maximum boomless Mach number"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="legend" id="legend">
+        <div class="ltitle">Max Mach with no boom at ground <span class="muted">· tick = M 1.05 practical floor</span></div>
+        <canvas id="legendBar" width="260" height="12"></canvas>
+        <div class="lticks"><span style="left:0">1.00</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30+</span></div>
+        <label class="chk"><input type="checkbox" id="fadeOcean" checked> Fade oceans (boom allowed offshore)</label>
+      </div>
+      <div class="hint" id="hint">Click the map to inspect a point · scroll / pinch to zoom</div>
+    </div>
+
+    <aside class="side">
+      <div class="kpis">
+        <div class="kpi"><div class="kv" id="kpiLand">—</div><div class="kl">Median boomless Mach over land, any direction</div></div>
+        <div class="kpi"><div class="kv" id="kpiBest">—</div><div class="kl">Highest boomless Mach on Earth (best direction)</div></div>
+      </div>
+
+      <div class="panel" id="inspectPanel">
+        <h2>Point inspector</h2>
+        <p class="muted" id="inspEmpty">Click anywhere on the map.</p>
+        <div id="inspBody" hidden>
+          <div class="insphead"><b id="inspLoc"></b><span class="muted" id="inspSurf"></span></div>
+          <div class="inspgrid">
+            <svg id="polar" viewBox="-120 -120 240 240" role="img" aria-label="Boomless Mach by direction"></svg>
+            <dl class="facts" id="inspFacts"></dl>
+          </div>
+          <h3>Next 48 h at this point <span class="muted" id="tsSub"></span></h3>
+          <svg id="ts" viewBox="0 0 320 130" role="img" aria-label="Boomless Mach over forecast time"></svg>
+        </div>
+      </div>
+
+      <div class="panel" id="routePanel" hidden>
+        <h2>Route planner</h2>
+        <div class="routein">
+          <label>From <input list="apts" id="fromIn" placeholder="KDFW" autocomplete="off"></label>
+          <label>To <input list="apts" id="toIn" placeholder="KLAX" autocomplete="off"></label>
+          <button id="routeGo">Plan</button>
+        </div>
+        <datalist id="apts"></datalist>
+        <p class="muted small">Or click two points on the map. Uses the selected flight level and valid time.</p>
+        <div class="routeparams">
+          <label>Overwater Mach <input type="number" id="mWater" value="1.7" step="0.05" min="1" max="2.2"></label>
+          <label>Subsonic Mach <input type="number" id="mSub" value="0.94" step="0.01" min="0.7" max="0.99"></label>
+          <label>Airliner Mach <input type="number" id="mBase" value="0.85" step="0.01" min="0.7" max="0.95"></label>
+        </div>
+        <div id="routeOut" hidden>
+          <table class="rt" id="routeTable"></table>
+          <h3>Mach along the route</h3>
+          <svg id="rprof" viewBox="0 0 320 150" role="img" aria-label="Planned Mach along route"></svg>
+          <div class="rlegend">
+            <span><i class="sw sw-boomless"></i>Boomless supersonic (land)</span>
+            <span><i class="sw sw-sub"></i>Subsonic (land, no cutoff)</span>
+            <span><i class="sw sw-water"></i>Over water</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="about">
+    <form method="dialog"><button class="ghost close" aria-label="Close">✕</button></form>
+    <h2>How it works</h2>
+    <p><b>Mach cutoff.</b> Sound travels faster in warm air. A boom made high up, in cold air, bends upward as it descends into the warmer layers below. If some layer under the aircraft has an <i>effective sound speed</i> (sound speed + wind along the track) at least as fast as the aircraft's ground speed, the boom turns around before reaching the ground.</p>
+    <p class="eq">M<sub>max</sub> = ( max<sub>ground ≤ z ≤ z<sub>a</sub></sub> [ c(z) + w(z) ] − w(z<sub>a</sub>) ) / c(z<sub>a</sub>)</p>
+    <p>Each map pixel solves that equation on a full NOAA GFS profile (23 pressure levels + surface), every 6 hours out to 48 h, for 6 flight levels and 12 directions. Layers below the terrain are removed, so high plateaus get less margin.</p>
+    <p><b>Check:</b> a standard atmosphere gives M 1.15 at FL360–400, matching Boom XB-1's boomless runs (M 1.12–1.18, 2025).</p>
+    <p><b>Not included (yet):</b> forecast uncertainty (use the safety-margin slider), aircraft-specific near-field shape, humidity (&lt;0.5% on c), horizontal gradients along the ray path, turns/accelerations. Research prototype — not for flight planning.</p>
+    <p><b>Reading the map.</b> “Any direction” is the worst case across 12 headings; “Best” is the most favorable. Strong tailwinds aloft erase the margin; headwinds aloft expand it.</p>
+    <p class="muted small">Data: NOAA GFS 1° via AWS Open Data. Map: Natural Earth via world-atlas. Code: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a></p>
+  </dialog>
+</div>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
