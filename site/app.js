@@ -200,6 +200,7 @@
       if (borders) { ctx.beginPath(); path(borders); ctx.strokeStyle = css("--border-c"); ctx.lineWidth = 0.6; ctx.stroke(); }
       if (land) { ctx.beginPath(); path(land); ctx.strokeStyle = css("--coast"); ctx.lineWidth = 0.9; ctx.stroke(); }
     }
+    if (S.hd === "max" && current) drawBestArrows();
     for (const f of overlays) f(ctx, toScreen, S.t.k * W0);
     if (S.sel) {
       const [sx, sy] = toScreen(S.sel[0], S.sel[1]);
@@ -207,6 +208,33 @@
       ctx.lineWidth = 4; ctx.strokeStyle = css("--casing"); ctx.stroke();
       ctx.lineWidth = 2; ctx.strokeStyle = css("--text"); ctx.stroke();
     }
+  }
+
+  // minimal arrows showing the best direction of travel (Best mode)
+  function drawBestArrows() {
+    const pxPerDeg = S.t.k * W0 / 360, step = Math.max(1, Math.ceil(38 / pxPerDeg));
+    const [lonA, latA] = toLonLat(0, 0), [lonB, latB] = toLonLat(W, H);
+    ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (let lat = Math.floor(Math.min(80, latA) / step) * step; lat >= Math.max(-80, latB); lat -= step) {
+      for (let lon = Math.ceil(Math.max(-540, lonA) / step) * step; lon <= Math.min(540, lonB); lon += step) {
+        const L = normLon(lon), i = ((Math.round(L) + 180) % 360 + 360) % 360, j = Math.round(90 - lat);
+        let best = 0, bi = 0;
+        for (let k = 0; k < 36; k++) { const v = raw(current, k, i, j); if (v > best) { best = v; bi = k; } }
+        if (toM(best) - S.margin < FLOOR || (S.thresh && toM(best) - S.margin < S.thresh)) continue;
+        const land = raw(current, A().tile_land, i, j) > 127;
+        const th = bi * 10 * Math.PI / 180, cl = Math.max(0.2, Math.cos(lat * Math.PI / 180));
+        let dx = Math.sin(th) / cl, dy = -Math.cos(th); const n = Math.hypot(dx, dy); dx /= n; dy /= n;
+        const [x, y] = toScreen(lon, lat), len = 7;
+        const x0 = x - dx * len, y0 = y - dy * len, x1 = x + dx * len, y1 = y + dy * len;
+        ctx.strokeStyle = land || !S.fade ? "rgba(255,255,255,.85)" : "rgba(255,255,255,.35)";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.moveTo(x1, y1); ctx.lineTo(x1 - dx * 4 - dy * 3, y1 - dy * 4 + dx * 3);
+        ctx.moveTo(x1, y1); ctx.lineTo(x1 - dx * 4 + dy * 3, y1 - dy * 4 - dx * 3);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   function drawLegend() {
