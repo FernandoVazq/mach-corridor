@@ -206,7 +206,7 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .d3body { flex: 1; display: grid; grid-template-columns: 1fr 300px; gap: 16px; min-height: 0; margin-top: 10px; }
 .c3canvas { position: relative; background: var(--stage); border-radius: 10px; overflow: hidden; min-height: 300px; }
 .c3canvas canvas { width: 100% !important; height: 100% !important; display: block; }
-.c3side { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.c3side { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 .c3side .k { font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; }
 .c3side .k output { color: var(--ink); font-weight: 500; }
 .c3stats { font-size: 12.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
@@ -303,3 +303,7 @@ dialog.big[open] { display: flex; flex-direction: column; }
 
 .insights { padding-left: 22px; display: grid; gap: 10px; line-height: 1.55; margin: 8px 0 18px; }
 .insights b { color: var(--ink); }
+
+.c3phase { position: absolute; left: 14px; top: 12px; z-index: 3; padding: 5px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+  color: #fff; background: rgba(6, 16, 41, .72); border: 1px solid rgba(226, 235, 252, .25); pointer-events: none; }
+.c3phase[hidden] { display: none; }

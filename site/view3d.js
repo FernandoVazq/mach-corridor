@@ -238,6 +238,44 @@ function shockSurface(F, za, ground, zTop, M, A) {
   return { mesh: new THREE.Mesh(g, mat), caustic, foot, tMax };
 }
 const SHOCK_TIME = { value: 0 };
+/* ---------- aircraft model (symbolic size, built once) ---------- */
+let AC = null;
+function aircraftModel() {
+  if (AC) return AC;
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf3f6fb, roughness: 0.38, metalness: 0.25 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x9aa7bd, roughness: 0.5, metalness: 0.4 });
+  // slender ogive fuselage, nose along +x
+  const prof = [[0, 3.7], [0.07, 3.45], [0.17, 3.0], [0.27, 2.2], [0.31, 1.0], [0.32, -1.8], [0.28, -2.9], [0.2, -3.5], [0.12, -3.75]].map(([r, y]) => new THREE.Vector2(r, y));
+  const fus = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), skin); fus.rotation.z = -Math.PI / 2; g.add(fus);
+  // cockpit glazing
+  const win = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1b2a45, roughness: 0.15, metalness: 0.6 }));
+  win.scale.set(2.6, 0.9, 1.1); win.position.set(2.75, 0.17, 0); g.add(win);
+  // ogival delta wing
+  const w = new THREE.Shape();
+  w.moveTo(1.9, 0); w.bezierCurveTo(0.6, 0.35, -0.9, 1.3, -2.55, 2.05); w.lineTo(-3.05, 2.1); w.lineTo(-3.2, 0.3); w.lineTo(-3.2, -0.3);
+  w.lineTo(-3.05, -2.1); w.lineTo(-2.55, -2.05); w.bezierCurveTo(-0.9, -1.3, 0.6, -0.35, 1.9, 0);
+  const wg = new THREE.ExtrudeGeometry(w, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.03, bevelSegments: 2 });
+  wg.rotateX(Math.PI / 2); wg.translate(0, -0.12, 0); g.add(new THREE.Mesh(wg, skin));
+  // tail fin
+  const f = new THREE.Shape(); f.moveTo(-1.6, 0); f.lineTo(-3.1, 1.45); f.lineTo(-3.55, 1.45); f.lineTo(-3.55, 0);
+  const fg = new THREE.ExtrudeGeometry(f, { depth: 0.05, bevelEnabled: false }); fg.translate(0, 0.2, -0.025); g.add(new THREE.Mesh(fg, skin));
+  // four engines under the wing, with afterburner glow
+  const burners = [];
+  for (const z of [-0.95, -0.55, 0.55, 0.95]) {
+    const n = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.25, 14), dark); n.rotation.z = Math.PI / 2; n.position.set(-2.55, -0.27, z); g.add(n);
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.11, 1.1, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffa54a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    b.rotation.z = Math.PI / 2; b.position.set(-3.75, -0.27, z); b.visible = false; g.add(b); burners.push(b);
+  }
+  // navigation lights: red left, green right, white strobe on the tail
+  const lamp = (c, x, y, z) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, y, z); g.add(m); return m; };
+  lamp(0xff3b4a, -3.0, -0.1, -2.1); lamp(0x2ee87a, -3.0, -0.1, 2.1);
+  const strobe = lamp(0xffffff, -3.5, 1.5, 0);
+  g.scale.setScalar(0.85);
+  AC = { g, burners, strobe };
+  return AC;
+}
+
 function boomlessM(F, za, zf) {
   // largest M whose every ray turns at or above zf (bisection), using the ray invariant
   const ok = M => {
@@ -409,11 +447,18 @@ function renderColumn() {
   const cl = textSprite(`FL${fl}`, "#ffffff", 30); cl.position.copy(V3(-8000, 0, za + 1200)); grp.add(cl);
 
   // ---- aircraft, track, Mach cone, rays ----
-  const ac = new THREE.Group(), white = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  const body = new THREE.Mesh(new THREE.ConeGeometry(0.55, 9, 12), white); body.rotation.z = -Math.PI / 2; ac.add(body);
-  const wing = new THREE.Shape(); wing.moveTo(1.5, 0); wing.lineTo(-4.2, 3.4); wing.lineTo(-4.2, -3.4); wing.closePath();
-  const wm = new THREE.Mesh(new THREE.ExtrudeGeometry(wing, { depth: 0.12, bevelEnabled: false }), white); wm.rotation.x = Math.PI / 2; ac.add(wm);
-  ac.position.copy(V3(0, 0, za)); grp.add(ac);
+  const ac = aircraftModel().g;
+  // along a route the aircraft follows the climb and descent (first and last 150 nm), from the runway up
+  const gO = Math.max(0, elev(state.lon, state.lat));
+  let zShow = za, pitch = 0;
+  if (state.route) {
+    const x = state.routeX || 0, D = state.route.opt.dist, ease = f => 1 - Math.pow(1 - Math.max(0, Math.min(1, f)), 2);
+    if (x < 150) { zShow = gO + (za - gO) * ease(x / 150); pitch = x < 1 ? 0 : 0.16 * (1 - x / 150); }
+    else if (x > D - 150) { zShow = gO + (za - gO) * ease((D - x) / 150); pitch = -0.06; }
+  }
+  ac.position.copy(V3(0, 0, zShow)); ac.rotation.set(0, 0, pitch); grp.add(ac);
+  state.gO = gO; state.zShow = zShow;
+  if (state.route && ((state.routeX || 0) < 1 || (state.routeX || 0) > state.route.opt.dist - 1)) grp.add(runway(K(gO) * VE));
   grp.add(lineOf([[-70000, 0, za], [190000, 0, za]], 0xe2ebfc, 0.35));
   let nTurn = 0, nLow = 0, nGround = 0, lowest = Infinity;
   if (M > 1.0005) {
@@ -545,7 +590,7 @@ function header() {
   const MC = window.MC;
   $("c3Loc").textContent = `${MC.fmtLat(state.lat)} ${MC.fmtLon(state.lon)}`;
   $("c3Sub").onclick = e => e.currentTarget.classList.toggle("open");
-  $("c3Sub").textContent = `GFS valid ${d3.utcFormat("%a %d %b, %H:%M UTC")(new Date(MC.S.man.valid_times[state.fhIndex]))}. The glowing sheet is the shock wave, traced through today's air: it bends with temperature and wind, and where it turns back up (amber) no boom reaches the ground. Lines are individual sound rays. Wall colours: blue where sound is slower than the aircraft (the boom keeps descending), orange where it is faster (the boom turns back up).`;
+  $("c3Sub").textContent = `GFS valid ${d3.utcFormat("%a %d %b, %H:%M UTC")(new Date(MC.S.man.valid_times[state.fhIndex]))}. The glowing sheet is the shock wave, traced through today's air: it bends with temperature and wind, and where it turns back up (amber) no boom reaches the ground. Lines are individual sound rays. Press play on a route for take-off and landing. Wall colours: blue where sound is slower than the aircraft (the boom keeps descending), orange where it is faster (the boom turns back up).`;
 }
 async function openColumn() {
   const MC = window.MC; if (!MC.S.sel) return;
@@ -560,6 +605,85 @@ async function openColumn() {
   const { demP } = await loadAt(lon, lat, MC.S.fi);
   state.M = state.mb ? +state.mb.toFixed(3) : 1.05; syncInputs(); header(); state.dem = null; renderColumn();
   state.dem = await demP; renderColumn();
+}
+/* runway at the airport (scene origin, along the track) */
+function runway(y) {
+  const g = new THREE.Group();
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.7), new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.9 }));
+  strip.rotation.x = -Math.PI / 2; strip.position.set(0, y + 0.07, 0); g.add(strip);
+  for (let x = -4; x < 4.2; x += 0.9) {
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    d.rotation.x = -Math.PI / 2; d.position.set(x, y + 0.08, 0); g.add(d);
+  }
+  for (const z of [-0.36, 0.36]) for (let x = -4.4; x <= 4.4; x += 0.55) {
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); l.position.set(x, y + 0.1, z); g.add(l);
+  }
+  return g;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const easeIO = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function phaseLabel(text) {
+  let el = document.getElementById("c3Phase");
+  if (!el) { el = document.createElement("div"); el.id = "c3Phase"; el.className = "c3phase"; $("c3Canvas").appendChild(el); }
+  el.textContent = text || ""; el.hidden = !text;
+}
+// chase camera + a short scripted motion; path(t) gives [x, y, pitch] in scene units for t in 0..1
+function animate(ms, path, phases, onFrame) {
+  const C = ensureColumnScene(), { g, burners, strobe } = aircraftModel();
+  const cam0 = C.camera.position.clone(), tgt0 = C.controls.target.clone();
+  const trail = [], tg = new THREE.BufferGeometry(), tl = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }));
+  C.group.add(tl);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.scale.set(2.2, 1, 1); C.group.add(shadow);
+  const gy = K(state.gO || 0) * state.ve;
+  return new Promise(res => {
+    const t0 = performance.now();
+    const step = now => {
+      const t = Math.min(1, (now - t0) / ms), [x, y, pitch, burn] = path(t);
+      g.position.set(x, y, 0); g.rotation.set(0, 0, pitch);
+      burners.forEach(b => { b.visible = burn > 0.02; b.scale.set(1, burn * (0.75 + 0.35 * Math.random()), 1); b.material.opacity = 0.55 + 0.4 * burn; });
+      strobe.visible = Math.floor(now / 450) % 2 === 0;
+      if (y - gy > 0.3) { trail.push(new THREE.Vector3(x - 2.9, y - 0.2, 0)); if (trail.length > 160) trail.shift(); tg.setFromPoints(trail); }
+      shadow.position.set(x, gy + 0.09, 0); shadow.material.opacity = Math.max(0, 0.35 - 0.05 * (y - gy));
+      const p = phases.find(ph => t <= ph[0]); phaseLabel(p ? p[1] : "");
+      // chase camera: low and behind on the runway, easing back to the normal view as the motion ends
+      const blend = t < 0.12 ? easeIO(t / 0.12) : t > 0.82 ? 1 - easeIO((t - 0.82) / 0.18) : 1;
+      const chase = new THREE.Vector3(x - 14, y + 4.5, 9), look = new THREE.Vector3(x + 4, y, 0);
+      C.camera.position.lerpVectors(cam0, chase, blend); C.controls.target.lerpVectors(tgt0, look, blend);
+      onFrame && onFrame(t, x, y);
+      if (t < 1 && $("col3d").open) requestAnimationFrame(step);
+      else { burners.forEach(b => b.visible = false); C.group.remove(tl); C.group.remove(shadow); tg.dispose(); phaseLabel(""); res(); }
+    };
+    requestAnimationFrame(step);
+  });
+}
+async function takeoff() {
+  const gy = K(state.gO || 0) * state.ve + 0.42, top = gy + 6;
+  await animate(7000, t => {
+    if (t < 0.38) { const u = t / 0.38; return [-4 + 6.5 * u * u, gy, 0, 1]; }                         // roll, afterburners lit
+    if (t < 0.48) { const u = (t - 0.38) / 0.1; return [2.5 + 1.6 * u, gy + 0.15 * u * u, 0.22 * easeIO(u), 1]; }  // rotate
+    const u = (t - 0.48) / 0.52; return [4.1 + 30 * u, gy + 0.15 + (top - gy) * easeIO(u), 0.22 * (1 - 0.6 * u), Math.max(0, 1 - 1.6 * u)];
+  }, [[0.38, "Take-off roll, afterburners lit"], [0.48, "Rotate"], [0.8, "Lift-off, climbing out"], [1, ""]]);
+}
+async function landing() {
+  const gy = K(state.gO || 0) * state.ve + 0.42, top = gy + 6;
+  let puff = null;
+  await animate(7500, t => {
+    if (t < 0.55) { const u = t / 0.55; return [-34 + 31 * u, top - (top - gy - 0.35) * easeIO(u), -0.05, 0]; }  // final approach
+    if (t < 0.66) { const u = (t - 0.55) / 0.11; return [-3 + 2.2 * u, gy + 0.35 * (1 - u) * (1 - u), 0.09 * u, 0]; } // flare
+    const u = (t - 0.66) / 0.34, k = 1 - Math.pow(1 - u, 2); return [-0.8 + 4.2 * k, gy, 0.09 * (1 - Math.min(1, u * 4)), 0]; // roll-out
+  }, [[0.55, "Final approach"], [0.66, "Flare"], [0.8, "Touchdown"], [1, "Rolling to a stop"]], (t, x, y) => {
+    const C = ensureColumnScene();
+    if (t > 0.66 && !puff) {                                  // tyre smoke at touchdown
+      puff = []; for (let i = 0; i < 14; i++) {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), new THREE.MeshBasicMaterial({ color: 0xe9eef7, transparent: true, opacity: 0.7, depthWrite: false }));
+        m.position.set(x - 1.6 + Math.random() * 0.6, y - 0.35, (Math.random() - 0.5) * 0.8); m.userData.v = new THREE.Vector3(-0.02 - Math.random() * 0.03, 0.01 + Math.random() * 0.02, (Math.random() - 0.5) * 0.03);
+        C.group.add(m); puff.push(m);
+      }
+    }
+    if (puff) puff.forEach(m => { m.position.add(m.userData.v); m.scale.multiplyScalar(1.025); m.material.opacity *= 0.975; });
+    if (t >= 1 && puff) puff.forEach(m => { C.group.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  });
 }
 /* along the route */
 function routeAt(x) {
@@ -603,12 +727,14 @@ async function play() {
   playing = true; $("c3Play").classList.add("on");
   let x = state.routeX >= R.opt.dist - 1 ? 0 : (state.routeX || 0);
   const stepNm = Math.max(15, R.opt.dist / 140);
-  while (playing && x <= R.opt.dist) {
+  if (x === 0) { await setRoutePos(0, true); if (playing) await takeoff(); x = stepNm; }
+  while (playing && x < R.opt.dist) {
     const t0 = performance.now();
     await setRoutePos(x, false);
     await new Promise(r => setTimeout(r, Math.max(60, 260 - (performance.now() - t0))));
     x += stepNm;
   }
+  if (playing) { await setRoutePos(R.opt.dist, true); if (playing) await landing(); }
   playing = false; $("c3Play").classList.remove("on");
 }
 async function openRoute(x = 0) {

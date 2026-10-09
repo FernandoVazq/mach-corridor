@@ -28,7 +28,7 @@ from physics import mmax_grid, footprint_max, virtual_temperature, sound_speed, 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
         450, 400, 350, 300, 250, 200, 150, 100, 70, 50]
-FLS = [350, 400, 450, 500, 550, 600]
+FLS = [300, 350, 400, 450, 500, 550, 600]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025

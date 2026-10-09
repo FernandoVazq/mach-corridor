@@ -56,7 +56,7 @@ Atlas (6×7 tiles of 360×181): 0–35 = direction of travel 0°…350° · 36 w
 ## App
 - **Map** (2D or 3D globe): boomless cruise Mach, red = no usable corridor (< M 1.05), green = corridor; forecast-error margin slider (default 0.03).
 - **Click** a point: inspector + 3D column view with traced boom rays and a Mach slider. **Shift-click** a second point: optimised route.
-- **Route optimiser:** Dijkstra on a 1° grid (16 directions) minimising time, operating cost, or cost + passenger time; land/coast legs fly the boomless Mach (≥300 nm constant-Mach blocks), open water flies design Mach, cruise winds applied, 150 nm subsonic climb and descent. Compared at all six flight levels.
+- **Route optimiser:** Dijkstra on a 1° grid (16 directions) minimising time, operating cost, or cost + passenger time; land/coast legs fly the boomless Mach (≥300 nm constant-Mach blocks), open water flies design Mach, cruise winds applied, 150 nm subsonic climb and descent. Compared at all seven flight levels (FL300–FL600).
 - **Economics tab:** common routes × Concorde, Boom Overture, Aerion AS2, an NASA-N+3-goal concept, vs a 787-9; break-even value of time. Assumptions and sources: `site/aircraft.js`, `docs/ECONOMICS_SOURCES.md`.
 
 ## Run locally
