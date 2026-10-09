@@ -28,7 +28,7 @@
   ];
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
-  const S = { man: null, fl: 450, hd: "min", hdDeg: 90, fi: 0, margin: 0.03, fade: true, view: "2d", thresh: 0, relief: true,
+  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.01, fade: false, view: "2d", thresh: 0, relief: true,
               t: d3.zoomIdentity, sel: null, playing: null };
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -491,6 +491,7 @@
     sl.oninput = () => { S.fi = +sl.value; refresh(); };
     $("marginSlider").value = S.margin;
     $("marginSlider").oninput = e => { S.margin = +e.target.value; refresh(); };
+    $("fadeOcean").checked = S.fade;
     $("fadeOcean").onchange = e => { S.fade = e.target.checked; schedule(); };
     $("relief").checked = S.relief;
     $("relief").onchange = e => { S.relief = e.target.checked; schedule(); emit("texture"); };
@@ -536,6 +537,7 @@
     if (p.get("fl") && S.man.flight_levels.includes(+p.get("fl"))) S.fl = +p.get("fl");
     const d = p.get("d");
     if (d === "min" || d === "max") S.hd = d; else if (d != null && !isNaN(+d)) { S.hd = "hd"; S.hdDeg = (Math.round(+d / 10) * 10) % 360; }
+    S.fi = Math.min(fhs().length - 1, S.fi);
     if (p.get("t")) S.fi = Math.min(fhs().length - 1, Math.max(0, +p.get("t")));
     if (p.get("mg") != null) S.margin = Math.max(0, +p.get("mg"));
     if (p.get("v") === "3d") S.view = "3d";

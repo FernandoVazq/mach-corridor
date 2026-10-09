@@ -145,6 +145,7 @@
     MC = window.MC; ACS = window.AIRCRAFT; RT = window.ROUTE;
     MC.overlays.push(drawOverlay);
     $("acSel").innerHTML = ACS.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
+    $("acSel").value = "concorde";
     const p = ev.detail;
     if (p.get("ac") && ACS.some(a => a.id === p.get("ac"))) $("acSel").value = p.get("ac");
     const go = () => {
