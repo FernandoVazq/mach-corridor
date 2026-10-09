@@ -48,6 +48,7 @@ def fields(fh, land):
         V = 12 * jet * np.cos(3 * lam + fh / 10)
         out[("TMP", f"{p} mb")] = T; out[("UGRD", f"{p} mb")] = U
         out[("VGRD", f"{p} mb")] = V; out[("HGT", f"{p} mb")] = z
+        out[("RH", f"{p} mb")] = 70 * np.exp(-z / 6000) + 5 * np.ones_like(lat)
     out[("HGT", "surface")] = Zs; out[("TMP", "2 m above ground")] = Tsfc - 6.5e-3 * Zs
     out[("UGRD", "10 m above ground")] = 4 * np.ones_like(lat); out[("VGRD", "10 m above ground")] = 0 * lat
     out[("LAND", "surface")] = land
@@ -56,5 +57,6 @@ def fields(fh, land):
 
 if __name__ == "__main__":
     land = land_mask(sys.argv[1])
-    build.fetch_fields = lambda run, fh, grib_dir=None: fields(fh, land)
+    build.fetch_fields = lambda run, fh: fields(fh, land)
+    build.fetch_orog = lambda run, F0: (F0[("HGT", "surface")] * 1.3, "synthetic")
     build.build("2026100912", sys.argv[2])

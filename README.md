@@ -12,33 +12,31 @@ Sound travels faster in warm air. A boom created high up, in cold air, bends upw
 
 The catch: the maximum boomless Mach depends on today's temperature and wind profile, on altitude, and on the **direction of flight**. This project forecasts it worldwide.
 
-## Physics
+## Physics (v2, after the red-team review in `docs/REDTEAM.md`)
 
-For each grid column, flight level and direction of travel:
+For each grid column, flight level, direction of travel and boom ray direction α:
 
 ```
-M_max = ( max_{ground ≤ z ≤ z_a} [ c(z) + w(z) ] − w(z_a) ) / c(z_a)
+M_α = ( max_{z_f ≤ z < z_a} [ c(z) + w(z)·e_α ] − w(z_a)·e_α ) / ( c(z_a) · cos α )
+M   = min over attainable rays (|tan α| ≤ sqrt(M² − 1))
 
-c = sqrt(γ R T)                         speed of sound
-w = u·sin(θ) + v·cos(θ)                 wind along the direction of travel θ (+ = tailwind)
+c   = sqrt(γ R T_v)        speed of sound (virtual temperature)
+e_α = horizontal direction of the ray's wavefront normal, α off the track
+z_f = max terrain under the boom footprint (GFS 0.25°, ±0.5°) + 1 km buffer
 ```
 
-A downward boom ray keeps descending while the aircraft's ground speed `M·c(z_a) + w(z_a)` exceeds the effective sound speed `c + w` of every layer below. Any faster layer refracts it back up.
+A boom ray turns upward where a layer below is "faster" than the aircraft. The turning point is a caustic (focused boom), so it must sit at least 1 km above the highest nearby terrain; the 2 m surface layer is not used. v1 published the grazing Mach (turning at the ground) — that was wrong (red-team finding K1).
 
-- Flight levels are ISA pressure altitudes, so values are interpolated in ln(p) between GFS pressure levels.
-- Pressure levels below the terrain are discarded, so high plateaus (Tibet, Andes, Rockies) lose the warm low layers and get less margin.
-- The surface point (2 m temperature, 10 m wind) is included.
-
-**Validation:** in the ISA standard atmosphere with no wind, the engine gives M 1.147 at FL360 and M 1.153 at FL400. That sits inside XB-1's demonstrated M 1.12–1.18 (`engine/test_physics.py`).
+**Sanity check (not validation):** ISA, no wind: M 1.152 at FL400 without buffer, 1.140 with the 1 km buffer — in the range Boom XB-1 flew boomless (M 1.12–1.18). Validation against soundings, forecast error and XB-1 flight days is in progress (`docs/HANDOFF.md`).
 
 ## Assumptions and limits
 
 | Included | Not included (yet) |
 |---|---|
-| Full GFS temperature + wind profile, 23 levels + surface | Forecast uncertainty: use the safety-margin slider |
-| Terrain height | Horizontal gradients along the ray path |
-| Direction dependence (12 headings) | Aircraft-specific near-field signature, focusing in turns/accelerations |
-| 0–48 h forecast every 6 h | Humidity (< 0.5 % on c), atmospheric turbulence |
+| GFS temperature, humidity, wind on 23 levels; 1 km turning buffer over max terrain | Overpressure (psf), secondary booms — not a §91.817 compliance determination |
+| Lateral rays with crosswind; 36 directions | Forecast uncertainty beyond a fixed margin (ensembles planned) |
+| 0–48 h forecast every 6 h | Horizontal gradients along the ~40 km ray path; climb/descent angle (−3° ≈ −0.03 M) |
+| Route winds, climb/descent, constant-Mach blocks | Aircraft-specific near field; turn/acceleration focusing |
 
 Research prototype. **Not for flight planning.**
 
@@ -53,7 +51,13 @@ NOAA GFS 1° (AWS Open Data, byte-range via .idx)
 
 `.github/workflows/forecast.yml` runs at 04:20, 10:20, 16:20 and 22:20 UTC.
 
-Atlas tiles: 0–11 = direction of travel 0°, 30°, …, 330° true · 12 = worst direction · 13 = best direction · 14 = speed of sound at cruise (value + 200 m/s) · 15 = land fraction.
+Atlas (6×7 tiles of 360×181): 0–35 = direction of travel 0°…350° · 36 worst · 37 best · 38 sound speed at cruise · 39 land fraction · 40/41 cruise wind u/v. `prof_fHHH.bin` holds 2° vertical profiles for the 3D column view.
+
+## App
+- **Map** (2D or 3D globe): boomless cruise Mach, red = no usable corridor (< M 1.05), green = corridor; forecast-error margin slider (default 0.03).
+- **Click** a point: inspector + 3D column view with traced boom rays and a Mach slider. **Shift-click** a second point: optimised route.
+- **Route optimiser:** Dijkstra on a 1° grid (16 directions) minimising time, operating cost, or cost + passenger time; land/coast legs fly the boomless Mach (≥300 nm constant-Mach blocks), open water flies design Mach, cruise winds applied, 150 nm subsonic climb and descent. Compared at all six flight levels.
+- **Economics tab:** common routes × Concorde, Boom Overture, Aerion AS2, an NASA-N+3-goal concept, vs a 787-9; break-even value of time. Assumptions and sources: `site/aircraft.js`, `docs/ECONOMICS_SOURCES.md`.
 
 ## Run locally
 

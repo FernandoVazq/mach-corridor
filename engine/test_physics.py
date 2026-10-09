@@ -1,56 +1,73 @@
-"""Sanity checks: ISA column must reproduce the single-column prototype and XB-1 conditions."""
+"""Sanity checks for physics v2 (not validation: see README)."""
 import numpy as np
-from physics import mmax_grid, isa_pressure_hpa, FT
+from physics import mmax_grid
 
 PLEV = np.array([1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
                  450, 400, 350, 300, 250, 200, 150, 100, 70, 50], dtype=float)
 
 
 def isa_T_from_p(p):
-    # invert ISA: height from pressure, then temperature
     h = np.where(p > 226.32, (1 - (p / 1013.25) ** (1 / 5.25588)) / 2.25577e-5,
                  11000 - 6341.62 * np.log(p / 226.32))
     return np.where(h < 11000, 288.15 - 0.0065 * h, 216.65), h
 
 
-def column(Tfun_wind=None):
+def column(u_of_z=None, v_of_z=None):
     T, Z = isa_T_from_p(PLEV)
-    U = np.zeros_like(T)
-    if Tfun_wind is not None:
-        U = Tfun_wind(Z)
-    sh = lambda a: a[:, None, None].astype(float)
-    return sh(T), sh(U), sh(np.zeros_like(T)), sh(Z)
+    U = u_of_z(Z) if u_of_z else np.zeros_like(T)
+    V = v_of_z(Z) if v_of_z else np.zeros_like(T)
+    sh = lambda a: np.asarray(a, float)[:, None, None]
+    return sh(T), sh(U), sh(V), sh(Z)
 
 
-def test_isa_no_wind():
+def run(fl, hd, zg=0.0, h_buf=0.0, lateral=True, **kw):
+    T, U, V, Z = column(**kw)
+    r = mmax_grid(PLEV, T, U, V, Z, np.full((1, 1), zg), fl, [hd], h_buf=h_buf, lateral=lateral)
+    return float(r["M"][0, 0, 0])
+
+
+def test_isa():
+    m0 = run(400, 90, h_buf=0)
+    m1 = run(400, 90, h_buf=1000)
+    assert abs(m0 - 1.153) < 0.006, m0          # textbook ISA value (sanity check only)
+    assert 0.008 < m0 - m1 < 0.02, (m0, m1)     # 1 km turning-height buffer costs ~0.013
+    print(f"ISA FL400: no buffer {m0:.3f}, 1 km buffer {m1:.3f}")
+
+
+def test_jet_heading():
+    jet = lambda z: 40 * np.exp(-((z - 11000) / 3500) ** 2)
+    east, west = run(350, 90, u_of_z=jet), run(350, 270, u_of_z=jet)
+    assert east < 1.06 and west > 1.2, (east, west)
+    print(f"Jet FL350 eastbound {east:.3f}, westbound {west:.3f}")
+
+
+def test_lateral_rays_crosswind():
+    # crosswind shear: -20 m/s low, +50 m/s at cruise (v component, flight eastbound)
+    shear = lambda z: -20 + 70 * np.clip(z / 12000, 0, 1)
+    on = run(400, 90, v_of_z=shear, lateral=False)
+    lat = run(400, 90, v_of_z=shear, lateral=True)
+    assert lat < on - 0.005, (on, lat)
+    still_on, still_lat = run(400, 90, lateral=False), run(400, 90, lateral=True)
+    assert abs(still_on - still_lat) < 1e-6           # still air: on-track ray is critical
+    print(f"Crosswind shear FL400: on-track only {on:.3f}, with lateral rays {lat:.3f}")
+
+
+def test_terrain():
+    lo, hi = run(450, 0, zg=0, h_buf=1000), run(450, 0, zg=3000, h_buf=1000)
+    assert hi < lo, (lo, hi)
+    print(f"FL450 sea level {lo:.3f} vs 3000 m terrain {hi:.3f}")
+
+
+def test_no_corridor_is_below_one():
+    # inversion-free isothermal column: nothing below is faster -> no cutoff (M < 1 or NaN)
     T, U, V, Z = column()
-    one = np.ones((1, 1))
-    M, ca = mmax_grid(PLEV, T, U, V, Z, one * 0, one * 288.15, one * 0, one * 0, 400, [90])
-    assert abs(M[0, 0, 0] - 1.153) < 0.005, M
-    M36, _ = mmax_grid(PLEV, T, U, V, Z, one * 0, one * 288.15, one * 0, one * 0, 360, [90])
-    assert 1.12 <= M36[0, 0, 0] <= 1.18, M36  # XB-1 flew 1.12-1.18 near 36 kft
-    print("ISA FL400:", round(float(M[0, 0, 0]), 3), " FL360:", round(float(M36[0, 0, 0]), 3))
-
-
-def test_jet_heading_dependence():
-    jet = lambda z: 40 * np.exp(-((z - 11000) / 3500) ** 2)   # westerly jet (u>0)
-    T, U, V, Z = column(jet)
-    one = np.ones((1, 1))
-    M, _ = mmax_grid(PLEV, T, U, V, Z, one * 0, one * 288.15, one * 0, one * 0, 350, [90, 270])
-    east, west = M[0, 0, 0], M[1, 0, 0]
-    assert east < 1.05 and west > 1.25, (east, west)   # tailwind kills margin, headwind grows it
-    print("Jet FL350 eastbound:", round(float(east), 3), " westbound:", round(float(west), 3))
-
-
-def test_terrain_removes_layers():
-    T, U, V, Z = column()
-    one = np.ones((1, 1))
-    lo, _ = mmax_grid(PLEV, T, U, V, Z, one * 0, one * 288.15, one * 0, one * 0, 450, [0])
-    hi, _ = mmax_grid(PLEV, T, U, V, Z, one * 3000, one * (288.15 - 19.5), one * 0, one * 0, 450, [0])
-    assert hi[0, 0, 0] < lo[0, 0, 0]   # high plateau: warm low layers gone -> less margin
-    print("Sea level vs 3000 m plateau FL450:", round(float(lo[0, 0, 0]), 3), round(float(hi[0, 0, 0]), 3))
+    T[:] = 230.0
+    r = mmax_grid(PLEV, T, U, V, Z, np.zeros((1, 1)), 400, [0], h_buf=1000)
+    m = float(r["M"][0, 0, 0])
+    assert not (m > 1.0 + 1e-6), m
+    print(f"Isothermal column: M_max {m:.3f} (no corridor)")
 
 
 if __name__ == "__main__":
-    test_isa_no_wind(); test_jet_heading_dependence(); test_terrain_removes_layers()
+    test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one()
     print("all physics tests passed")
