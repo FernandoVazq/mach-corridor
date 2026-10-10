@@ -6,7 +6,7 @@
   const AC_COLOR = { overture: "#2a78d6", concorde: "#eb6834", as2: "#1baf7a", nplus3: "#c98500", b789: "#7d8797", a321lr: "#a3abb8" };
   let MC, ACS, RT, focus = "overture", selRoute = 0, data = [], running = false, lastE = null;
 
-  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
+  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.auto && MC.sigmaReady ? MC.marginAt : MC.S.margin });
   const sst = () => ACS.filter(a => a.supersonic);
   const fmtT = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   const mins = h => Math.round(h * 60);
@@ -41,7 +41,7 @@
       data.push(row); renderAll();
     }
     const vt = new Date(MC.S.man.valid_times[MC.S.fi]);
-    progress(1, `Computed with the forecast for ${d3.utcFormat("%a %d %b, %H:%M UTC")(vt)}, margin ${MC.S.margin.toFixed(3)}, each aircraft at its cruise altitude.`);
+    progress(1, `Computed with the forecast for ${d3.utcFormat("%a %d %b, %H:%M UTC")(vt)}, margin ${MC.S.auto && MC.sigmaReady ? "auto (≈" + MC.marginTypical().toFixed(3) + ", per point)" : MC.S.margin.toFixed(3)}, each aircraft at its cruise altitude.`);
     running = false; $("econRun").disabled = false;
   }
   function progress(f, text) { $("pbarFill").style.width = Math.round(100 * f) + "%"; $("econProgText").textContent = text; }

@@ -1,0 +1,27 @@
+{
+ "file": "sigma.png",
+ "fls": [
+  350,
+  450,
+  550
+ ],
+ "k": {
+  "350": 3.79,
+  "450": 4.1,
+  "550": 3.74
+ },
+ "scale": 0.0001,
+ "offset": 100,
+ "nx": 360,
+ "ny": 181,
+ "lon0": -180,
+ "lat0": 90,
+ "land_median": {
+  "350": 0.0148,
+  "450": 0.0141,
+  "550": 0.0139
+ },
+ "gate_flights_pct": 0.5,
+ "s_extra": 0.012,
+ "source": "RMS of GFS 24 h forecast minus analysis, 53 weekly hindcasts Oct 2025 - Oct 2026, combined with 0.012 real-world error"
+}

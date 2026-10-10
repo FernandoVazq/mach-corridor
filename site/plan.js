@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   let MC, ACS, RT, R = null, seq = 0;
 
-  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.margin });
+  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.auto && MC.sigmaReady ? MC.marginAt : MC.S.margin });
   const fmtT = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   const fmtMin = h => { const m = Math.round(h * 60), a = Math.abs(m), sg = m > 0 ? "+" : m < 0 ? "−" : "";
     return a >= 90 ? `${sg}${Math.floor(a / 60)}h ${String(a % 60).padStart(2, "0")}m` : `${sg}${a} min`; };
@@ -118,6 +118,8 @@
       ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Flying subsonic over land on the direct line beats every corridor route here for “${$("objSel").selectedOptions[0].text}”, so that is what is shown. Choose “Time” to see the fastest corridor route.</p>` : ""}
       ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
+    const bm = sup ? BOOM.route(o, MC.S.fl) : null;
+    if (sup) $("routeSummary").insertAdjacentHTML("beforeend", `<p class="fine">${bm.sea ? `Boom at sea ${bm.sea.toFixed(1)} psf. ` : ""}Flown supersonic over land it would be ${bm.overland.toFixed(1)} psf, ${Math.round(bm.overland / BOOM.LIMIT)}× the proposed FAA limit.</p>`);
     const tv = o.block - r.base.block, sv = o.perSeat - r.base.perSeat;
     $("routeKpis").innerHTML = [
       k(fmtT(o.block), "Block time"),
@@ -125,7 +127,8 @@
       k(dMoney(sv), "Cost per seat vs 787-9", sv <= 0 ? "pos" : "neg"),
       k(`${Math.round(Math.abs(o.windAvg))} kt`, o.windAvg >= 0 ? "Average tailwind" : "Average headwind", o.windAvg >= 0 ? "pos" : "neg"),
       k(o.dLand ? Math.round(100 * o.dBoomless / o.dLand) + "%" : "–", "Land legs flown boomless"),
-      k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
+      sup ? k(bm.land ? `${bm.land <= BOOM.CUTOFF_MAX ? "≤ " : ""}${bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
+          : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
     drawLadder(r); drawProfile(o);
     $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>";

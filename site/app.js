@@ -28,7 +28,7 @@
   ];
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
-  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.01, fade: false, view: "2d", thresh: 0, relief: true,
+  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.01, auto: false, fade: false, view: "2d", thresh: 0, relief: true,
               t: d3.zoomIdentity, sel: null, playing: null };
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -158,12 +158,56 @@
     emit("refresh");
   }
 
+  // ---------- margin: one number, or per point from the forecast-error map (study/margin.py) ----------
+  // sigma(x) = RMS of (24 h forecast - analysis) over a year of weekly hindcasts, combined with the part of the
+  // real-world error the analysis cannot see (0.012). Auto margin = k * sigma: the hindcast multiple that keeps
+  // flights with a boom on the ground under the Phase 1 gate (0.5%); k is calibrated per level (study/ship_margin.py).
+  let sigma = null;      // { fls, grids: {fl: Float32Array(NY*NX)} }, lon -180..179
+  async function loadSigma() {
+    const meta = await fetch("geo/sigma.json").then(r => r.json());
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = "geo/" + meta.file; });
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data, grids = {};
+    meta.fls.forEach((fl, r) => {
+      const a = new Float32Array(NY * NX);
+      for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) a[j * NX + i] = (d[((r * NY + j) * NX + i) * 4] + meta.offset) * meta.scale;
+      grids[fl] = a;
+    });
+    sigma = { fls: meta.fls, grids, landMedian: meta.land_median, k: meta.k };
+  }
+  function sigmaGrid(fl) {            // nearest level with a map; levels between two maps average them
+    const f = sigma.fls;
+    if (sigma.grids[fl]) return sigma.grids[fl];
+    const lo = [...f].reverse().find(x => x < fl) ?? f[0], hi = f.find(x => x > fl) ?? f[f.length - 1];
+    const key = "m" + fl;
+    if (!sigma.grids[key]) { const a = sigma.grids[lo], b = sigma.grids[hi]; sigma.grids[key] = a.map((v, i) => (v + b[i]) / 2); }
+    return sigma.grids[key];
+  }
+  const nearest = (obj, fl) => { const ks = Object.keys(obj).map(Number); const lo = Math.max(...ks.filter(x => x <= fl), Math.min(...ks)), hi = Math.min(...ks.filter(x => x >= fl), Math.max(...ks)); return (obj[lo] + obj[hi]) / 2; };
+  const kAt = fl => sigma ? nearest(sigma.k, fl) : 0;
+  const mgCache = {};
+  function marginGrid(fl = S.fl) {    // per 1-degree node, for a level and the current mode
+    const k = S.auto && sigma ? "a" + fl : "f" + S.margin;
+    if (mgCache[fl] && mgCache[fl].k === k) return mgCache[fl].g;
+    const kk = kAt(fl), g = S.auto && sigma ? sigmaGrid(fl).map(v => kk * v) : new Float32Array(NY * NX).fill(S.margin);
+    mgCache[fl] = { k, g }; return g;
+  }
+  function marginAt(lon, lat, fl = S.fl) {
+    if (!(S.auto && sigma)) return S.margin;
+    const g = marginGrid(fl), fi = ((lon + 180) % 360 + 360) % 360, fj = Math.min(180, Math.max(0, 90 - lat));
+    const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), di = fi - i0, dj = fj - j0, i1 = (i0 + 1) % NX;
+    return (g[j0 * NX + i0] * (1 - di) + g[j0 * NX + i1] * di) * (1 - dj) + (g[(j0 + 1) * NX + i0] * (1 - di) + g[(j0 + 1) * NX + i1] * di) * dj;
+  }
+  const marginTypical = () => S.auto && sigma ? kAt(S.fl) * nearest(sigma.landMedian, S.fl) : S.margin;
+
   // Colour is applied after interpolating Mach (not before), so contours and the threshold edge stay smooth
   // at any zoom instead of showing the 1° grid as blocks.
   const LUT_N = 1024, LUT_M0 = 0.96, LUT_M1 = 1.66;
   let lutCache = null;
   function colorLut() {
-    const k = [S.thresh, S.margin].join("|");
+    const k = [S.thresh].join("|");
     if (lutCache && lutCache.k === k) return lutCache.lut;
     const lut = new Uint8ClampedArray(LUT_N * 3), th = S.thresh;
     for (let n = 0; n < LUT_N; n++) {
@@ -179,8 +223,8 @@
     const a = current, tile = curTile(), cols = A().cols, aw = AW();
     const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX;
     const lt = A().tile_land, lbase = Math.floor(lt / cols) * NY * aw + (lt % cols) * NX;
-    const lut = colorLut(), m0 = enc().M0 - S.margin, ms = enc().M_step, nz = 0.98 - S.margin, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0);
-    const fadeOcean = S.fade && !restricted, d = img.data;
+    const lut = colorLut(), m0 = enc().M0, ms = enc().M_step, nz = 0.98, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0), g = marginGrid();
+    const fadeOcean = S.fade && !(restricted || zone), d = img.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
       if (fj0 < -0.5 || fj0 > 180.5) { d[o + 3] = 0; continue; }
@@ -188,7 +232,8 @@
       const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), di = fi - i0, dj = fj - j0, i1 = (i0 + 1) % NX;
       const r0 = base + j0 * aw, r1 = r0 + aw;
       const v00 = a[r0 + i0], v10 = a[r0 + i1], v01 = a[r1 + i0], v11 = a[r1 + i1];
-      const M = ((v00 ? m0 + ms * v00 : nz) * (1 - di) + (v10 ? m0 + ms * v10 : nz) * di) * (1 - dj) + ((v01 ? m0 + ms * v01 : nz) * (1 - di) + (v11 ? m0 + ms * v11 : nz) * di) * dj;
+      const g0 = j0 * NX, g1 = g0 + NX;
+      const M = ((v00 ? m0 + ms * v00 : nz) - g[g0 + i0]) * (1 - di) * (1 - dj) + ((v10 ? m0 + ms * v10 : nz) - g[g0 + i1]) * di * (1 - dj) + ((v01 ? m0 + ms * v01 : nz) - g[g1 + i0]) * (1 - di) * dj + ((v11 ? m0 + ms * v11 : nz) - g[g1 + i1]) * di * dj;
       const n = Math.max(0, Math.min(LUT_N - 1, Math.round((M - LUT_M0) * sc))) * 3;
       d[o] = lut[n]; d[o + 1] = lut[n + 1]; d[o + 2] = lut[n + 2];
       if (fadeOcean) {
@@ -199,7 +244,7 @@
     }
   }
   function paintData() {
-    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.fade, S.thresh].join("|");
+    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.fade, S.thresh].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
     const w = NX * UP, h = NY * UP, img = offCtx.createImageData(w, h);
@@ -349,8 +394,34 @@
     for (let i = 0; i < out.length; i++) { di.data[i * 4] = 6; di.data[i * 4 + 1] = 16; di.data[i * 4 + 2] = 41; di.data[i * 4 + 3] = out[i] ? 0 : 175; }
     dg.putImageData(di, 0, 0);
   }
-  let dimCanvas = null;
+  let dimCanvas = null, zone = null;   // zone: distance to territory in nm at 0.1 deg (engine/zone.py), 0 = territory
+  const ZNX = 3600, ZNY = 1800, ZONE_NM = TERR_SEA_NM + CARPET_NM;
+  async function loadZone() {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = "geo/zone.png?v=1"; });
+    const c = document.createElement("canvas"); c.width = ZNX; c.height = ZNY;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, ZNX, ZNY).data, z = new Uint8Array(ZNX * ZNY);
+    for (let i = 0; i < z.length; i++) z[i] = d[i * 4];
+    zone = z;
+    // soft dimming of open ocean: fades in from the edge of the zone (36 nm) to 56 nm
+    dimCanvas = document.createElement("canvas"); dimCanvas.width = RNX; dimCanvas.height = RNY;
+    const dg = dimCanvas.getContext("2d"), di = dg.createImageData(RNX, RNY), f = ZNX / RNX;
+    for (let j = 0; j < RNY; j++) for (let i = 0; i < RNX; i++) {
+      const v = z[Math.floor((j + 0.5) * f) * ZNX + Math.floor((i + 0.5) * f)];
+      const t = Math.min(1, Math.max(0, (v - ZONE_NM) / 20)), a = 175 * t * t * (3 - 2 * t), o = (j * RNX + i) * 4;
+      di.data[o] = 6; di.data[o + 1] = 16; di.data[o + 2] = 41; di.data[o + 3] = a;
+    }
+    dg.putImageData(di, 0, 0);
+  }
+  function zoneNm(lon, lat) {
+    if (!zone) return null;
+    const i = Math.floor((((lon + 180) % 360) + 360) % 360 * 10) % ZNX, j = Math.min(ZNY - 1, Math.max(0, Math.floor((90 - lat) * 10)));
+    return zone[j * ZNX + i];
+  }
   function restrictedAt(lon, lat) {
+    const v = zoneNm(lon, lat);
+    if (v != null) return v <= ZONE_NM;
     if (!restricted) return null;
     const i = Math.floor((((lon + 180) % 360) + 360) % 360 / 360 * RNX) % RNX, j = Math.min(RNY - 1, Math.max(0, Math.floor((90 - lat) / 180 * RNY)));
     return restricted[j * RNX + i] === 1;
@@ -406,7 +477,7 @@
     $("inspHint").textContent = ""; $("inspBody").hidden = false;
     $("inspLoc").textContent = `${fmtLat(lat)} ${fmtLon(lon)}`;
     $("inspSurf").textContent = landAt(current, lon, lat) > 0.5 ? "land" : "ocean";
-    const ms = S.man.headings.map((h, i) => mAt(current, i, lon, lat) - S.margin);
+    const mg = marginAt(lon, lat), ms = S.man.headings.map((h, i) => mAt(current, i, lon, lat) - mg);
     const c = cAt(current, lon, lat), [u, v] = windAt(current, lon, lat);
     const iMin = ms.indexOf(Math.min(...ms)), iMax = ms.indexOf(Math.max(...ms));
     const selI = S.hd === "min" ? iMin : S.hd === "max" ? iMax : Math.round(S.hdDeg / 10) % 36;
@@ -450,7 +521,7 @@
     if (S.sel !== sel || S.fl !== fl || [S.hd, S.hdDeg].join() !== key) return;
     const tile = curTile();
     const vt = S.man.valid_times.map(s => new Date(s));
-    const data = atl.map((a, i) => ({ t: vt[i], m: mAt(a, tile, lon, lat) - S.margin }));
+    const mg = marginAt(lon, lat), data = atl.map((a, i) => ({ t: vt[i], m: mAt(a, tile, lon, lat) - mg }));
     const svg = d3.select("#ts"); svg.selectAll("*").remove();
     const m = { l: 30, r: 8, t: 8, b: 22 }, w = 320 - m.l - m.r, h = 130 - m.t - m.b;
     const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
@@ -473,8 +544,9 @@
   function updateKpis() {
     const st = S.man.stats[String(S.fl)]?.[S.fi];
     if (st) {
-      $("kpiLand").textContent = st.land_any_median - S.margin < 1 ? "none" : `M ${(st.land_any_median - S.margin).toFixed(2)}`;
-      const th = S.man.stats_thresholds, target = FLOOR + S.margin;
+      const mt = marginTypical();
+      $("kpiLand").textContent = st.land_any_median - mt < 1 ? "none" : `M ${(st.land_any_median - mt).toFixed(2)}`;
+      const th = S.man.stats_thresholds, target = FLOOR + mt;
       let pct = 0;
       for (let i = 0; i < th.length - 1; i++) if (target >= th[i] && target <= th[i + 1]) {
         const f = (target - th[i]) / (th[i + 1] - th[i]); pct = st.land_any_cdf[i] * (1 - f) + st.land_any_cdf[i + 1] * f;
@@ -487,14 +559,16 @@
     $("hdRow").hidden = S.hd !== "hd";
     $("layersSummary").textContent = `FL${S.fl}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
     $("legendNote").textContent = S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.";
-    $("marginLbl").textContent = S.margin.toFixed(3);
+    $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
+    $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");
+    $("marginSlider").disabled = !!(S.auto && sigma);
   }
 
   // ---------- hover / click ----------
   const tip = $("tip");
   const normLon = lon => ((lon + 540) % 360) - 180;
   function describe(lon, lat) {
-    const M = mAt(current, curTile(), lon, lat) - S.margin, c = cAt(current, lon, lat);
+    const M = mAt(current, curTile(), lon, lat) - marginAt(lon, lat), c = cAt(current, lon, lat);
     return `<b>${M < 1 ? "No corridor" : "M " + M.toFixed(3)}</b>${M >= 1 ? " · " + Math.round(M * c * KT) + " kt" : ""}${M >= 1 && M < FLOOR ? " <span class='muted'>(below 1.05)</span>" : ""}<br><span class="muted">${fmtLat(lat)} ${fmtLon(lon)} · ${landAt(current, lon, lat) > 0.5 ? "land" : "ocean"}</span>`;
   }
   function showTip(html, sx, sy) {
@@ -548,6 +622,8 @@
     sl.oninput = () => { S.fi = +sl.value; refresh(); };
     $("marginSlider").value = S.margin;
     $("marginSlider").oninput = e => { S.margin = +e.target.value; refresh(); };
+    $("marginAuto").hidden = !sigma;
+    $("marginAuto").onclick = () => { S.auto = !S.auto; refresh(); };
     $("fadeOcean").checked = S.fade;
     $("fadeOcean").onchange = e => { S.fade = e.target.checked; schedule(); };
     $("relief").checked = S.relief;
@@ -585,7 +661,7 @@
   const hashExtra = {};
   function writeHash() {
     if (!S.man) return;
-    const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.margin, v: S.view });
+    const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.auto && sigma ? "auto" : S.margin, v: S.view });
     if (S.thresh) p.set("th", S.thresh);
     for (const [k, v] of Object.entries(hashExtra)) if (v != null) p.set(k, v);
     history.replaceState(null, "", "#" + p.toString());
@@ -597,7 +673,7 @@
     if (d === "min" || d === "max") S.hd = d; else if (d != null && !isNaN(+d)) { S.hd = "hd"; S.hdDeg = (Math.round(+d / 10) * 10) % 360; }
     S.fi = Math.min(fhs().length - 1, S.fi);
     if (p.get("t")) S.fi = Math.min(fhs().length - 1, Math.max(0, +p.get("t")));
-    if (p.get("mg") != null) S.margin = Math.max(0, +p.get("mg"));
+    if (p.get("mg") === "auto") S.auto = true; else if (p.get("mg") != null) S.margin = Math.max(0, +p.get("mg"));
     if (p.get("v") === "3d") S.view = "3d";
     if (p.get("th")) S.thresh = +p.get("th");
     return p;
@@ -615,7 +691,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
-    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt,
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt,
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 
@@ -639,7 +715,7 @@
       land = topojson.mesh(topo, topo.objects.countries, (a, b) => a === b);
       borders = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
       landGeo = topojson.merge(topo, topo.objects.countries.geometries);
-      buildRestricted();
+      await Promise.all([loadZone().catch(e => { console.warn("zone", e); buildRestricted(); }), loadSigma().catch(e => console.warn("sigma", e))]);
       const p = readHash();
       buildControls();
       const rt = new Date(man.run_time), gen = new Date(man.generated);
