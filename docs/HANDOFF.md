@@ -1,6 +1,7 @@
 # Mach Corridor — shared handoff (both Claude sessions read this)
 
-Source of truth for code: this repo. Source of truth for status: this file (mirrored in Fernando's PLANS project as `ideas/air-corridor.md`).
+Source of truth for code: this repo. Plan and status: `docs/ROADMAP.md` + GitHub issues/milestones (Phase 1–4); KPIs in `docs/kpis.json`.
+This file keeps the physics contract and the split of work between sessions. Issues labelled `owner:local` belong to the local session.
 
 ## Roles
 | Session | Owns |
