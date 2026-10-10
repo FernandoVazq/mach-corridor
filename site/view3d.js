@@ -177,8 +177,8 @@ function traceT(F, za, ground, zTop, M, psi, tMax) {
 // The real shock surface: in the aircraft's frame it is every ray's position minus the distance the
 // aircraft has flown since that sound left it. In uniform air this is the textbook straight Mach cone;
 // in the real atmosphere it bends, and where sound speeds up near the ground it curls back upward.
-function shockSurface(F, za, ground, zTop, M, A) {
-  const Vx = M * A.c + A.wx, Vy = A.wy, nA = 72, nT = 70;
+function shockSurface(F, za, ground, zTop, M, A, lite = false) {
+  const Vx = M * A.c + A.wx, Vy = A.wy, nA = lite ? 48 : 72, nT = lite ? 46 : 70;
   const psis = Array.from({ length: nA }, (_, j) => -180 + (j + 0.5) * 360 / nA);
   // time span: long enough for the near-vertical rays to finish (reach ground, or turn and climb back)
   const probe = [-45, -20, 0, 20, 45].map(ps => traceT(F, za, ground, zTop, M, ps, 600));
@@ -191,14 +191,17 @@ function shockSurface(F, za, ground, zTop, M, A) {
     const x = a.x + f * (c.x - a.x), y = a.y + f * (c.y - a.y), z = a.z + f * (c.z - a.z);
     return [x - Vx * t, y - Vy * t, z];
   };
-  const pos = [], tt = [], te = [], idx = [], id = [];
+  const pos = [], tt = [], te = [], kk = [], ff = [], idx = [], id = [];
   for (let i = 0; i <= nT; i++) {
     const t = tMax * Math.pow(i / nT, 1.3); id.push([]);
     for (let j = 0; j < nA; j++) {
-      const p = i === 0 ? [0, 0, za] : at(rays[j], t);
+      const r = rays[j], p = i === 0 ? [0, 0, za] : at(r, t);
       if (!p) { id[i].push(-1); continue; }
-      const P = rays[j].pts, tEnd = P[P.length - 1].t;
-      id[i].push(pos.length / 3); const v = V3(...p); pos.push(v.x, v.y, v.z); tt.push(t / tMax); te.push(i === 0 ? 0 : t / Math.max(1e-6, tEnd));
+      const tEnd = r.pts[r.pts.length - 1].t;
+      // how far along its way to bending back up (amber) or to the ground (red) this point of the sheet is
+      const kind = r.turn ? 1 : r.end === "ground" ? 2 : 0, f = kind === 1 ? Math.min(1, t / r.turn.t) : kind === 2 ? t / tEnd : 0;
+      id[i].push(pos.length / 3); const v = V3(...p); pos.push(v.x, v.y, v.z);
+      tt.push(t / tMax); te.push(i === 0 ? 0 : t / Math.max(1e-6, tEnd)); kk.push(kind); ff.push(f);
     }
   }
   for (let i = 0; i < nT; i++) for (let j = 0; j < nA; j++) {
@@ -208,20 +211,24 @@ function shockSurface(F, za, ground, zTop, M, A) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("aT", new THREE.Float32BufferAttribute(tt, 1));
-  g.setAttribute("aE", new THREE.Float32BufferAttribute(te, 1));
+  for (const [n, arr] of [["aT", tt], ["aE", te], ["aK", kk], ["aF", ff]]) g.setAttribute(n, new THREE.Float32BufferAttribute(arr, 1));
   g.setIndex(idx); g.computeVertexNormals();
   const mat = new THREE.ShaderMaterial({
     uniforms: { uTime: SHOCK_TIME },
-    vertexShader: `attribute float aT; attribute float aE; varying float vT; varying float vE; varying vec3 vN; varying vec3 vV;
-      void main(){ vT = aT; vE = aE; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `uniform float uTime; varying float vT; varying float vE; varying vec3 vN; varying vec3 vV;
+    vertexShader: `attribute float aT; attribute float aE; attribute float aK; attribute float aF;
+      varying float vT; varying float vE; varying float vK; varying float vF; varying vec3 vN; varying vec3 vV;
+      void main(){ vT = aT; vE = aE; vK = aK; vF = aF; vec4 mv = modelViewMatrix * vec4(position,1.0);
+        vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uTime; varying float vT; varying float vE; varying float vK; varying float vF; varying vec3 vN; varying vec3 vV;
       void main(){
         float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.6);       // glassy, schlieren-like edge
         float decay = 0.35 + 0.65 * pow(1.0 - vT, 0.8);                            // the shock weakens as it spreads
         float ph = fract(vT * 9.0 - uTime * 0.45);                                 // pressure fronts sliding outward
         float band = smoothstep(0.0, 0.08, ph) * (1.0 - smoothstep(0.08, 0.35, ph));
-        vec3 col = mix(vec3(1.0), vec3(0.62,0.78,1.0), vT);
+        vec3 col = mix(vec3(1.0), vec3(0.62, 0.78, 1.0), vT);
+        float turn = clamp(1.0 - abs(vK - 1.0), 0.0, 1.0), hit = clamp(vK - 1.0, 0.0, 1.0);
+        col = mix(col, vec3(1.0, 0.70, 0.22), turn * smoothstep(0.35, 1.0, vF));   // bending back up: amber
+        col = mix(col, vec3(1.0, 0.30, 0.37), hit * smoothstep(0.25, 1.0, vF));    // heading into the ground: red
         float a = (0.22 + 0.70 * rim + 0.55 * band) * decay * (1.0 - smoothstep(0.82, 1.0, vE));
         gl_FragColor = vec4(col, a);
       }`,
@@ -229,13 +236,31 @@ function shockSurface(F, za, ground, zTop, M, A) {
   });
   // where the shock turns back up (cutoff) and where it touches the ground, in the aircraft frame
   const caustic = [], foot = [];
-  rays.forEach((r, j) => {
+  rays.forEach(r => {
     if (r.turn) caustic.push([r.turn.x - Vx * r.turn.t, r.turn.y - Vy * r.turn.t, r.turn.z]);
     else if (r.end === "ground") { const e = r.pts[r.pts.length - 1]; foot.push([e.x - Vx * e.t, e.y - Vy * e.t, ground]); }
     else { caustic.push(null); foot.push(null); return; }
     if (r.turn) foot.push(null); else caustic.push(null);
   });
-  return { mesh: new THREE.Mesh(g, mat), caustic, foot, tMax };
+  // the same shock in still, uniform air (the textbook straight cone), for comparison with the bent sheet
+  const ghost = new THREE.Group(), ca = A.c, b = Math.sqrt(Math.max(0, 1 - 1 / (M * M)));
+  const gp = (t, ps) => [ca * t * (1 / M - M), ca * t * b * Math.sin(ps * RAD), za - ca * t * b * Math.cos(ps * RAD)];
+  const clipZ = p => p[2] >= ground && p[2] <= zTop;
+  const gl = pts => { const l = lineOf(pts.filter(clipZ), 0xc9d6ee, 0.4); l.material.dispose(); l.material = new THREE.LineDashedMaterial({ color: 0xc9d6ee, dashSize: 0.9, gapSize: 0.7, transparent: true, opacity: 0.45, depthWrite: false }); l.computeLineDistances(); return l; };
+  const tG = tMax * 0.85;
+  for (let ps = -180; ps < 180; ps += 30) { const line = []; for (let k = 0; k <= 24; k++) line.push(gp(tG * k / 24, ps)); if (line.filter(clipZ).length > 1) ghost.add(gl(line)); }
+  for (const f of [0.45, 1]) { const ring = []; for (let ps = -180; ps <= 180; ps += 6) ring.push(gp(tG * f, ps)); if (ring.filter(clipZ).length > 1) ghost.add(gl(ring)); }
+  return { mesh: new THREE.Mesh(g, mat), caustic, foot, tMax, ghost };
+}
+// soft glowing tube through scene points (cutoff line, ground footprint)
+function glowLine(pts, color) {
+  const g = new THREE.Group(); if (pts.length < 2) return g;
+  const curve = new THREE.CatmullRomCurve3(pts.map(p => V3(...p)));
+  for (const [r, o] of [[0.12, 0.95], [0.45, 0.22], [0.9, 0.08]]) {
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, pts.length * 3), r, 8, false),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false })));
+  }
+  return g;
 }
 const SHOCK_TIME = { value: 0 };
 /* ---------- aircraft model (symbolic size, built once) ---------- */
@@ -309,12 +334,12 @@ function ensureColumnScene() {
   controls.target.set(30, 30, 0); controls.enableDamping = true;
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
   const dl = new THREE.DirectionalLight(0xffffff, 1.0); dl.position.set(-80, 220, 120); scene.add(dl);
-  const group = new THREE.Group(); scene.add(group);
-  C = { el, renderer, scene, camera, controls, group }; window.__c3 = C;
+  const group = new THREE.Group(), terrain = new THREE.Group(); scene.add(terrain); scene.add(group);
+  C = { el, renderer, scene, camera, controls, group, terrain, tick: null }; window.__c3 = C;
   const resize = () => { const r = el.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
   new ResizeObserver(resize).observe(el); resize();
-  const loop = () => { requestAnimationFrame(loop); if (!$("col3d").open) return; SHOCK_TIME.value = performance.now() / 1000; controls.update(); renderer.render(scene, camera); };
-  loop();
+  const loop = now => { requestAnimationFrame(loop); if (!$("col3d").open) return; SHOCK_TIME.value = now / 1000; C.tick && C.tick(now); controls.update(); renderer.render(scene, camera); };
+  requestAnimationFrame(loop);
   return C;
 }
 const state = { ve: 4 };
@@ -336,7 +361,13 @@ function textSprite(text, color = "#e2ebfc", px = 26) {
   sp.scale.set(h * w / c.height, h, 1); sp.center.set(0, 0.5); sp.renderOrder = 10;
   return sp;
 }
-function disposeGroup(g) { while (g.children.length) { const o = g.children.pop(); o.geometry?.dispose(); o.material?.map?.dispose?.(); o.material?.dispose?.(); } }
+function disposeGroup(g, keep = new Set()) {
+  while (g.children.length) {
+    const o = g.children.pop(); if (keep.has(o)) continue;
+    if (o.children && o.children.length) disposeGroup(o, keep);
+    o.geometry?.dispose(); o.material?.map?.dispose?.(); o.material?.dispose?.();
+  }
+}
 // diverging colour for the air layers: blue = sound slower than the aircraft (boom keeps descending),
 // orange = faster (boom is refracted back up). Pale = neutral.
 const layerColor = d => {
@@ -344,38 +375,28 @@ const layerColor = d => {
   return t < 0 ? d3.interpolateRgb("#dfe8f6", "#1f57d6")(-t) : d3.interpolateRgb("#dfe8f6", "#ff7a2f")(t);
 };
 
-function renderColumn() {
-  const MC = window.MC, { P, fl, hd, M } = state;
-  const sc = ensureColumnScene(), grp = sc.group; disposeGroup(grp);
-  const F = profileFns(P, hd), za = cruiseZ(P, fl), ground = Math.max(0, P.ground), zf = ground + H_BUF, VE = state.ve;
-  if (state.framedVe !== VE) {
-    state.framedVe = VE;
-    const ty = K(za) * VE * 0.45;
-    // open close to the aircraft so the shock wave reads; zoom out for the terrain around it
-    sc.controls.target.set(0, ty * 0.8, 0);
-    sc.camera.position.set(-150, ty + 30 + K(za) * VE * 0.15, 85);
-  }
-  const green = new THREE.Color("#2fbf71"), amber = new THREE.Color("#f2b33d"), red = new THREE.Color("#ff4d5e");
-  const size = 260, X0 = -70, X1 = 190, Zs = -size / 2, zTop = Math.max(za + 3000, 16000);
-  // ---- terrain (low poly, real DEM; water blue) ----
-  const sH = Math.sin(hd * RAD), cH = Math.cos(hd * RAD);
+/* ---------- terrain: built around an origin, then slid and turned under the aircraft ---------- */
+const elevAt = (lo, la) => { const MC = window.MC, d = state.dem ? state.dem(lo, la) : null; return d != null ? d : (MC.terrain ? MC.elevAt(lo, la) : 0); };
+const FADE = { value: new THREE.Vector2(40, 0) };      // terrain fade centre (terrain km), follows the aircraft
+// one closure per 260 km chunk, so a rebuild can be spread over several frames during playback
+function terrainJobs(lon0, lat0, hd0, opts, tg, meta) {
+  const MC = window.MC, VE = state.ve, size = 260;
+  const sH = Math.sin(hd0 * RAD), cH = Math.cos(hd0 * RAD);
   const toLL = (xk, yk) => { const east = xk * sH + yk * cH, north = xk * cH - yk * sH;
-    const la = state.lat + north / 111.32; return [state.lon + east / (111.32 * Math.cos(state.lat * RAD)), la]; };
-  const elev = (lo, la) => { const d = state.dem ? state.dem(lo, la) : null; return d != null ? d : (MC.terrain ? MC.elevAt(lo, la) : 0); };
-  let demMax = 0, demMaxNear = 0;
+    return [lon0 + east / (111.32 * Math.cos(lat0 * RAD)), lat0 + north / 111.32]; };
   const hypso = d3.scaleLinear([0, 400, 1200, 2000, 3000, 4300], ["#4f7d3e", "#7d9a4f", "#b09e66", "#94714e", "#8a8580", "#f4f4f4"]).clamp(true);
-  // no hard square edge: solid near the track, then a smooth fade into the night over the outer chunks
-  // 3 × 3 chunks of 260 km: the centre one solid, the 8 around it translucent for context
-  const chunk = (ox, oz, n, opacity) => {
+  meta.demMax = 0; meta.demMaxNear = 0;
+  const chunk = (ox, oz, n) => () => {
     const geo = new THREE.PlaneGeometry(size, size, n, n); geo.rotateX(-Math.PI / 2);
     const flat = geo.toNonIndexed(), pos = flat.attributes.position, cache = new Map(), cols = [], centre = !ox && !oz;
+    geo.dispose();
     const info = (x, z) => {
       const k = x.toFixed(2) + "," + z.toFixed(2);
       if (!cache.has(k)) {
-        const xk = x + 60 + ox, zk = z + oz, [lo, la] = toLL(xk, zk), h = elev(lo, la);
+        const xk = x + 60 + ox, zk = z + oz, [lo, la] = toLL(xk, zk), h = elevAt(lo, la);
         const water = h < -30 || (h <= 0 && MC.landAt(MC.current, MC.normLon(lo), la) < 0.5);
         const hh = water ? 0 : Math.max(0, h);
-        if (centre) { demMax = Math.max(demMax, hh); if (Math.abs(zk) < 30) demMaxNear = Math.max(demMaxNear, hh); }
+        if (centre) { meta.demMax = Math.max(meta.demMax, hh); if (Math.abs(zk) < 30) meta.demMaxNear = Math.max(meta.demMaxNear, hh); }
         cache.set(k, { xk, zk, h: hh, water });
       }
       return cache.get(k);
@@ -390,90 +411,124 @@ function renderColumn() {
     flat.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3)); flat.computeVertexNormals();
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, transparent: true, opacity: 1, depthWrite: centre });
     mat.onBeforeCompile = sh => {
+      sh.uniforms.uFade = FADE;
       sh.vertexShader = "varying vec2 vFadeXZ;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vFadeXZ = transformed.xz;");
-      sh.fragmentShader = "varying vec2 vFadeXZ;\n" + sh.fragmentShader.replace("#include <dithering_fragment>",
-        "#include <dithering_fragment>\n float fd = length(vFadeXZ - vec2(40.0, 0.0));\n gl_FragColor.a *= 1.0 - 0.6 * smoothstep(70.0, 125.0, fd) - 0.4 * smoothstep(125.0, 380.0, fd);");
+      sh.fragmentShader = "uniform vec2 uFade; varying vec2 vFadeXZ;\n" + sh.fragmentShader.replace("#include <dithering_fragment>",
+        "#include <dithering_fragment>\n float fd = length(vFadeXZ - uFade);\n gl_FragColor.a *= 1.0 - 0.6 * smoothstep(70.0, 125.0, fd) - 0.4 * smoothstep(125.0, 380.0, fd);");
     };
-    grp.add(new THREE.Mesh(flat, mat));
+    tg.add(new THREE.Mesh(flat, mat));
   };
-  for (const ox of [-size, 0, size]) for (const oz of [-size, 0, size]) chunk(ox, oz, ox || oz ? 44 : 56, 1);
-  state.demMax = demMax; state.demMaxNear = demMaxNear;
+  const jobs = [];
+  jobs.push(chunk(0, 0, opts.lite ? 44 : 56));                                   // centre first
+  for (const ox of [-size, 0, size]) for (const oz of [-size, 0, size]) if (ox || oz) jobs.push(chunk(ox, oz, opts.lite ? 26 : 40));
+  jobs.push(() => { if (opts.runwayAt != null) tg.add(runway(K(Math.max(0, elevAt(lon0, lat0))) * VE, opts.runwayAt)); });
+  Object.assign(meta, { lon: lon0, lat: lat0, hd: hd0, ve: VE, dem: state.dem, runwayAt: opts.runwayAt ?? null });
+  return jobs;
+}
+function swapTerrain(next, meta) {
+  const sc = ensureColumnScene();
+  sc.scene.remove(sc.terrain); disposeGroup(sc.terrain); sc.terrain = next; sc.scene.add(next);
+  if (state.trail) state.trail.length = 0;
+  state.terr = meta; state.demMax = meta.demMax; state.demMaxNear = meta.demMaxNear;
+  placeTerrain();
+}
+function buildTerrain(lon0, lat0, hd0, opts = {}) {
+  const next = new THREE.Group(), meta = {};
+  for (const j of terrainJobs(lon0, lat0, hd0, opts, next, meta)) j();
+  swapTerrain(next, meta);
+}
+function terrainLocal(lon, lat) {
+  const T = state.terr, dLon = ((lon - T.lon + 540) % 360) - 180;
+  const east = dLon * 111.32 * Math.cos(T.lat * RAD), north = (lat - T.lat) * 111.32, s = Math.sin(T.hd * RAD), c = Math.cos(T.hd * RAD);
+  return [east * s + north * c, east * c - north * s];
+}
+const YAXIS = new THREE.Vector3(0, 1, 0);
+function placeTerrain() {
+  const T = state.terr; if (!T || !C) return;
+  const [xk, yk] = terrainLocal(state.lon, state.lat), d = (((state.hd - T.hd + 540) % 360) - 180) * RAD;
+  const v = new THREE.Vector3(xk, 0, yk).applyAxisAngle(YAXIS, d).negate();
+  C.terrain.position.set(v.x, 0, v.z); C.terrain.rotation.set(0, d, 0);
+  FADE.value.set(xk + 40 * Math.cos(d), yk + 40 * Math.sin(d));
+}
+function terrainStale() {
+  const T = state.terr; if (!T || T.ve !== state.ve) return true;
+  const [xk, yk] = terrainLocal(state.lon, state.lat), dh = Math.abs(((state.hd - T.hd + 540) % 360) - 180);
+  return Math.hypot(xk, yk) > 85 || dh > 12;
+}
+
+/* full redraw: terrain if it no longer fits, then the air, the shock and the aircraft */
+function renderColumn() {
+  if (terrainStale() || state.terr.dem !== state.dem) buildTerrain(state.lon, state.lat, state.hd, routeRunway());
+  else placeTerrain();
+  renderDynamic(false);
+}
+function routeRunway() {
+  const R = state.route; if (!R) return {};
+  const x = state.routeX || 0, D = R.opt.dist;
+  return x < 30 ? { runwayAt: 3.5 } : x > D - 30 ? { runwayAt: -1.5 } : {};
+}
+function renderDynamic(lite) {
+  const MC = window.MC, { P, fl, hd, M } = state;
+  const sc = ensureColumnScene(), grp = sc.group; disposeGroup(grp, new Set([aircraftModel().g]));
+  const F = profileFns(P, hd), za = cruiseZ(P, fl), ground = Math.max(0, P.ground), zf = ground + H_BUF, VE = state.ve;
+  state.za = za;
+  if (state.framedVe !== VE) {
+    state.framedVe = VE;
+    const ty = K(za) * VE * 0.45;
+    sc.controls.target.set(0, ty * 0.8, 0);
+    sc.camera.position.set(-150, ty + 30 + K(za) * VE * 0.15, 85);
+  }
+  const green = new THREE.Color("#2fbf71"), amber = new THREE.Color("#f2b33d"), red = new THREE.Color("#ff4d5e");
+  const size = 260, X0 = -70, X1 = 190, Zs = -size / 2, zTop = Math.max(za + 3000, 16000);
 
   // ---- air layers: two walls painted with c_eff − aircraft trace speed (on-track ray) ----
   const A = F.at(za), Iv = M * A.c + A.wx;
-  const tex = document.createElement("canvas"); tex.width = 64; tex.height = 512;
+  const tex = document.createElement("canvas"); tex.width = 64; tex.height = 256;
   const tg = tex.getContext("2d");
-  for (let r = 0; r < 512; r++) {
-    const z = zTop * (1 - r / 511), p = F.at(z);
+  for (let r = 0; r < 256; r++) {
+    const z = zTop * (1 - r / 255), p = F.at(z);
     tg.fillStyle = z < ground || z > za ? "rgba(0,0,0,0)" : layerColor(p.c + p.wx - Iv);
     tg.fillRect(0, r, 64, 1);
   }
-  // fade the wall ends and its top edge so nothing stops on a hard line
   tg.globalCompositeOperation = "destination-in";
   const gx = tg.createLinearGradient(0, 0, 64, 0);
   gx.addColorStop(0, "rgba(0,0,0,0)"); gx.addColorStop(0.18, "rgba(0,0,0,1)"); gx.addColorStop(0.82, "rgba(0,0,0,1)"); gx.addColorStop(1, "rgba(0,0,0,0)");
-  tg.fillStyle = gx; tg.fillRect(0, 0, 64, 512);
-  const rTop = Math.round(512 * (1 - za / zTop)), gy = tg.createLinearGradient(0, rTop, 0, rTop + 40);
+  tg.fillStyle = gx; tg.fillRect(0, 0, 64, 256);
+  const rTop = Math.round(256 * (1 - za / zTop)), gy = tg.createLinearGradient(0, rTop, 0, rTop + 20);
   gy.addColorStop(0, "rgba(0,0,0,0.15)"); gy.addColorStop(1, "rgba(0,0,0,1)");
-  tg.fillStyle = gy; tg.fillRect(0, rTop, 64, 40); tg.globalCompositeOperation = "source-over";
+  tg.fillStyle = gy; tg.fillRect(0, rTop, 64, 20); tg.globalCompositeOperation = "source-over";
   const wallTex = new THREE.CanvasTexture(tex); wallTex.colorSpace = THREE.SRGBColorSpace;
-  const wallMat = new THREE.MeshBasicMaterial({ map: wallTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const wallMat = new THREE.MeshBasicMaterial({ map: wallTex, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
   const back = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, K(zTop) * VE), wallMat);
   back.position.set((X0 + X1) / 2, K(zTop) * VE / 2, Zs); grp.add(back);
   const side = new THREE.Mesh(new THREE.PlaneGeometry(size, K(zTop) * VE), wallMat.clone());
   side.rotation.y = Math.PI / 2; side.position.set(X1, K(zTop) * VE / 2, 0); grp.add(side);
-  // layer lines on the walls at each GFS level
   for (const l of F.L) if (l.z > ground && l.z < zTop) {
-    grp.add(lineOf([[X0 * 1000, Zs * 1000, l.z], [X1 * 1000, Zs * 1000, l.z]], 0xffffff, 0.12));
-    grp.add(lineOf([[X1 * 1000, Zs * 1000, l.z], [X1 * 1000, -Zs * 1000, l.z]], 0xffffff, 0.12));
+    grp.add(lineOf([[X0 * 1000, Zs * 1000, l.z], [X1 * 1000, Zs * 1000, l.z]], 0xffffff, 0.1));
+    grp.add(lineOf([[X1 * 1000, Zs * 1000, l.z], [X1 * 1000, -Zs * 1000, l.z]], 0xffffff, 0.1));
   }
-  // buffer sheet
-  // buffer sheet: soft round glow, faded per pixel (no texture stair-steps)
-  const buf = new THREE.Mesh(new THREE.CircleGeometry(150, 128), new THREE.ShaderMaterial({
+  // safety buffer above the terrain: soft round glow
+  const buf = new THREE.Mesh(new THREE.CircleGeometry(150, 96), new THREE.ShaderMaterial({
     uniforms: { uCol: { value: amber } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     vertexShader: "varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
-    fragmentShader: "uniform vec3 uCol; varying vec2 vP; void main(){ float r = length(vP) / 150.0; gl_FragColor = vec4(uCol, 0.13 * (1.0 - smoothstep(0.35, 1.0, r))); }",
+    fragmentShader: "uniform vec3 uCol; varying vec2 vP; void main(){ float r = length(vP) / 150.0; gl_FragColor = vec4(uCol, 0.12 * (1.0 - smoothstep(0.35, 1.0, r))); }",
   }));
   buf.rotation.x = -Math.PI / 2; buf.position.set(60, K(zf) * VE, 0); grp.add(buf);
+  // altitude scale: ticks every 2 km, no labels (the side panel carries the numbers)
+  grp.add(lineOf([[X0 * 1000, Zs * 1000, 0], [X0 * 1000, Zs * 1000, zTop]], 0xe2ebfc, 0.5));
+  for (let z = 0; z <= zTop; z += 2000) grp.add(lineOf([[X0 * 1000, Zs * 1000, z], [(X0 - (z % 10000 ? 2 : 5)) * 1000, Zs * 1000, z]], 0xe2ebfc, 0.5));
 
-  // ---- altitude ruler with flight levels ----
-  const step = VE >= 4 ? 2000 : VE >= 2 ? 4000 : 5000;
-  grp.add(lineOf([[X0 * 1000, Zs * 1000, 0], [X0 * 1000, Zs * 1000, zTop]], 0xe2ebfc, 0.8));
-  for (let z = 0; z <= zTop; z += step) {
-    grp.add(lineOf([[X0 * 1000, Zs * 1000, z], [(X0 - 4) * 1000, Zs * 1000, z]], 0xe2ebfc, 0.8));
-    const lbl = textSprite(z === 0 ? "0 km" : `${z / 1000} km  FL${Math.round(z / FT / 1000) * 10}`, "#c9d6ee");
-    lbl.position.copy(V3((X0 - 3) * 1000, Zs * 1000, z)); lbl.center.set(1.05, 0.5); grp.add(lbl);
-  }
-  const cl = textSprite(`FL${fl}`, "#ffffff", 30); cl.position.copy(V3(-8000, 0, za + 1200)); grp.add(cl);
-
-  // ---- aircraft, track, Mach cone, rays ----
-  const ac = aircraftModel().g;
-  // along a route the aircraft follows the climb and descent (first and last 150 nm), from the runway up
-  const gO = Math.max(0, elev(state.lon, state.lat));
-  let zShow = za, pitch = 0;
-  if (state.route) {
-    const x = state.routeX || 0, D = state.route.opt.dist, ease = f => 1 - Math.pow(1 - Math.max(0, Math.min(1, f)), 2);
-    if (x < 150) { zShow = gO + (za - gO) * ease(x / 150); pitch = x < 1 ? 0 : 0.16 * (1 - x / 150); }
-    else if (x > D - 150) { zShow = gO + (za - gO) * ease((D - x) / 150); pitch = -0.06; }
-  }
-  ac.position.copy(V3(0, 0, zShow)); ac.rotation.set(0, 0, pitch); grp.add(ac);
-  state.gO = gO; state.zShow = zShow;
-  if (state.route && ((state.routeX || 0) < 1 || (state.routeX || 0) > state.route.opt.dist - 1)) grp.add(runway(K(gO) * VE));
-  grp.add(lineOf([[-70000, 0, za], [190000, 0, za]], 0xe2ebfc, 0.35));
+  // ---- aircraft, track, shock, rays ----
+  const ac = aircraftModel().g; grp.add(ac); poseAircraft();
+  grp.add(lineOf([[-70000, 0, za], [190000, 0, za]], 0xe2ebfc, 0.25));
   let nTurn = 0, nLow = 0, nGround = 0, lowest = Infinity;
   if (M > 1.0005) {
-    const sh = shockSurface(F, za, ground, zTop, M, A);
-    grp.add(sh.mesh);
+    const sh = shockSurface(F, za, ground, zTop, M, A, lite);
+    grp.add(sh.mesh); grp.add(sh.ghost);
     const runs = arr => { const out = []; let cur = []; for (const p of arr) { if (p) cur.push(p); else { if (cur.length > 1) out.push(cur); cur = []; } } if (cur.length > 1) out.push(cur); return out; };
-    for (const run of runs(sh.caustic)) grp.add(lineOf(run, amber, 0.95));
-    for (const run of runs(sh.foot)) grp.add(lineOf(run, red, 1));
-    const cIn = sh.caustic.filter(Boolean), fIn = sh.foot.filter(Boolean);
-    if (cIn.length) { const c = cIn.reduce((a, b) => a[2] < b[2] ? a : b); const t = textSprite("Cutoff: the shock bends back up here", "#f2b33d", 22); t.position.copy(V3(c[0], c[1], c[2] - 900)); t.center.set(0.5, 1); grp.add(t); }
-    if (fIn.length) { const c = fIn[Math.floor(fIn.length / 2)]; const t = textSprite("Boom reaches the ground", "#ff4d5e", 22); t.position.copy(V3(c[0], c[1], ground + 600)); grp.add(t); }
-    const lc = textSprite("Shock wave", "#dbe7ff", 24); lc.position.copy(V3(-3000, 0, za + 2500)); lc.center.set(1, 0.5); grp.add(lc);
-    { const r0 = traceT(F, za, ground, zTop, M, 40, sh.tMax), q = r0.pts[Math.floor(r0.pts.length * 0.6)], Vx = M * A.c + A.wx;
-      if (q) { const lr = textSprite("Sound rays", "#9ff0c4", 22); lr.position.copy(V3(q.x - Vx * q.t + 1500, q.y - A.wy * q.t, q.z)); grp.add(lr); } }
-    for (let phi = -80; phi <= 80; phi += 10) {
+    for (const run of runs(sh.caustic)) grp.add(glowLine(run, amber));
+    for (const run of runs(sh.foot)) grp.add(glowLine(run, red));
+    for (let phi = -80; phi <= 80; phi += lite ? 20 : 10) {
       const r = trace(F, za, ground, M, phi);
       let col = green;
       if (r.outcome === "ground") { col = red; nGround++; }
@@ -481,25 +536,40 @@ function renderColumn() {
       if (r.zt != null) lowest = Math.min(lowest, r.zt - ground);
       // drawn in the aircraft's frame (sound path minus the distance flown), so each ray lies on the shock sheet
       const rt = traceT(F, za, ground, zTop, M, phi, sh.tMax), Vx = M * A.c + A.wx, Vy = A.wy;
-      const rp = rt.pts.map(q => [q.x - Vx * q.t, q.y - Vy * q.t, q.z]);
-      grp.add(lineOf(rp, col, 0.85));
-      if (rt.end === "ground") {
-        const d = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), new THREE.MeshBasicMaterial({ color: red }));
-        d.position.copy(V3(...rp[rp.length - 1])); grp.add(d);
-      }
+      grp.add(lineOf(rt.pts.map(q => [q.x - Vx * q.t, q.y - Vy * q.t, q.z]), col, 0.55));
     }
   }
   $("c3MachLbl").textContent = `M ${M.toFixed(3)}, ${Math.round(M * A.c * MC.KT)} kt`;
   $("c3HdLbl").textContent = `${String(Math.round(hd)).padStart(3, "0")}°`;
+  if (lite) return;
   const mb = state.mb;
   $("c3Stats").innerHTML = (M <= 1.0005 ? `<div><b>Subsonic here.</b> No shock wave, no boom.</div>` :
     `<div><b>${nTurn}</b> rays turn above the buffer, <b>${nLow}</b> inside it, <b class="${nGround ? "warn" : ""}">${nGround}</b> reach the ground</div>
      <div>Lowest turning point ${isFinite(lowest) ? (lowest / 1000).toFixed(1) + " km above terrain" : "–"}</div>`) +
     `<div>Boomless limit here <b>${mb ? "M " + mb.toFixed(3) : "none"}</b> (2° column, 1 km buffer); map <b>${state.mapM >= 1 ? "M " + state.mapM.toFixed(3) : "none"}</b> before margin</div>
-     <div>Cruise ${(za / 1000).toFixed(1)} km, model terrain ${Math.round(ground)} m, buffer top ${(zf / 1000).toFixed(1)} km</div>
+     <div>Cruise FL${fl}, ${(za / 1000).toFixed(1)} km. Model terrain ${Math.round(ground)} m, buffer top ${(zf / 1000).toFixed(1)} km</div>
      <div>Real terrain in view (${state.dem ? "DEM" : "GFS"}) up to ${Math.round(state.demMax)} m${state.demMaxNear > ground + 300 ? `. <b class="warn">Peaks near the track reach ${Math.round(state.demMaxNear)} m, above the model terrain.</b>` : ""}</div>`;
   drawCeff(F, za, ground, zf, M);
   drawInset();
+}
+// aircraft height and attitude along a route: take-off roll, rotate, climb, cruise, descent, flare, roll-out
+function flightProfile(x) {
+  const R = state.route, za = state.za || 12000;
+  if (!R) return { z: za, pitch: 0, burn: 0, onGround: false };
+  const D = R.opt.dist, gA = state.gA ?? 0, gB = state.gB ?? 0, xr = 1.6, td = D - 1.6, eo = u => 1 - Math.pow(1 - Math.max(0, Math.min(1, u)), 2);
+  if (x < xr) return { z: gA, pitch: 0, burn: 1, onGround: true };
+  if (x < 150) { const u = (x - xr) / (150 - xr); return { z: gA + (za - gA) * eo(u), pitch: 0.22 * Math.min(1, (x - xr) / 0.8) * (1 - u), burn: Math.max(0, 1 - u * 3), onGround: false }; }
+  if (x <= D - 150) return { z: za, pitch: 0, burn: 0, onGround: false };
+  if (x < td) { const u = (td - x) / (150 - 1.6), flare = Math.max(0, 1 - (td - x) / 1.2); return { z: gB + (za - gB) * eo(u), pitch: -0.05 + 0.14 * flare, burn: 0, onGround: false }; }
+  return { z: gB, pitch: 0.09 * Math.max(0, 1 - (x - td) / 0.6), burn: 0, onGround: true };
+}
+function poseAircraft() {
+  const ac = aircraftModel(), x = state.routeX || 0, f = flightProfile(x);
+  ac.g.position.copy(V3(0, 0, f.z)); if (f.onGround || f.z < (state.za || 1e9) - 50) ac.g.position.y += 0.42;
+  ac.g.rotation.set(0, 0, f.pitch);
+  ac.burners.forEach(b => { b.visible = f.burn > 0.02; b.scale.set(1, f.burn * (0.75 + 0.35 * Math.random()), 1); b.material.opacity = 0.55 + 0.4 * f.burn; });
+  ac.strobe.visible = Math.floor(performance.now() / 450) % 2 === 0;
+  return f;
 }
 /* locator: orthographic globe centred on the view, route, scene footprint and heading */
 function drawInset() {
@@ -590,7 +660,7 @@ function header() {
   const MC = window.MC;
   $("c3Loc").textContent = `${MC.fmtLat(state.lat)} ${MC.fmtLon(state.lon)}`;
   $("c3Sub").onclick = e => e.currentTarget.classList.toggle("open");
-  $("c3Sub").textContent = `GFS valid ${d3.utcFormat("%a %d %b, %H:%M UTC")(new Date(MC.S.man.valid_times[state.fhIndex]))}. The glowing sheet is the shock wave, traced through today's air: it bends with temperature and wind, and where it turns back up (amber) no boom reaches the ground. Lines are individual sound rays. Press play on a route for take-off and landing. Wall colours: blue where sound is slower than the aircraft (the boom keeps descending), orange where it is faster (the boom turns back up).`;
+  $("c3Sub").textContent = `GFS valid ${d3.utcFormat("%a %d %b, %H:%M UTC")(new Date(MC.S.man.valid_times[state.fhIndex]))}`;
 }
 async function openColumn() {
   const MC = window.MC; if (!MC.S.sel) return;
@@ -606,85 +676,22 @@ async function openColumn() {
   state.M = state.mb ? +state.mb.toFixed(3) : 1.05; syncInputs(); header(); state.dem = null; renderColumn();
   state.dem = await demP; renderColumn();
 }
-/* runway at the airport (scene origin, along the track) */
-function runway(y) {
+/* runway (in the terrain group, so it slides away under the aircraft); cx = centre along the track, km */
+function runway(y, cx = 0) {
   const g = new THREE.Group();
   const strip = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.7), new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.9 }));
-  strip.rotation.x = -Math.PI / 2; strip.position.set(0, y + 0.07, 0); g.add(strip);
+  strip.rotation.x = -Math.PI / 2; strip.position.set(cx, y + 0.07, 0); g.add(strip);
   for (let x = -4; x < 4.2; x += 0.9) {
     const d = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    d.rotation.x = -Math.PI / 2; d.position.set(x, y + 0.08, 0); g.add(d);
+    d.rotation.x = -Math.PI / 2; d.position.set(cx + x, y + 0.08, 0); g.add(d);
   }
   for (const z of [-0.36, 0.36]) for (let x = -4.4; x <= 4.4; x += 0.55) {
-    const l = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); l.position.set(x, y + 0.1, z); g.add(l);
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); l.position.set(cx + x, y + 0.1, z); g.add(l);
   }
   return g;
 }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 const easeIO = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-function phaseLabel(text) {
-  let el = document.getElementById("c3Phase");
-  if (!el) { el = document.createElement("div"); el.id = "c3Phase"; el.className = "c3phase"; $("c3Canvas").appendChild(el); }
-  el.textContent = text || ""; el.hidden = !text;
-}
-// chase camera + a short scripted motion; path(t) gives [x, y, pitch] in scene units for t in 0..1
-function animate(ms, path, phases, onFrame) {
-  const C = ensureColumnScene(), { g, burners, strobe } = aircraftModel();
-  const cam0 = C.camera.position.clone(), tgt0 = C.controls.target.clone();
-  const trail = [], tg = new THREE.BufferGeometry(), tl = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }));
-  C.group.add(tl);
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
-  shadow.rotation.x = -Math.PI / 2; shadow.scale.set(2.2, 1, 1); C.group.add(shadow);
-  const gy = K(state.gO || 0) * state.ve;
-  return new Promise(res => {
-    const t0 = performance.now();
-    const step = now => {
-      const t = Math.min(1, (now - t0) / ms), [x, y, pitch, burn] = path(t);
-      g.position.set(x, y, 0); g.rotation.set(0, 0, pitch);
-      burners.forEach(b => { b.visible = burn > 0.02; b.scale.set(1, burn * (0.75 + 0.35 * Math.random()), 1); b.material.opacity = 0.55 + 0.4 * burn; });
-      strobe.visible = Math.floor(now / 450) % 2 === 0;
-      if (y - gy > 0.3) { trail.push(new THREE.Vector3(x - 2.9, y - 0.2, 0)); if (trail.length > 160) trail.shift(); tg.setFromPoints(trail); }
-      shadow.position.set(x, gy + 0.09, 0); shadow.material.opacity = Math.max(0, 0.35 - 0.05 * (y - gy));
-      const p = phases.find(ph => t <= ph[0]); phaseLabel(p ? p[1] : "");
-      // chase camera: low and behind on the runway, easing back to the normal view as the motion ends
-      const blend = t < 0.12 ? easeIO(t / 0.12) : t > 0.82 ? 1 - easeIO((t - 0.82) / 0.18) : 1;
-      const chase = new THREE.Vector3(x - 14, y + 4.5, 9), look = new THREE.Vector3(x + 4, y, 0);
-      C.camera.position.lerpVectors(cam0, chase, blend); C.controls.target.lerpVectors(tgt0, look, blend);
-      onFrame && onFrame(t, x, y);
-      if (t < 1 && $("col3d").open) requestAnimationFrame(step);
-      else { burners.forEach(b => b.visible = false); C.group.remove(tl); C.group.remove(shadow); tg.dispose(); phaseLabel(""); res(); }
-    };
-    requestAnimationFrame(step);
-  });
-}
-async function takeoff() {
-  const gy = K(state.gO || 0) * state.ve + 0.42, top = gy + 6;
-  await animate(7000, t => {
-    if (t < 0.38) { const u = t / 0.38; return [-4 + 6.5 * u * u, gy, 0, 1]; }                         // roll, afterburners lit
-    if (t < 0.48) { const u = (t - 0.38) / 0.1; return [2.5 + 1.6 * u, gy + 0.15 * u * u, 0.22 * easeIO(u), 1]; }  // rotate
-    const u = (t - 0.48) / 0.52; return [4.1 + 30 * u, gy + 0.15 + (top - gy) * easeIO(u), 0.22 * (1 - 0.6 * u), Math.max(0, 1 - 1.6 * u)];
-  }, [[0.38, "Take-off roll, afterburners lit"], [0.48, "Rotate"], [0.8, "Lift-off, climbing out"], [1, ""]]);
-}
-async function landing() {
-  const gy = K(state.gO || 0) * state.ve + 0.42, top = gy + 6;
-  let puff = null;
-  await animate(7500, t => {
-    if (t < 0.55) { const u = t / 0.55; return [-34 + 31 * u, top - (top - gy - 0.35) * easeIO(u), -0.05, 0]; }  // final approach
-    if (t < 0.66) { const u = (t - 0.55) / 0.11; return [-3 + 2.2 * u, gy + 0.35 * (1 - u) * (1 - u), 0.09 * u, 0]; } // flare
-    const u = (t - 0.66) / 0.34, k = 1 - Math.pow(1 - u, 2); return [-0.8 + 4.2 * k, gy, 0.09 * (1 - Math.min(1, u * 4)), 0]; // roll-out
-  }, [[0.55, "Final approach"], [0.66, "Flare"], [0.8, "Touchdown"], [1, "Rolling to a stop"]], (t, x, y) => {
-    const C = ensureColumnScene();
-    if (t > 0.66 && !puff) {                                  // tyre smoke at touchdown
-      puff = []; for (let i = 0; i < 14; i++) {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), new THREE.MeshBasicMaterial({ color: 0xe9eef7, transparent: true, opacity: 0.7, depthWrite: false }));
-        m.position.set(x - 1.6 + Math.random() * 0.6, y - 0.35, (Math.random() - 0.5) * 0.8); m.userData.v = new THREE.Vector3(-0.02 - Math.random() * 0.03, 0.01 + Math.random() * 0.02, (Math.random() - 0.5) * 0.03);
-        C.group.add(m); puff.push(m);
-      }
-    }
-    if (puff) puff.forEach(m => { m.position.add(m.userData.v); m.scale.multiplyScalar(1.025); m.material.opacity *= 0.975; });
-    if (t >= 1 && puff) puff.forEach(m => { C.group.remove(m); m.geometry.dispose(); m.material.dispose(); });
-  });
-}
+
 /* along the route */
 function routeAt(x) {
   const R = window.MCPLAN.getRoute(), segs = R.opt.segs;
@@ -695,21 +702,124 @@ function routeAt(x) {
   let fhIndex = 0; H.forEach((h, k) => { if (Math.abs(h - T) < Math.abs(H[fhIndex] - T)) fhIndex = k; });
   return { lon: MC.normLon(p[0]), lat: p[1], hd: s.brg, M: s.M, type: s.type, t, fhIndex, seg: s };
 }
+const typeName = { boomless: "boomless over land", super: "supersonic over water", sub: "subsonic", climb: "climb or descent" };
+function posLabel(x, q) {
+  const R = window.MCPLAN.getRoute();
+  $("c3PosLbl").textContent = `${Math.round(x).toLocaleString()} of ${Math.round(R.opt.dist).toLocaleString()} nm, ${Math.floor(q.t)}h ${String(Math.round((q.t % 1) * 60)).padStart(2, "0")}m after departure, ${typeName[q.type]}`;
+  $("c3Pos").value = x; drawStrip();
+}
 let posToken = 0;
 async function setRoutePos(x, waitDem = false) {
+  stopPlay();
   const my = ++posToken, q = routeAt(x), R = window.MCPLAN.getRoute();
   state.routeX = x; state.hd = q.hd; state.M = q.M; state.fl = R.fl;
   const { demP } = await loadAt(q.lon, q.lat, q.fhIndex);
   if (my !== posToken) return;
-  state.dem = null;                      // keep the previous terrain only if it is for this spot
-  const typeName = { boomless: "boomless over land", super: "supersonic over water", sub: "subsonic", climb: "climb or descent" }[q.type];
-  $("c3PosLbl").textContent = `${Math.round(x).toLocaleString()} of ${Math.round(R.opt.dist).toLocaleString()} nm, ${Math.floor(q.t)}h ${String(Math.round((q.t % 1) * 60)).padStart(2, "0")}m after departure, ${typeName}`;
-  $("c3Pos").value = x; drawStrip(); syncInputs(); header();
-  const quick = state.lastDem && Math.abs(state.lastDem.lat - q.lat) < 0.8 && Math.abs(state.lastDem.lon - q.lon) < 0.8 ? state.lastDem.fn : null;
-  state.dem = quick; renderColumn();
+  posLabel(x, q); syncInputs(); header();
   const fn = waitDem ? await demP : null;
-  if (!waitDem) demP.then(f => { if (my === posToken && f) { state.dem = f; state.lastDem = { lat: q.lat, lon: q.lon, fn: f }; renderColumn(); } });
-  else if (my === posToken && fn) { state.dem = fn; state.lastDem = { lat: q.lat, lon: q.lon, fn }; renderColumn(); }
+  if (my !== posToken) return;
+  if (fn) state.dem = fn;
+  renderColumn();
+  if (!waitDem) demP.then(f => { if (my === posToken && f && !PB) { state.dem = f; renderColumn(); } });
+}
+
+/* ---------- playback: continuous motion at display rate ---------- */
+// The aircraft stays at the centre; terrain slides and turns under it and is rebuilt only every ~85 km.
+// The air, the shock and the rays are recomputed about 7 times a second from the forecast column below.
+let PB = null;
+const PERF = window.__perf = { dyn: [], terr: [] };
+function stopPlay() {
+  if (!PB) return;
+  PB = null; if (C) C.tick = null; $("c3Play").classList.remove("on");
+  if (C && C.fx) { C.scene.remove(C.fx); disposeGroup(C.fx); C.fx = null; }
+}
+async function play() {
+  const R = window.MCPLAN.getRoute(); if (!R) return;
+  if (PB) { stopPlay(); return; }
+  const D = R.opt.dist, MC = window.MC;
+  let x = state.routeX >= D - 1 ? 0 : (state.routeX || 0);
+  state.gA = Math.max(0, elevAt(MC.normLon(R.A[0]), R.A[1])); state.gB = Math.max(0, elevAt(MC.normLon(R.B[0]), R.B[1]));
+  await setRoutePos(x, true);
+  const sc = ensureColumnScene();
+  // effects that live in the scene for the whole flight: contrail (kept in terrain coordinates), shadow, tyre smoke
+  const fx = new THREE.Group(); sc.scene.add(fx); sc.fx = fx;
+  const trailGeo = new THREE.BufferGeometry(), trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false }));
+  sc.terrain.add(trail); state.trail = [];
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.6, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.scale.set(2.2, 1, 1); fx.add(shadow);
+  PB = { x, D, last: performance.now(), dynAt: 0, uiAt: 0, busy: false, rebuildAt: 0, puffs: [], touched: false, camBase: null };
+  $("c3Play").classList.add("on");
+  const v0 = D / 70;                                    // nm per second in cruise: a whole route in just over a minute
+  const speed = x => { const u = Math.min(1, Math.min(x, D - x) / 80); return v0 * (0.018 + 0.982 * Math.pow(u, 1.5)); };
+  const chase = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
+  sc.tick = now => {
+    if (!PB) return;
+    const dt = Math.min(0.05, (now - PB.last) / 1000); PB.last = now;
+    PB.x = Math.min(D, PB.x + speed(PB.x) * dt);
+    const q = routeAt(PB.x); state.routeX = PB.x; state.lon = q.lon; state.lat = q.lat; state.hd = q.hd; state.M = q.M;
+    // terrain: slide under the aircraft; when it nears the edge of what was built (or the destination), build the
+    // next patch one chunk per frame in the background and swap it in, so there is no visible hitch
+    const off = state.terr ? Math.hypot(...terrainLocal(q.lon, q.lat)) : 1e9;
+    const nearEnd = PB.x > D - 30 && state.terr && state.terr.runwayAt == null && !(PB.job && PB.job.end);
+    if (!PB.job && (off > 190 || nearEnd)) {
+      const next = new THREE.Group(), meta = {}, end = PB.x > D - 30;
+      const [lo, la] = end ? [MC.normLon(R.B[0]), R.B[1]] : [q.lon, q.lat];
+      PB.job = { next, meta, end, jobs: terrainJobs(lo, la, q.hd, { lite: true, runwayAt: end ? -1.5 : null }, next, meta) };
+      loadDEM(la, lo).then(fn => { if (fn) state.dem = fn; }).catch(() => {});
+    }
+    if (PB.job) {
+      const t0 = performance.now();
+      while (PB.job.jobs.length && performance.now() - t0 < 6) PB.job.jobs.shift()();
+      if (!PB.job.jobs.length) { swapTerrain(PB.job.next, PB.job.meta); sc.terrain.add(trail); PERF.terr.push(1); PB.job = null; }
+    }
+    placeTerrain();
+    const f = poseAircraft(), gy = K(Math.max(0, elevAt(q.lon, q.lat))) * state.ve;
+    // air + shock, about 7 times a second, from the forecast column under the aircraft
+    if (now - PB.dynAt > 140 && !PB.busy) {
+      PB.dynAt = now; PB.busy = true;
+      MC.loadProfiles(MC.S.man.forecast_hours[q.fhIndex]).then(pr => { if (PB) { const t0 = performance.now(); state.P = MC.profileAt(pr, q.lon, q.lat); state.fhIndex = q.fhIndex; renderDynamic(true); PERF.dyn.push(performance.now() - t0); } PB && (PB.busy = false); });
+    }
+    if (now - PB.uiAt > 250) { PB.uiAt = now; posLabel(PB.x, q); }
+    // contrail near the airports, stored in terrain coordinates so it stays where it was laid
+    const ac = aircraftModel().g;
+    if (!f.onGround && (PB.x < 220 || PB.x > D - 220)) {
+      sc.terrain.updateMatrixWorld(); tmp.set(ac.position.x - 2.6, ac.position.y - 0.15, 0); sc.terrain.worldToLocal(tmp);
+      state.trail.push(tmp.clone()); if (state.trail.length > 400) state.trail.shift(); trailGeo.setFromPoints(state.trail);
+    }
+    shadow.position.set(0, gy + 0.09, 0); shadow.material.opacity = Math.max(0, 0.32 - 0.04 * (ac.position.y - gy));
+    // tyre smoke at touchdown
+    if (!PB.touched && PB.x >= D - 1.6) {
+      PB.touched = true;
+      for (let i = 0; i < 16; i++) {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), new THREE.MeshBasicMaterial({ color: 0xe9eef7, transparent: true, opacity: 0.7, depthWrite: false }));
+        sc.terrain.updateMatrixWorld(); tmp.set(-1.4 + Math.random() * 0.5, gy + 0.15, (Math.random() - 0.5) * 0.8); sc.terrain.worldToLocal(tmp); m.position.copy(tmp);
+        m.userData.v = new THREE.Vector3(-0.01 - Math.random() * 0.02, 0.006 + Math.random() * 0.012, (Math.random() - 0.5) * 0.02);
+        sc.terrain.add(m); PB.puffs.push(m);
+      }
+    }
+    for (const m of PB.puffs) { m.position.add(m.userData.v); m.scale.multiplyScalar(1.02); m.material.opacity *= 0.975; }
+    // camera: low chase view near the airports, eased into the normal view in cruise
+    const dEnd = Math.min(PB.x, D - PB.x), b = 1 - easeIO(Math.min(1, dEnd / 40));
+    if (b > 0.001) {
+      if (!PB.camBase) PB.camBase = { p: sc.camera.position.clone(), t: sc.controls.target.clone() };
+      chase.set(ac.position.x - 16, ac.position.y + 3.5, 3.5); look.set(ac.position.x + 10, ac.position.y - 0.6, 0);
+      sc.camera.position.lerpVectors(PB.camBase.p, chase, b); sc.controls.target.lerpVectors(PB.camBase.t, look, b);
+    } else PB.camBase = null;
+    if (PB.x >= D) {                                   // rolled out: hold a moment, then stop
+      PB.doneAt = PB.doneAt || now;
+      if (now - PB.doneAt > 2500) { for (const m of PB.puffs) { sc.terrain.remove(m); m.geometry.dispose(); m.material.dispose(); } stopPlay(); renderDynamic(false); }
+    }
+  };
+}
+async function openRoute(x = 0) {
+  const R = window.MCPLAN.getRoute(); if (!R) return;
+  $("col3d").showModal(); wireControls();
+  $("c3Route").hidden = false;
+  $("c3Pos").max = R.opt.dist; $("c3Pos").step = Math.max(1, R.opt.dist / 400);
+  state.route = R;
+  const MC = window.MC;
+  state.gA = Math.max(0, elevAt(MC.normLon(R.A[0]), R.A[1])); state.gB = Math.max(0, elevAt(MC.normLon(R.B[0]), R.B[1]));
+  await setRoutePos(x, true);
 }
 function drawStrip() {
   const R = window.MCPLAN.getRoute(); if (!R) return;
@@ -719,31 +829,6 @@ function drawStrip() {
   svg.selectAll("rect").data(R.opt.segs).join("rect").attr("x", s => x(s.x0)).attr("width", s => Math.max(0.6, x(s.x1) - x(s.x0) + 0.3)).attr("y", 4).attr("height", 6).attr("fill", s => col[s.type]);
   svg.append("path").attr("d", `M${x(state.routeX || 0)},0 l-5,-0 l5,7 l5,-7 z`).attr("fill", "var(--ink)");
   svg.append("text").attr("x", 0).attr("y", 24).text(R.names[0]); svg.append("text").attr("x", w).attr("y", 24).attr("text-anchor", "end").text(R.names[1]);
-}
-let playing = false;
-async function play() {
-  const R = window.MCPLAN.getRoute(); if (!R) return;
-  if (playing) { playing = false; $("c3Play").classList.remove("on"); return; }
-  playing = true; $("c3Play").classList.add("on");
-  let x = state.routeX >= R.opt.dist - 1 ? 0 : (state.routeX || 0);
-  const stepNm = Math.max(15, R.opt.dist / 140);
-  if (x === 0) { await setRoutePos(0, true); if (playing) await takeoff(); x = stepNm; }
-  while (playing && x < R.opt.dist) {
-    const t0 = performance.now();
-    await setRoutePos(x, false);
-    await new Promise(r => setTimeout(r, Math.max(60, 260 - (performance.now() - t0))));
-    x += stepNm;
-  }
-  if (playing) { await setRoutePos(R.opt.dist, true); if (playing) await landing(); }
-  playing = false; $("c3Play").classList.remove("on");
-}
-async function openRoute(x = 0) {
-  const R = window.MCPLAN.getRoute(); if (!R) return;
-  $("col3d").showModal(); wireControls();
-  $("c3Route").hidden = false;
-  $("c3Pos").max = R.opt.dist; $("c3Pos").step = Math.max(1, R.opt.dist / 400);
-  state.route = R;
-  await setRoutePos(x, true);
 }
 function syncInputs() {
   const MC = window.MC;
@@ -758,9 +843,9 @@ function wireControls() {
   $("c3Hd").oninput = async e => { state.hd = +e.target.value; await loadAt(state.lon, state.lat, state.fhIndex); renderColumn(); };
   $("c3Fl").onchange = async e => { state.fl = +e.target.value; await loadAt(state.lon, state.lat, state.fhIndex); if (!state.route) state.M = state.mb ? +state.mb.toFixed(3) : state.M; syncInputs(); renderColumn(); };
   $("c3Ve").onchange = e => { state.ve = +e.target.value; renderColumn(); };
-  $("c3Pos").oninput = e => { playing = false; $("c3Play").classList.remove("on"); setRoutePos(+e.target.value); };
+  $("c3Pos").oninput = e => setRoutePos(+e.target.value);
   $("c3Play").onclick = play;
-  $("col3d").addEventListener("close", () => { playing = false; });
+  $("col3d").addEventListener("close", stopPlay);
 }
 
 window.MC3D = { showGlobe, openColumn, openRoute };

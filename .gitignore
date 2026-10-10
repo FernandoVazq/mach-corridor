@@ -2,3 +2,4 @@ site/data/
 __pycache__/
 *.grb2
 .DS_Store
+study/results/
