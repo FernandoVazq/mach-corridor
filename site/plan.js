@@ -95,7 +95,7 @@
     r.opt = ac.supersonic ? RT.bestRoute(field, ac, A, B, obj, e) : r.gc;
     R = r; MC.fit && MC.fit([...r.opt.path, ...r.gc.path]); MC.schedule(); render(r); dirHint(); window.dispatchEvent(new Event("mc-route"));
     MC.hashExtra.r = [A, B].map((p, i) => MC.APT[names[i]] ? names[i] : `${p[1].toFixed(2)},${p[0].toFixed(2)}`).join("-");
-    MC.hashExtra.ac = ac.id; MC.writeHash();
+    MC.hashExtra.ac = ac.id; MC.hashExtra.o = obj; MC.writeHash();
     const rows = [];
     for (const fl of MC.S.man.flight_levels) {
       const f = await RT.makeField(fl, MC.S.fi);
@@ -195,6 +195,7 @@
     $("acSel").value = "concorde";
     const p = ev.detail;
     if (p.get("ac") && ACS.some(a => a.id === p.get("ac"))) $("acSel").value = p.get("ac");
+    if (["time", "cost", "gen"].includes(p.get("o"))) $("objSel").value = p.get("o");
     const go = () => {
       const a = MC.APT[$("fromIn").value.trim().toUpperCase()], b = MC.APT[$("toIn").value.trim().toUpperCase()];
       if (!a || !b) { $("routeOut").hidden = false; $("routeSummary").textContent = "Use airport codes from the list, or click a point and shift-click a second one."; return; }
