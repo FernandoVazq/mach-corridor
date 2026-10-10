@@ -184,3 +184,29 @@ for r in routes:
 with open(os.path.join(OUT, "route_mach.json"), "w") as f:
     json.dump(mm, f)
 print("done")
+
+# --- robustness: the GFS analysis is not the real atmosphere. Against real soundings the day-ahead error is about
+# 0.015 Mach (validation/), against the analysis only ~0.008. Add the missing part (sigma 0.012, correlated over
+# ~300 nm of track) to the "truth" and see how much boom exposure the margin still prevents.
+rng = np.random.default_rng(7)
+rob = []
+for fl in (350, 450, 550):
+    for m in (0.02, 0.03, 0.04, 0.05, 0.07):
+        land_nm = boom_nm = anyb = n = 0; saved = []
+        for seed in range(3):
+            for r in routes:
+                if r["reg"].sum() == 0: continue
+                for d in dates:
+                    smp = S[(r["name"], d, fl)]
+                    k = len(smp["Mt"]); rho = math.exp(-r["seg"] / 300.0)
+                    e = np.empty(k); e[0] = rng.normal()
+                    for i in range(1, k): e[i] = rho * e[i - 1] + math.sqrt(1 - rho * rho) * rng.normal()
+                    truth = dict(smp); truth["Mt"] = smp["Mt"] + 0.012 * e
+                    M = np.where(smp["Mf"] - m >= FLOOR, np.minimum(smp["Mf"] - m, DESIGN), M_SUB)
+                    _, _, Mfl = fly(r, smp, M)
+                    sh, nm = boom(r, truth, Mfl)
+                    land_nm += r["reg"].sum() * r["seg"]; boom_nm += nm; anyb += nm > 20; n += 1
+        rob.append(dict(fl=fl, margin=m, boom=round(100 * boom_nm / land_nm, 3), anyb=round(100 * anyb / n, 1)))
+        print(rob[-1], flush=True)
+with open(os.path.join(OUT, "robustness.json"), "w") as f:
+    json.dump(rob, f)

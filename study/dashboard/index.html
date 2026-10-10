@@ -1,0 +1,475 @@
+<style>
+/* One reading column of findings: each heading states the result, the chart under it shows it. */
+#dash-root { --dash-gutter: clamp(16px, 4vw, 40px); }
+.mc { max-width: 1060px; margin-inline: auto; display: grid; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+.mc-head { display: grid; gap: var(--cds-gap-sm); }
+.mc-eyebrow { font-size: var(--cds-font-size-caption); letter-spacing: .06em; text-transform: uppercase; color: var(--color-fg-muted); }
+.mc-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: clamp(1.7rem, 3.4vw, 2.4rem); line-height: 1.15; margin: 0; text-wrap: balance; }
+.mc-lead { font-size: var(--cds-font-size-body); line-height: 1.6; max-width: 68ch; color: var(--color-fg-muted); margin: 0; }
+.mc .mc-lead b, .mc .mc-note b, .mc .mc-p b { color: var(--color-fg); font-weight: 600; }
+.mc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: var(--cds-gap-md); }
+.mc-kpi { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: grid; gap: 4px; align-content: start; }
+.mc-kpi .lbl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.35; }
+.mc-kpi .val { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; }
+.mc-kpi .val small { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); color: var(--color-fg-muted); margin-left: 2px; }
+.mc-kpi .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.35; }
+.mc-kpi.lead { border-color: var(--cds-chart-reference); }
+.mc-sec { display: grid; gap: var(--cds-gap-md); }
+.mc-sec h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; line-height: 1.3; }
+.mc-p { margin: 0; max-width: 72ch; line-height: 1.6; color: var(--color-fg-muted); }
+.mc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--cds-gap-md); }
+.mc-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); min-width: 0; }
+.mc-card h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); line-height: 1.35; }
+.mc-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; }
+.mc-plot { position: relative; min-width: 0; }
+.mc-plot svg { display: block; overflow: visible; }
+.mc-plot text { font-family: var(--font-anthropic-sans); font-size: 11px; fill: var(--color-fg-muted); }
+.mc-plot .lab { fill: var(--color-fg); font-size: 11.5px; }
+.mc-plot .axis line, .mc-plot .axis path { stroke: var(--cds-chart-axis); }
+.mc-plot .grid line { stroke: var(--cds-chart-grid); }
+.mc-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.mc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mc-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+.mc-legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.mc-legend i.ring { width: 9px; height: 9px; border-radius: 50%; background: transparent !important; border: 2px solid; }
+.mc-ctrl { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.mc-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: 999px; padding: 2px; gap: 2px; }
+.mc-seg button { border: 0; background: transparent; color: var(--color-fg-muted); font: inherit; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+.mc-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+.mc-seg button:focus-visible { outline: 2px solid var(--cds-chart-reference); outline-offset: 2px; }
+.mc-tip { position: absolute; pointer-events: none; z-index: 5; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); line-height: 1.45; max-width: 240px; }
+.mc-tip .h { color: var(--cds-text-secondary); }
+.mc-fail { min-height: 120px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.mc-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+.mc-method { display: grid; gap: var(--cds-gap-sm); }
+.mc-method ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; line-height: 1.55; color: var(--color-fg-muted); max-width: 80ch; }
+[data-dash-source-state=empty] { color: transparent; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+.mc .num { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="mc">
+  <header class="mc-head" id="top">
+    <div class="mc-eyebrow">Mach Corridor study · one year of GFS hindcasts</div>
+    <h1 class="mc-title">Knowing the boomless Mach turns a ban into <span data-source="headline" data-field="saved" data-row="0" class="dash-skeleton">—</span> minutes saved per overland flight</h1>
+    <p class="mc-lead">An Overture-class jet at FL550 flies <b data-source="headline" data-field="routes" data-row="0">—</b> overland routes every week from <b data-source="headline" data-field="first" data-row="0">—</b> to <b data-source="headline" data-field="last" data-row="0">—</b>. With the day-before forecast and a <b data-source="headline" data-field="margin" data-row="0">—</b> Mach safety margin it captures <b data-source="headline" data-field="captured_pct" data-row="0">—</b>% of what perfect knowledge would give, and a boom reaches the ground on <b data-source="headline" data-field="flights_boom_pct_real" data-row="0">—</b>% of flights. Without the forecast, no rule is that quiet and still saves time.</p>
+  </header>
+
+  <section class="mc-kpis" aria-label="Headline figures">
+    <div class="mc-kpi lead"><div class="lbl">Minutes saved per overland flight</div><div class="val"><span data-source="headline" data-field="saved" data-row="0" class="dash-skeleton">—</span><small>min</small></div><div class="sub">vs today's overland ban, FL550</div></div>
+    <div class="mc-kpi"><div class="lbl">Share of the perfect-knowledge saving</div><div class="val"><span data-source="headline" data-field="captured_pct" data-row="0" class="dash-skeleton">—</span><small>%</small></div><div class="sub">perfect knowledge: <span data-source="headline" data-field="perfect" data-row="0">—</span> min</div></div>
+    <div class="mc-kpi"><div class="lbl">Flights saving 15 minutes or more</div><div class="val"><span data-source="headline" data-field="share_15min_pct" data-row="0" class="dash-skeleton">—</span><small>%</small></div><div class="sub">of <span data-source="headline" data-field="routes" data-row="0">—</span> routes × <span data-source="headline" data-field="dates" data-row="0">—</span> weeks</div></div>
+    <div class="mc-kpi"><div class="lbl">Flights where a boom reaches the ground</div><div class="val"><span data-source="headline" data-field="flights_boom_pct_real" data-row="0" class="dash-skeleton">—</span><small>%</small></div><div class="sub"><span data-source="headline" data-field="boom_pct_real" data-row="0">—</span>% of overland distance, real-world forecast error</div></div>
+    <div class="mc-kpi"><div class="lbl">Break-even value of a passenger's hour</div><div class="val"><small>$</small><span data-source="headline" data-field="breakeven_median" data-row="0" class="dash-skeleton">—</span><small>/h</small></div><div class="sub">median flight: corridor fuel vs time saved</div></div>
+  </section>
+
+  <section class="mc-sec" id="frontier">
+    <h2>Every rule that ignores the weather either booms or gives the time back</h2>
+    <p class="mc-p">Each policy decides the Mach over land. Up and to the left is better: more minutes saved, fewer booms. One fixed Mach of <b data-source="headline" data-field="fixed105_saved" data-row="0">—</b> minutes still booms on <b data-source="headline" data-field="fixed105_boom" data-row="0">—</b>% of overland distance; a static chart of the quietest days saves <b data-source="headline" data-field="clim02_saved" data-row="0">—</b> minutes and booms on <b data-source="headline" data-field="clim02_boom" data-row="0">—</b>%.</p>
+    <div class="mc-ctrl"><span>Flight level</span><div class="mc-seg" id="fl-seg" role="group" aria-label="Flight level"><button data-fl="350" aria-pressed="false">FL350</button><button data-fl="450" aria-pressed="false">FL450</button><button data-fl="550" aria-pressed="true">FL550</button></div></div>
+    <div class="mc-grid">
+      <div class="mc-card" id="c-frontier">
+        <h3>Minutes saved vs how much of the overland track booms</h3>
+        <p class="mc-note">Average over every route and week. Boom share on a log scale.</p>
+        <div class="mc-legend" id="lg-frontier"></div>
+        <div class="mc-plot dash-skeleton" data-source="policies margins" style="min-height:360px"></div>
+      </div>
+      <div class="mc-card" id="c-margins">
+        <h3>The margin has to cover real-world forecast error, not just the model's</h3>
+        <p class="mc-note">Share of flights where a boom reaches the ground over more than 20 nm. Against GFS's own analysis the error is about 0.008 Mach; against weather balloons it is about 0.015.</p>
+        <div class="mc-legend" id="lg-margins"></div>
+        <div class="mc-plot dash-skeleton" data-source="margins" style="min-height:300px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mc-sec" id="routes">
+    <h2 id="h-routes">Long overland routes gain most</h2>
+    <p class="mc-p">Average minutes saved against the ban at FL550, with the range from a slow week to a good one (10th to 90th percentile) and what perfect knowledge would save. Westbound flights fly into the wind, where the boom stays up at a higher Mach.</p>
+    <div class="mc-card" id="c-routes">
+      <div class="mc-legend" id="lg-routes"></div>
+      <div class="mc-plot dash-skeleton" data-source="routes" style="min-height:900px"></div>
+    </div>
+  </section>
+
+  <section class="mc-sec" id="season">
+    <h2 id="h-season">Altitude matters more than season</h2>
+    <div class="mc-grid">
+      <div class="mc-card" id="c-monthly">
+        <h3>Minutes saved per flight, by month and flight level</h3>
+        <p class="mc-note">Forecast with the safety margin; average over all routes.</p>
+        <div class="mc-legend" id="lg-monthly"></div>
+        <div class="mc-plot dash-skeleton" data-source="monthly" style="min-height:300px"></div>
+      </div>
+      <div class="mc-card" id="c-direction">
+        <h3>Westbound saves more on most pairs</h3>
+        <p class="mc-note">Minutes saved at FL550, each direction of the same pair.</p>
+        <div class="mc-legend" id="lg-direction"></div>
+        <div class="mc-plot dash-skeleton" data-source="direction" style="min-height:300px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mc-sec" id="daily">
+    <h2>The corridor moves week to week, and the forecast follows it</h2>
+    <div class="mc-card" id="c-daily">
+      <div class="mc-ctrl"><span>Route</span><div class="mc-seg" id="route-seg" role="group" aria-label="Route"></div></div>
+      <p class="mc-note">Average boomless Mach over the overland part of the route at FL550, each week: what the atmosphere allowed, and what the forecast said the day before. Below 1.05 there is no usable corridor.</p>
+      <div class="mc-legend" id="lg-daily"></div>
+      <div class="mc-plot dash-skeleton" data-source="daily" style="min-height:280px"></div>
+    </div>
+  </section>
+
+  <section class="mc-sec" id="economics">
+    <h2 id="h-econ">It pays when a passenger's hour is worth more than about $<span data-source="headline" data-field="breakeven_median" data-row="0">—</span></h2>
+    <p class="mc-p">Flying a corridor instead of slowing down burns more fuel ($1.47/kg) but saves crew, aircraft and passenger time. For each flight, the break-even is the value of a passenger's hour at which the two balance. The curve shows for what share of flights the corridor pays at a given value of time.</p>
+    <div class="mc-card" id="c-econ">
+      <div class="mc-legend" id="lg-econ"></div>
+      <div class="mc-plot dash-skeleton" data-source="breakeven" style="min-height:300px"></div>
+    </div>
+  </section>
+
+  <section class="mc-sec mc-method" id="method">
+    <h2>How this was measured, and what it leaves out</h2>
+    <ul>
+      <li>Weather: NOAA GFS 1° analyses (taken as what actually happened) and 24-hour forecasts issued the day before, at 00 UTC every 7 days for a year. Boomless Mach from the same physics as the live map: rays down and to the sides, temperature, humidity and wind at every level, terrain under the boom plus a 1 km buffer.</li>
+      <li>Policies over land, territorial sea and the 24 nm boom carpet: today's ban (M0.95), one fixed Mach, a static chart (a given percentile of each spot's year), the forecast minus a margin, and perfect knowledge. Open water at M1.7; 150 nm subsonic climb and descent.</li>
+      <li>Aircraft: Overture-class (65 seats, 80% full, M1.7 design), fuel per nm from its efficiency curve; non-fuel cost $8,700 per block hour.</li>
+      <li>Routes are great circles flown every 10 nm, not the optimised routes of the app; acceleration and constant-Mach blocks are left out, so minutes saved are a little optimistic for short corridors.</li>
+      <li>The analysis is not the real atmosphere. The margins chart adds the missing error (0.012 Mach, correlated over 300 nm) measured against a year of weather balloons; the headline boom figures use it.</li>
+      <li>The 1 km buffer and the 1° grid are not yet validated against real flights (XB-1, NASA FaINT).</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  let FL = 550, ROUTE = null, routeButtonsFor = "";
+  const accent = () => dash.colors[0], second = () => dash.colors[1];
+  const MUTED = "var(--cds-chart-muted)", REF = "var(--cds-chart-reference)", BG = "var(--color-panel)";
+  const f1 = d3.format(".1f"), f0 = d3.format(",.0f"), f2 = d3.format(".2f"), f3 = d3.format(".3f");
+  const pctTxt = v => (v === 0 ? "0" : v < 0.1 ? d3.format(".2f")(v) : v < 10 ? d3.format(".1f")(v) : d3.format(".0f")(v)) + "%";
+
+  function ok(id) { const d = dash.data(id); return d.status === "ok" ? d.data : null; }
+  function fail(box, id) {
+    const st = dash.data(id).status;
+    box.innerHTML = "";
+    if (st === "error" || st === "connect" || st === "declined") { box.classList.remove("dash-skeleton"); const f = document.createElement("div"); f.className = "mc-fail"; f.textContent = "Failed to load"; box.appendChild(f); }
+  }
+  function svgIn(box, w, h, label) {
+    box.innerHTML = ""; box.classList.remove("dash-skeleton");
+    return d3.select(box).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${w} ${h}`).attr("role", "img").attr("aria-label", label);
+  }
+  function tipper(box) {
+    let t = box.querySelector(".mc-tip");
+    if (!t) { t = document.createElement("div"); t.className = "mc-tip"; t.hidden = true; box.appendChild(t); }
+    return {
+      show(lines, px, py) {
+        t.innerHTML = "";
+        lines.forEach((l, i) => { const d = document.createElement("div"); if (i === 0) d.className = "h"; d.textContent = l; t.appendChild(d); });
+        t.hidden = false;
+        const bw = box.clientWidth, tw = t.offsetWidth, th = t.offsetHeight;
+        t.style.left = Math.max(0, Math.min(bw - tw, px + 12)) + "px";
+        t.style.top = Math.max(0, py - th - 10) + "px";
+      },
+      hide() { t.hidden = true; }
+    };
+  }
+  const scaleOf = (box, svg, w) => { const r = box.getBoundingClientRect(); return r.width / w; };
+  function legend(el, items) {
+    el.innerHTML = "";
+    for (const it of items) {
+      const s = document.createElement("span"), i = document.createElement("i");
+      i.className = it.kind || ""; if (it.kind === "ring") i.style.borderColor = it.color; else i.style.background = it.color;
+      if (it.opacity != null) i.style.opacity = it.opacity;
+      s.appendChild(i); s.appendChild(document.createTextNode(it.label)); el.appendChild(s);
+    }
+  }
+  function axisClean(g) { g.attr("font-size", null).attr("font-family", null); }
+  function measure(svg, txt) { const t = svg.append("text").text(txt); const w = t.node().getComputedTextLength(); t.remove(); return w; }
+
+  // ---------- 1. policy frontier ----------
+  function drawFrontier() {
+    const box = $("#c-frontier .mc-plot"), rowsAll = ok("policies"), mg = ok("margins");
+    if (!rowsAll) return fail(box, "policies");
+    const rows = rowsAll.filter(r => r.fl === FL);
+    const w = Math.max(320, box.clientWidth), h = 360, m = { l: 40, r: 18, t: 14, b: 40 };
+    const svg = svgIn(box, w, h, "Minutes saved against boom share for each policy");
+    const x = d3.scaleSymlog().constant(0.02).domain([0, 100]).range([m.l, w - m.r]);
+    const y = d3.scaleLinear().domain([0, d3.max(rows, r => r.saved) * 1.12]).nice().range([h - m.b, m.t]);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickValues([0, 0.1, 1, 10, 100]).tickFormat(v => pctTxt(v)).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(0).tickPadding(6)).call(axisClean).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", w - m.r).attr("y", h - 6).attr("text-anchor", "end").text("Overland distance where the boom reaches the ground");
+    svg.append("text").attr("x", m.l).attr("y", m.t - 2).text("min saved");
+    const series = [
+      { kind: "fixed", color: MUTED, label: "One fixed Mach, no weather" },
+      { kind: "clim", color: second(), label: "Static chart (climatology)" },
+      { kind: "fcst", color: accent(), label: "Day-before forecast" },
+    ];
+    const tt = tipper(box), k = () => scaleOf(box, svg, w);
+    const line = d3.line().x(r => x(r.boom_pct)).y(r => y(r.saved));
+    for (const s of series) {
+      const pts = rows.filter(r => r.kind === s.kind).sort((a, b) => a.par - b.par);
+      svg.append("path").datum(pts).attr("d", line).style("fill", "none").style("stroke", s.color).attr("stroke-width", 2).attr("stroke-linejoin", "round").attr("stroke-linecap", "round");
+      svg.append("g").selectAll("circle").data(pts).join("circle").attr("cx", r => x(r.boom_pct)).attr("cy", r => y(r.saved)).attr("r", 4.5)
+        .style("fill", s.color).style("stroke", BG).attr("stroke-width", 2)
+        .on("mousemove", (ev, r) => { const p = d3.pointer(ev, box); tt.show([`${r.policy}, ${r.setting}`, `${f1(r.saved)} min saved`, `boom on ${pctTxt(r.boom_pct)} of overland distance`, `${pctTxt(r.flights_boom_pct)} of flights boom over 20 nm`], p[0], p[1]); })
+        .on("mouseleave", () => tt.hide());
+    }
+    // forecast with real-world error: same minutes, more booms
+    if (mg) {
+      const real = mg.filter(r => r.fl === FL && /real/.test(r.truth));
+      const fc = rows.filter(r => r.kind === "fcst");
+      const pts = real.map(r => { const f = fc.find(q => Math.abs(q.par - r.margin) < 1e-9); return f ? { ...r, saved: f.saved } : null; }).filter(Boolean);
+      svg.append("g").selectAll("circle").data(pts).join("circle").attr("cx", r => x(r.boom_pct)).attr("cy", r => y(r.saved)).attr("r", 4.5)
+        .style("fill", BG).style("stroke", accent()).attr("stroke-width", 2)
+        .on("mousemove", (ev, r) => { const p = d3.pointer(ev, box); tt.show([`Forecast, margin ${f2(r.margin)}, with real-world error`, `${f1(r.saved)} min saved`, `boom on ${pctTxt(r.boom_pct)} of overland distance`, `${pctTxt(r.flights_boom_pct)} of flights boom over 20 nm`], p[0], p[1]); })
+        .on("mouseleave", () => tt.hide());
+    }
+    const or = rows.find(r => r.kind === "oracle");
+    if (or) {
+      svg.append("path").attr("d", d3.symbol(d3.symbolStar, 120)()).attr("transform", `translate(${x(or.boom_pct)},${y(or.saved)})`).style("fill", accent()).style("stroke", BG).attr("stroke-width", 1.5);
+      svg.append("text").attr("class", "lab").attr("x", x(or.boom_pct) + 10).attr("y", y(or.saved) + 4).text(`Perfect knowledge ${f1(or.saved)} min`);
+    }
+    // a few labels the finding rests on
+    const lab = (r, txt, dx, dy, anchor) => r && svg.append("text").attr("class", "lab").attr("x", x(r.boom_pct) + dx).attr("y", y(r.saved) + dy).attr("text-anchor", anchor || "start").text(txt);
+    lab(rows.find(r => r.kind === "fcst" && r.par === 0.05), "margin 0.05", 8, 14);
+    lab(rows.find(r => r.kind === "fixed" && r.par === 1.05), "fixed M1.05", 8, 14);
+    lab(rows.find(r => r.kind === "fixed" && r.par === 1.2), "M1.20", -8, -8, "end");
+    legend($("#lg-frontier"), [...series.map(s => ({ color: s.color, label: s.label, kind: "dot" })), { color: accent(), label: "Forecast with real-world error", kind: "ring" }]);
+  }
+
+  // ---------- 2. margins ----------
+  function drawMargins() {
+    const box = $("#c-margins .mc-plot"), rows0 = ok("margins");
+    if (!rows0) return fail(box, "margins");
+    const rows = rows0.filter(r => r.fl === FL);
+    const w = Math.max(320, box.clientWidth), h = 300, m = { l: 40, r: 18, t: 14, b: 40 };
+    const svg = svgIn(box, w, h, "Share of flights with a boom against the safety margin");
+    const x = d3.scaleLinear().domain(d3.extent(rows, r => r.margin)).range([m.l, w - m.r]);
+    const y = d3.scaleLinear().domain([0, d3.max(rows, r => r.flights_boom_pct) * 1.08]).nice().range([h - m.b, m.t]);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickValues([...new Set(rows.map(r => r.margin))]).tickFormat(f2).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(v => v + "%").tickSize(0).tickPadding(6)).call(axisClean).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", w - m.r).attr("y", h - 6).attr("text-anchor", "end").text("Safety margin subtracted from the forecast (Mach)");
+    const groups = d3.groups(rows, r => r.truth).map(([name, pts]) => ({ name, pts: pts.sort((a, b) => a.margin - b.margin), color: /real/.test(name) ? accent() : MUTED }));
+    const tt = tipper(box), line = d3.line().x(r => x(r.margin)).y(r => y(r.flights_boom_pct));
+    for (const g of groups) {
+      svg.append("path").datum(g.pts).attr("d", line).style("fill", "none").style("stroke", g.color).attr("stroke-width", 2).attr("stroke-linejoin", "round");
+      svg.append("g").selectAll("circle").data(g.pts).join("circle").attr("cx", r => x(r.margin)).attr("cy", r => y(r.flights_boom_pct)).attr("r", 4.5).style("fill", g.color).style("stroke", BG).attr("stroke-width", 2)
+        .on("mousemove", (ev, r) => { const p = d3.pointer(ev, box); tt.show([`Margin ${f2(r.margin)} · ${r.truth}`, `${pctTxt(r.flights_boom_pct)} of flights boom over 20 nm`, `${pctTxt(r.boom_pct)} of overland distance`], p[0], p[1]); })
+        .on("mouseleave", () => tt.hide());
+      const end = g.pts.find(r => Math.abs(r.margin - 0.05) < 1e-9);
+      if (end && /real/.test(g.name)) svg.append("text").attr("class", "lab").attr("x", x(end.margin) + 8).attr("y", y(end.flights_boom_pct) - 8).text(`${pctTxt(end.flights_boom_pct)} at 0.05`);
+    }
+    legend($("#lg-margins"), groups.map(g => ({ color: g.color, label: g.name })));
+  }
+
+  // ---------- 3. routes ----------
+  function drawRoutes() {
+    const box = $("#c-routes .mc-plot"), rows0 = ok("routes");
+    if (!rows0) return fail(box, "routes");
+    const rows = rows0.slice().sort((a, b) => b.saved_mean - a.saved_mean);
+    const top = rows[0], hs = $("#h-routes");
+    hs.textContent = "";
+    hs.append("Long overland routes gain most: ");
+    const a = document.createElement("span"); a.textContent = top.route; a.dataset.source = "routes"; a.dataset.field = "route"; a.dataset.where = "code=" + encodeURIComponent(top.code); hs.appendChild(a);
+    hs.append(" saves ");
+    const b = document.createElement("span"); b.textContent = f1(top.saved_mean); b.dataset.source = "routes"; b.dataset.field = "saved_mean"; b.dataset.where = "code=" + encodeURIComponent(top.code); hs.appendChild(b);
+    hs.append(" minutes a flight");
+    const w = Math.max(320, box.clientWidth), band = 19, m = { t: 22, b: 30, r: 54 };
+    const h = m.t + m.b + band * rows.length;
+    const svg = svgIn(box, w, h, "Minutes saved per route");
+    const lw = Math.min(w * 0.42, d3.max(rows, r => measure(svg, r.route)) + 10);
+    m.l = lw;
+    const x = d3.scaleLinear().domain([0, d3.max(rows, r => Math.max(r.saved_p90, r.perfect_mean))]).nice().range([m.l, w - m.r]);
+    const y = d3.scaleBand().domain(rows.map(r => r.code)).range([m.t, h - m.b]).padding(0.28);
+    svg.append("g").attr("class", "grid").selectAll("line").data(x.ticks(6)).join("line").attr("x1", d => x(d)).attr("x2", d => x(d)).attr("y1", m.t - 6).attr("y2", h - m.b);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(6).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${m.t - 6})`).call(d3.axisTop(x).ticks(6).tickSize(0).tickPadding(4)).call(axisClean).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", w - m.r).attr("y", h - 4).attr("text-anchor", "end").text("minutes saved per flight");
+    const col = r => r.direction === "westbound" ? accent() : accent();
+    const op = r => r.direction === "westbound" ? 1 : 0.45;
+    const tt = tipper(box);
+    const g = svg.append("g").selectAll("g").data(rows).join("g").attr("transform", r => `translate(0,${y(r.code)})`);
+    g.append("text").attr("class", "lab").attr("x", m.l - 8).attr("y", y.bandwidth() / 2 + 4).attr("text-anchor", "end").text(r => r.route);
+    g.append("rect").attr("x", m.l).attr("y", 0).attr("height", y.bandwidth()).attr("width", r => Math.max(0, x(r.saved_mean) - m.l)).attr("rx", 4).style("fill", col).style("fill-opacity", op);
+    g.append("line").attr("x1", r => x(r.saved_p10)).attr("x2", r => x(r.saved_p90)).attr("y1", y.bandwidth() / 2).attr("y2", y.bandwidth() / 2).style("stroke", "var(--color-fg)").attr("stroke-width", 1.2).style("stroke-opacity", .55);
+    g.append("line").attr("x1", r => x(r.perfect_mean)).attr("x2", r => x(r.perfect_mean)).attr("y1", -1).attr("y2", y.bandwidth() + 1).style("stroke", "var(--color-fg)").attr("stroke-width", 2);
+    g.append("text").attr("x", r => x(Math.max(r.saved_p90, r.perfect_mean)) + 6).attr("y", y.bandwidth() / 2 + 4).text(r => f1(r.saved_mean));
+    g.append("rect").attr("x", 0).attr("y", -3).attr("width", w).attr("height", y.bandwidth() + 6).style("fill", "transparent")
+      .on("mousemove", (ev, r) => { const p = d3.pointer(ev, box); tt.show([`${r.route} (${r.direction}, ${r.region})`, `${f1(r.saved_mean)} min saved on average`, `slow week ${f1(r.saved_p10)}, good week ${f1(r.saved_p90)}`, `perfect knowledge ${f1(r.perfect_mean)} min`, `${f0(r.overland_nm)} nm over land, ${f2(r.ban_hours)} h under the ban`], p[0], p[1]); })
+      .on("mouseleave", () => tt.hide());
+    legend($("#lg-routes"), [{ color: accent(), label: "Westbound" }, { color: accent(), label: "Eastbound", opacity: .45 }, { color: "var(--color-fg)", label: "Slow to good week (10th–90th percentile)" }, { color: "var(--color-fg)", label: "Perfect knowledge (tick)" }]);
+  }
+
+  // ---------- 4. monthly ----------
+  function drawMonthly() {
+    const box = $("#c-monthly .mc-plot"), rows0 = ok("monthly");
+    if (!rows0) return fail(box, "monthly");
+    const rows = rows0.map(r => ({ ...r, d: new Date(r.month + "T00:00:00Z") }));
+    const levels = ["FL350", "FL450", "FL550"], opac = { FL350: .35, FL450: .65, FL550: 1 };
+    const w = Math.max(320, box.clientWidth), h = 300, m = { l: 34, r: 74, t: 14, b: 34 };
+    const svg = svgIn(box, w, h, "Minutes saved by month and flight level");
+    const x = d3.scaleUtc().domain(d3.extent(rows, r => r.d)).range([m.l, w - m.r]);
+    const y = d3.scaleLinear().domain([0, d3.max(rows, r => r.saved) * 1.1]).nice().range([h - m.b, m.t]);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(w < 480 ? 4 : 7).tickFormat(d3.utcFormat("%b %Y")).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(0).tickPadding(6)).call(axisClean).call(g => g.select(".domain").remove());
+    const tt = tipper(box), line = d3.line().x(r => x(r.d)).y(r => y(r.saved));
+    for (const L of levels) {
+      const pts = rows.filter(r => r.level === L).sort((a, b) => a.d - b.d); if (!pts.length) continue;
+      svg.append("path").datum(pts).attr("d", line).style("fill", "none").style("stroke", accent()).style("stroke-opacity", opac[L]).attr("stroke-width", 2).attr("stroke-linejoin", "round");
+      const last = pts[pts.length - 1];
+      svg.append("circle").attr("cx", x(last.d)).attr("cy", y(last.saved)).attr("r", 4).style("fill", accent()).style("fill-opacity", opac[L]).style("stroke", BG).attr("stroke-width", 2);
+      svg.append("text").attr("class", "lab").attr("x", x(last.d) + 8).attr("y", y(last.saved) + 4).text(`${L} ${f1(last.saved)}`);
+    }
+    const months = [...new Set(rows.map(r => +r.d))].sort((a, b) => a - b);
+    const rule = svg.append("line").attr("y1", m.t).attr("y2", h - m.b).style("stroke", REF).attr("stroke-width", 1).style("opacity", 0);
+    svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", w - m.l - m.r).attr("height", h - m.t - m.b).style("fill", "transparent")
+      .on("mousemove", ev => {
+        const [px] = d3.pointer(ev), t = x.invert(px), mo = months.reduce((a, b) => Math.abs(b - t) < Math.abs(a - t) ? b : a);
+        rule.attr("x1", x(mo)).attr("x2", x(mo)).style("opacity", 1);
+        const vals = levels.map(L => { const r = rows.find(q => q.level === L && +q.d === mo); return r ? `${L}: ${f1(r.saved)} min` : null; }).filter(Boolean);
+        const p = d3.pointer(ev, box); tt.show([d3.utcFormat("%B %Y")(new Date(mo)), ...vals], p[0], p[1]);
+      })
+      .on("mouseleave", () => { tt.hide(); rule.style("opacity", 0); });
+    legend($("#lg-monthly"), levels.map(L => ({ color: accent(), opacity: opac[L], label: L })));
+  }
+
+  // ---------- 5. direction ----------
+  function drawDirection() {
+    const box = $("#c-direction .mc-plot"), rows0 = ok("direction");
+    if (!rows0) return fail(box, "direction");
+    const rows = rows0.slice().sort((a, b) => b.gap - a.gap);
+    const w = Math.max(320, box.clientWidth), band = 22, m = { t: 8, b: 30, r: 16 };
+    const h = m.t + m.b + band * rows.length;
+    const svg = svgIn(box, w, h, "Minutes saved westbound and eastbound for each city pair");
+    m.l = Math.min(w * 0.45, d3.max(rows, r => measure(svg, r.pair)) + 10);
+    const x = d3.scaleLinear().domain([0, d3.max(rows, r => Math.max(r.eastbound, r.westbound))]).nice().range([m.l, w - m.r]);
+    const y = d3.scaleBand().domain(rows.map(r => r.pair)).range([m.t, h - m.b]).padding(0.3);
+    svg.append("g").attr("class", "grid").selectAll("line").data(x.ticks(5)).join("line").attr("x1", d => x(d)).attr("x2", d => x(d)).attr("y1", m.t).attr("y2", h - m.b);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(5).tickSizeOuter(0)).call(axisClean);
+    const tt = tipper(box);
+    const g = svg.append("g").selectAll("g").data(rows).join("g").attr("transform", r => `translate(0,${y(r.pair) + y.bandwidth() / 2})`);
+    g.append("text").attr("class", "lab").attr("x", m.l - 8).attr("y", 4).attr("text-anchor", "end").text(r => r.pair);
+    g.append("line").attr("x1", r => x(r.eastbound)).attr("x2", r => x(r.westbound)).style("stroke", MUTED).attr("stroke-width", 2);
+    g.append("circle").attr("cx", r => x(r.eastbound)).attr("r", 4.5).style("fill", accent()).style("fill-opacity", .45).style("stroke", BG).attr("stroke-width", 2);
+    g.append("circle").attr("cx", r => x(r.westbound)).attr("r", 4.5).style("fill", accent()).style("stroke", BG).attr("stroke-width", 2);
+    g.append("rect").attr("x", 0).attr("y", -band / 2).attr("width", w).attr("height", band).style("fill", "transparent")
+      .on("mousemove", (ev, r) => { const p = d3.pointer(ev, box); tt.show([r.pair, `westbound ${f1(r.westbound)} min`, `eastbound ${f1(r.eastbound)} min`], p[0], p[1]); })
+      .on("mouseleave", () => tt.hide());
+    legend($("#lg-direction"), [{ color: accent(), label: "Westbound", kind: "dot" }, { color: accent(), label: "Eastbound", kind: "dot", opacity: .45 }]);
+  }
+
+  // ---------- 6. daily ----------
+  function drawDaily() {
+    const box = $("#c-daily .mc-plot"), rows0 = ok("daily");
+    if (!rows0) return fail(box, "daily");
+    const routes = [...new Set(rows0.map(r => r.route))];
+    if (!ROUTE || !routes.includes(ROUTE)) ROUTE = routes[0];
+    const seg = $("#route-seg");
+    if (routeButtonsFor !== routes.join("|")) {
+      routeButtonsFor = routes.join("|"); seg.innerHTML = "";
+      for (const r of routes) { const b = document.createElement("button"); b.textContent = r; b.addEventListener("click", () => { ROUTE = r; drawDaily(); }); seg.appendChild(b); }
+    }
+    seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.textContent === ROUTE)));
+    const rows = rows0.filter(r => r.route === ROUTE).map(r => ({ ...r, d: new Date(r.date + "T00:00:00Z") })).sort((a, b) => a.d - b.d);
+    const w = Math.max(320, box.clientWidth), h = 280, m = { l: 44, r: 16, t: 14, b: 34 };
+    const svg = svgIn(box, w, h, "Weekly boomless Mach, actual and forecast");
+    const x = d3.scaleUtc().domain(d3.extent(rows, r => r.d)).range([m.l, w - m.r]);
+    const lo = Math.min(1.04, d3.min(rows, r => Math.min(r.actual, r.forecast))), hi = d3.max(rows, r => Math.max(r.actual, r.forecast));
+    const y = d3.scaleLinear().domain([lo - 0.005, hi + 0.01]).nice().range([h - m.b, m.t]);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(w < 480 ? 4 : 7).tickFormat(d3.utcFormat("%b %Y")).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(f2).tickSize(0).tickPadding(6)).call(axisClean).call(g => g.select(".domain").remove());
+    if (1.05 >= y.domain()[0]) {
+      svg.append("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(1.05)).attr("y2", y(1.05)).style("stroke", REF).attr("stroke-width", 1).attr("stroke-dasharray", "4 3");
+      svg.append("text").attr("x", w - m.r).attr("y", y(1.05) - 5).attr("text-anchor", "end").text("M1.05: below, no corridor");
+    }
+    const lineA = d3.line().x(r => x(r.d)).y(r => y(r.actual)), lineF = d3.line().x(r => x(r.d)).y(r => y(r.forecast));
+    svg.append("path").datum(rows).attr("d", lineA).style("fill", "none").style("stroke", MUTED).attr("stroke-width", 2).attr("stroke-linejoin", "round");
+    svg.append("path").datum(rows).attr("d", lineF).style("fill", "none").style("stroke", accent()).attr("stroke-width", 2).attr("stroke-linejoin", "round");
+    const tt = tipper(box), rule = svg.append("line").attr("y1", m.t).attr("y2", h - m.b).style("stroke", REF).style("opacity", 0);
+    const dotA = svg.append("circle").attr("r", 4).style("fill", MUTED).style("stroke", BG).attr("stroke-width", 2).style("opacity", 0);
+    const dotF = svg.append("circle").attr("r", 4).style("fill", accent()).style("stroke", BG).attr("stroke-width", 2).style("opacity", 0);
+    const bis = d3.bisector(r => r.d).center;
+    svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", w - m.l - m.r).attr("height", h - m.t - m.b).style("fill", "transparent")
+      .on("mousemove", ev => {
+        const [px] = d3.pointer(ev), r = rows[bis(rows, x.invert(px))]; if (!r) return;
+        rule.attr("x1", x(r.d)).attr("x2", x(r.d)).style("opacity", 1);
+        dotA.attr("cx", x(r.d)).attr("cy", y(r.actual)).style("opacity", 1); dotF.attr("cx", x(r.d)).attr("cy", y(r.forecast)).style("opacity", 1);
+        const p = d3.pointer(ev, box); tt.show([d3.utcFormat("%b %-d, %Y")(r.d), `allowed: M${f3(r.actual)}`, `forecast the day before: M${f3(r.forecast)}`, `lowest point on the track: M${f3(r.lowest_actual)}`], p[0], p[1]);
+      })
+      .on("mouseleave", () => { tt.hide(); rule.style("opacity", 0); dotA.style("opacity", 0); dotF.style("opacity", 0); });
+    legend($("#lg-daily"), [{ color: MUTED, label: "What the atmosphere allowed" }, { color: accent(), label: "Forecast the day before" }]);
+  }
+
+  // ---------- 7. break-even ----------
+  function drawEcon() {
+    const box = $("#c-econ .mc-plot"), rows0 = ok("breakeven");
+    if (!rows0) return fail(box, "breakeven");
+    const levels = [350, 450, 550], opac = { 350: .35, 450: .65, 550: 1 };
+    const rows = rows0.filter(r => r.value_of_time > 0);
+    const w = Math.max(320, box.clientWidth), h = 300, m = { l: 44, r: 80, t: 14, b: 40 };
+    const svg = svgIn(box, w, h, "Share of flights for which the corridor pays, by value of a passenger's hour");
+    const x = d3.scaleLog().domain([50, Math.max(1000, d3.max(rows, r => r.value_of_time))]).range([m.l, w - m.r]).clamp(true);
+    const y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", d => y(d)).attr("y2", d => y(d));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickValues([50, 100, 200, 500, 1000].filter(v => v <= x.domain()[1])).tickFormat(v => "$" + v).tickSizeOuter(0)).call(axisClean);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".0%")).tickSize(0).tickPadding(6)).call(axisClean).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", w - m.r).attr("y", h - 6).attr("text-anchor", "end").text("Value of one passenger hour ($/h)");
+    svg.append("line").attr("x1", x(85)).attr("x2", x(85)).attr("y1", m.t).attr("y2", h - m.b).style("stroke", REF).attr("stroke-dasharray", "4 3");
+    svg.append("text").attr("x", x(85) + 5).attr("y", m.t + 10).text("$85/h, FAA business traveller");
+    const line = d3.line().x(r => x(r.value_of_time)).y(r => y(r.share)).curve(d3.curveStepAfter);
+    for (const L of levels) {
+      const pts = rows.filter(r => r.fl === L).sort((a, b) => a.share - b.share); if (!pts.length) continue;
+      svg.append("path").datum(pts).attr("d", line).style("fill", "none").style("stroke", accent()).style("stroke-opacity", opac[L]).attr("stroke-width", 2);
+      const med = pts.reduce((a, b) => Math.abs(b.share - 0.5) < Math.abs(a.share - 0.5) ? b : a);
+      if (L === 550) {
+        svg.append("circle").attr("cx", x(med.value_of_time)).attr("cy", y(med.share)).attr("r", 4.5).style("fill", accent()).style("stroke", BG).attr("stroke-width", 2);
+        svg.append("text").attr("class", "lab").attr("x", x(med.value_of_time) + 8).attr("y", y(med.share) + 14).text(`half of FL550 flights pay above $${f0(med.value_of_time)}/h`);
+      }
+      const end = pts[pts.length - 1];
+      svg.append("text").attr("class", "lab").attr("x", Math.min(w - m.r, x(end.value_of_time)) + 6).attr("y", y(end.share) + 4 + (L === 350 ? 12 : L === 450 ? 0 : -12)).text("FL" + L);
+    }
+    const tt = tipper(box);
+    svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", w - m.l - m.r).attr("height", h - m.t - m.b).style("fill", "transparent")
+      .on("mousemove", ev => {
+        const [px] = d3.pointer(ev), v = x.invert(px);
+        const lines = levels.map(L => { const pts = rows.filter(r => r.fl === L); const sh = d3.max(pts.filter(r => r.value_of_time <= v), r => r.share) || 0; return `FL${L}: pays on ${d3.format(".0%")(sh)} of flights`; });
+        const p = d3.pointer(ev, box); tt.show([`At $${f0(v)} per passenger hour`, ...lines], p[0], p[1]);
+      })
+      .on("mouseleave", () => tt.hide());
+    legend($("#lg-econ"), levels.map(L => ({ color: accent(), opacity: opac[L], label: "FL" + L })));
+  }
+
+  // ---------- figures in text ----------
+  function fillMarks() {
+    const hd = ok("headline");
+    document.querySelectorAll('[data-source="headline"]').forEach(el => {
+      if (!hd || !hd[0]) return;
+      const v = hd[0][el.dataset.field];
+      if (v == null) return;
+      el.textContent = String(v);
+      el.classList.remove("dash-skeleton");
+    });
+  }
+
+  $("#fl-seg").addEventListener("click", ev => {
+    const b = ev.target.closest("button"); if (!b) return;
+    FL = +b.dataset.fl;
+    $("#fl-seg").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    drawFrontier(); drawMargins();
+  });
+
+  dash.onData(() => {
+    fillMarks();
+    for (const f of [drawFrontier, drawMargins, drawRoutes, drawMonthly, drawDirection, drawDaily, drawEcon]) {
+      try { f(); } catch (e) { console.error(e); }
+    }
+  });
+})();
+</script>

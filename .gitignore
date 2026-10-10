@@ -3,3 +3,4 @@ __pycache__/
 *.grb2
 .DS_Store
 study/results/
+study/dashboard/index_doc.json
