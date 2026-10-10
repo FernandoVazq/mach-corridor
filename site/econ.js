@@ -18,7 +18,7 @@
   // ---------- compute ----------
   async function run() {
     if (running) return; running = true; $("econRun").disabled = true;
-    const e = E(); lastE = e; data = [];
+    const e = { ...E(), obj: "gen" }; lastE = e; data = [];
     const fields = new Map(), field = async fl => { if (!fields.has(fl)) fields.set(fl, await RT.makeField(fl, MC.S.fi)); return fields.get(fl); };
     const base = ACS.find(a => a.id === "b789"), list = sst();
     const jobs = ROUTES.length * 2 * (list.length + 1); let n = 0;
@@ -33,7 +33,7 @@
           await new Promise(r => setTimeout(r, 0));
           const f = await field(RT.nearestFL(ac.fl));
           d.ac[ac.id] = { ban: RT.evalPath(f, ac, [A, B], "ban", e), gc: RT.evalPath(f, ac, [A, B], "corr", e),
-                          opt: RT.evalPath(f, ac, RT.optimise(f, ac, A, B, "gen", e, 350), "corr", e) };
+                          opt: RT.bestRoute(f, ac, A, B, "gen", e, 350) };
           n++;
         }
         row.dirs.push(d);

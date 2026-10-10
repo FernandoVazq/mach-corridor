@@ -41,7 +41,9 @@
     };
   }
 
-  function legState(field, tHr, ac, p, q, mode, margin) {
+  // E (optional) carries the objective: over land a corridor is flown only where it beats subsonic on that
+  // objective ("time" always takes the corridor; "cost" and "gen" compare cost per nm both ways)
+  function legState(field, tHr, ac, p, q, mode, margin, E) {
     const m = MC(), mid = d3.geoInterpolate(p, q)(0.5), lon = m.normLon(mid[0]), lat = mid[1];
     const brg = bearing(p, q), [a0, a1, w] = field.at(tHr), L = f => f(a0) * (1 - w) + f(a1) * w;
     const c = L(a => m.cAt(a, lon, lat));
@@ -49,15 +51,23 @@
     // inside national territory + 12 nm territorial sea + boom-carpet buffer: boomless or subsonic only
     const rz = m.restrictedAt ? m.restrictedAt(lon, lat) : null;
     const landish = rz == null ? m.landAt(a0, lon, lat) > COAST : rz;
-    let M, type, mcut = null;
+    const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD), along = u * s + v * co, cross = u * co - v * s;
+    let M, type, mcut = null, skipped = false;
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
       mcut = L(a => m.mHeading(a, brg, lon, lat)) - margin;
-      if (mode === "corr" && mcut >= m.FLOOR) { M = Math.min(mcut, ac.design); type = "boomless"; }
+      let use = mode === "corr" && mcut >= m.FLOOR;
+      if (use && E && E.obj && E.obj !== "time") {
+        const st0 = { c, along, cross }, per = Mx => {
+          const { tas, gs } = groundSpeed(Mx, st0), op = ac.fuelPerNm(Mx) * tas / gs * E.fuel + ac.nonFuelPerBH / gs;
+          return E.obj === "cost" ? op : op + E.vot * ac.seats * E.lf / gs;
+        };
+        if (per(Math.min(mcut, ac.design)) >= per(ac.sub)) { use = false; skipped = true; }
+      }
+      if (use) { M = Math.min(mcut, ac.design); type = "boomless"; }
       else { M = ac.sub; type = "sub"; }
     } else { M = ac.design; type = "super"; }
-    const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD);
-    return { M, type, c, along: u * s + v * co, cross: u * co - v * s, landish, mcut, brg };
+    return { M, type, c, along, cross, landish, mcut, brg, skipped };
   }
   function groundSpeed(M, st) {
     const tas = M * st.c * KT, xw = st.cross * KT;
@@ -85,7 +95,7 @@
     for (let pass = 0; pass < 2; pass++) {
       cum = 0;
       segs = samples.map(([p, q, d], i) => {
-        const st = legState(field, times[i], ac, p, q, mode, E.margin);
+        const st = legState(field, times[i], ac, p, q, mode, E.margin, E);
         const s = { p, q, d, x0: cum, x1: cum + d, ...st };
         if (ac.supersonic && (cum < CLIMB_NM || cum + d > total - DESC_NM)) { s.M = Math.min(s.M, ac.sub); s.type = "climb"; }
         cum += d; return s;
@@ -106,31 +116,33 @@
       let t = 0;
       times = segs.map(s => { const t0 = t; s.t = s.d / groundSpeed(s.M, s).gs; t += s.t; return t0; });
     }
-    let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, tAcc = 0, windSum = 0, worstHead = 0;
+    let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, dSkip = 0, tAcc = 0, windSum = 0, worstHead = 0;
     for (const s of segs) {
       const { tas, gs } = groundSpeed(s.M, s);
       s.gs = gs; s.t = s.d / gs; s.fuel = ac.fuelPerNm(s.M) * s.d * tas / gs * (s.accel ? ACC_FUEL : 1);
       t += s.t; fuel += s.fuel; windSum += s.along * KT * s.d; worstHead = Math.min(worstHead, s.along * KT);
       if (s.landish) dLand += s.d;
       if (s.type === "boomless") dBoomless += s.d;
+      if (s.skipped && s.type !== "climb") dSkip += s.d;
       if (s.M > 1) dSuper += s.d;
       if (s.accel || s.decel) tAcc += s.t;
     }
-    // take-off, climb and transonic acceleration burn more than the cruise-rate segments above account for:
+    // take-off and climb (and the transonic push) burn more than the cruise-rate segments above account for:
     // a fixed allowance per flight (aircraft.js climbFuel; calibrated to Concorde, energy estimate for the others)
-    if (ac.supersonic && dSuper > 0) fuel += ac.climbFuel || 0;
+    if (ac.supersonic) fuel += ac.climbFuel || 0;   // every flight of a supersonic type takes off and climbs
     const block = t + BLOCK_EXTRA_H, nonFuel = ac.nonFuelPerBH * block, op = fuel * E.fuel + nonFuel;
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,
              fuelPerSeat: fuel / pax, co2PerSeat: fuel * CO2_PER_KG / pax, gen: op + E.vot * pax * block,
-             dLand, dBoomless, dSuper, tAcc, windAvg: windSum / total, worstHead,
+             dLand, dBoomless, dSuper, dSkip, tAcc, windAvg: windSum / total, worstHead,
              inRange: total <= ac.rangeNm, mode, ac };
   }
 
   // ---- optimiser: time-dependent Dijkstra on a 1° grid (16 directions), then continuous refinement ----
   const MOVES = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1],
                  [2, 1], [1, 2], [-1, 2], [-2, 1], [-2, -1], [-1, -2], [1, -2], [2, -1]];
-  function optimise(field, ac, A, B, obj, E, maxEvals = 1500) {
+  function optimise(field, ac, A, B, obj, E0, maxEvals = 1500) {
+    const E = { ...E0, obj };
     const bLon = A[0] + (((B[0] - A[0]) % 360) + 540) % 360 - 180;
     const span = Math.max(Math.abs(bLon - A[0]), Math.abs(B[1] - A[1])), R = Math.max(8, 0.3 * span);
     const lat0 = Math.max(-80, Math.floor(Math.min(A[1], B[1]) - R)), lat1 = Math.min(80, Math.ceil(Math.max(A[1], B[1]) + R));
@@ -151,7 +163,7 @@
       for (const [dx, dy] of MOVES) {
         const ii = i + dx, jj = j + dy;
         if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
-        const m = id(ii, jj), Q = ll(m), lc = legCost(legState(field, tArr[n], ac, P, Q, "corr", E.margin), ac, hav(P, Q), E, obj);
+        const m = id(ii, jj), Q = ll(m), lc = legCost(legState(field, tArr[n], ac, P, Q, "corr", E.margin, E), ac, hav(P, Q), E, obj);
         if (c + lc.c < dist[m]) { dist[m] = c + lc.c; tArr[m] = tArr[n] + lc.t; prev[m] = n; push(dist[m], m); }
       }
     }
@@ -173,7 +185,7 @@
     const guessKt = (ac.supersonic ? 1.2 : ac.design) * 580;
     const cumD = [0]; for (let i = 1; i < path.length; i++) cumD.push(cumD[i - 1] + hav(path[i - 1], path[i]));
     const seg = (p, q, d0) => { const d = hav(p, q), n = Math.max(1, Math.ceil(d / 30)), f = d3.geoInterpolate(p, q); let c = 0;
-      for (let k = 0; k < n; k++) c += legCost(legState(field, (d0 + d * k / n) / guessKt, ac, f(k / n), f((k + 1) / n), "corr", E.margin), ac, d / n, E, obj).c; return c; };
+      for (let k = 0; k < n; k++) c += legCost(legState(field, (d0 + d * k / n) / guessKt, ac, f(k / n), f((k + 1) / n), "corr", E.margin, E), ac, d / n, E, obj).c; return c; };
     const out = [path[0]];
     let i = 0;
     while (i < path.length - 1) {
@@ -205,5 +217,13 @@
     return { p, v };
   }
 
-  window.ROUTE = { makeField, evalPath, optimise, hav, bearing, nearestFL, KT, CO2_PER_KG };
+  // optimised corridor route, unless simply flying the great circle subsonic over land does better on the objective
+  function bestRoute(field, ac, A, B, obj, E, maxEvals) {
+    const Eo = { ...E, obj }, val = x => obj === "time" ? x.block : obj === "cost" ? x.op : x.gen;
+    const o = evalPath(field, ac, optimise(field, ac, A, B, obj, E, maxEvals), "corr", Eo);
+    const b = evalPath(field, ac, [A, B], "ban", Eo);
+    if (val(b) < val(o)) { b.path.info = { ...(o.path.info || {}), subBetter: true }; return b; }
+    return o;
+  }
+  window.ROUTE = { makeField, evalPath, optimise, bestRoute, hav, bearing, nearestFL, KT, CO2_PER_KG };
 })();

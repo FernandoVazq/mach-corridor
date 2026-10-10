@@ -29,17 +29,61 @@
     };
     if (R.gc) line(R.gc.segs, 1.4, [5, 5], "rgba(226,235,252,.75)");
     if (R.opt) line(R.opt.segs, 3);
-    for (const [p, name] of [[R.A, R.names[0]], [R.B, R.names[1]]]) {
+    // direction: chevrons every ~90 px along the flown route
+    if (R.opt) {
+      let acc = 45;
+      for (const sg of R.opt.segs) {
+        const [ax, ay] = toScreen(MC.normLon(sg.p[0]), sg.p[1]), [bx, by] = toScreen(MC.normLon(sg.q[0]), sg.q[1]);
+        const L = Math.hypot(bx - ax, by - ay); if (L > worldW / 2 || !L) continue;
+        while (acc < L) {
+          const f = acc / L, x = ax + (bx - ax) * f, y = ay + (by - ay) * f, a = Math.atan2(by - ay, bx - ax);
+          ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+          ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3.5, -4.5); ctx.lineTo(-1.5, 0); ctx.lineTo(-3.5, 4.5); ctx.closePath();
+          ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(3,11,38,.9)"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fill(); ctx.restore();
+          acc += 90;
+        }
+        acc -= L;
+      }
+    }
+    for (const [p, name, k] of [[R.A, R.names[0], 0], [R.B, R.names[1], 1]]) {
       const [sx, sy] = toScreen(p[0], p[1]);
-      ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 2 * Math.PI); ctx.fillStyle = "#fff"; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = "#061029"; ctx.stroke();
+      ctx.beginPath(); ctx.arc(sx, sy, k ? 6.5 : 5, 0, 2 * Math.PI); ctx.fillStyle = k ? "#061029" : "#fff"; ctx.fill();
+      ctx.lineWidth = k ? 3 : 2; ctx.strokeStyle = k ? "#fff" : "#061029"; ctx.stroke();
+      if (k) { ctx.beginPath(); ctx.arc(sx, sy, 2.4, 0, 2 * Math.PI); ctx.fillStyle = "#fff"; ctx.fill(); }
+      const txt = `${k ? "To" : "From"} ${name}`;
       ctx.font = "600 12px 'IBM Plex Sans', system-ui, sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = "#061029";
-      ctx.strokeText(name, sx + 9, sy - 7); ctx.fillStyle = "#fff"; ctx.fillText(name, sx + 9, sy - 7);
+      ctx.strokeText(txt, sx + 10, sy - 8); ctx.fillStyle = "#fff"; ctx.fillText(txt, sx + 10, sy - 8);
     }
   }
 
+
+  // mean heading of the land legs (where the map colours matter), rounded to 10°
+  function routeBrg(r = R) {
+    if (!r) return null;
+    const segs = r.opt.segs.filter(s => s.landish).length ? r.opt.segs.filter(s => s.landish) : r.opt.segs;
+    const sx = segs.reduce((a, s) => a + Math.sin(s.brg * Math.PI / 180) * s.d, 0), cy = segs.reduce((a, s) => a + Math.cos(s.brg * Math.PI / 180) * s.d, 0);
+    return ((Math.round(Math.atan2(sx, cy) * 180 / Math.PI / 10) * 10) % 360 + 360) % 360;
+  }
+  const compass = b => ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"][Math.round(b / 45) % 8];
+  function matchMap() {
+    const brg = routeBrg(); if (brg == null) return;
+    document.querySelector('#hdSeg [data-v="hd"]').click();
+    const sl = $("hdSlider"); sl.value = brg; sl.dispatchEvent(new Event("input"));
+  }
+  // the colours are only meaningful for the route when the map is drawn for the route's own heading
+  function dirHint() {
+    const el = $("dirHint"), brg = routeBrg();
+    $("hint").style.visibility = "visible";
+    if (brg == null || !R.ac.supersonic) { el.hidden = true; return; }
+    const S = MC.S, off = S.hd === "hd" ? Math.abs(((S.hdDeg - brg + 540) % 360) - 180) : 180;
+    if (off <= 30) { el.hidden = true; return; }
+    const what = S.hd === "max" ? "each point's <b>best</b> direction" : S.hd === "min" ? "each point's <b>worst</b> direction" : `<b>${String(S.hdDeg).padStart(3, "0")}°</b>`;
+    el.innerHTML = `<span>Colours show ${what}; this route flies <b>${String(brg).padStart(3, "0")}°</b> (${compass(brg)}).</span><button class="btn">Show for this route</button>`;
+    el.querySelector("button").onclick = matchMap; el.hidden = false; $("hint").style.visibility = "hidden";
+  }
+
   async function planRoute(A, B, names) {
-    const my = ++seq, ac = ACS.find(a => a.id === $("acSel").value), obj = $("objSel").value, e = E();
+    const my = ++seq, ac = ACS.find(a => a.id === $("acSel").value), obj = $("objSel").value, e = { ...E(), obj };
     $("routeOut").hidden = false; $("routeSummary").innerHTML = "<span class='muted'>Finding the best route…</span>"; $("routeKpis").innerHTML = "";
     await new Promise(r => setTimeout(r, 15));
     const base = ACS.find(a => a.id === "b789");
@@ -48,15 +92,15 @@
     const gc = [A, B];
     const r = { A, B, names, ac, obj, fl: MC.S.fl, fi: MC.S.fi,
       base: RT.evalPath(fieldB, base, gc, "ban", e), ban: RT.evalPath(field, ac, gc, "ban", e), gc: RT.evalPath(field, ac, gc, "corr", e) };
-    r.opt = ac.supersonic ? RT.evalPath(field, ac, RT.optimise(field, ac, A, B, obj, e), "corr", e) : r.gc;
-    R = r; MC.fit && MC.fit([...r.opt.path, ...r.gc.path]); MC.schedule(); render(r); window.dispatchEvent(new Event("mc-route"));
+    r.opt = ac.supersonic ? RT.bestRoute(field, ac, A, B, obj, e) : r.gc;
+    R = r; MC.fit && MC.fit([...r.opt.path, ...r.gc.path]); MC.schedule(); render(r); dirHint(); window.dispatchEvent(new Event("mc-route"));
     MC.hashExtra.r = [A, B].map((p, i) => MC.APT[names[i]] ? names[i] : `${p[1].toFixed(2)},${p[0].toFixed(2)}`).join("-");
     MC.hashExtra.ac = ac.id; MC.writeHash();
     const rows = [];
     for (const fl of MC.S.man.flight_levels) {
       const f = await RT.makeField(fl, MC.S.fi);
       if (my !== seq) return;
-      rows.push({ fl, o: ac.supersonic ? RT.evalPath(f, ac, RT.optimise(f, ac, A, B, obj, e, 500), "corr", e) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
+      rows.push({ fl, o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 500) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
       renderFl(rows);
       await new Promise(res => setTimeout(res, 0));
     }
@@ -65,11 +109,14 @@
   function render(r) {
     const o = r.opt, sup = r.ac.supersonic;
     const dBan = { t: o.block - r.ban.block, s: o.perSeat - r.ban.perSeat };
-    const good = dBan.t < 0;
-    $("routeSummary").innerHTML = `<b>${r.names[0]} to ${r.names[1]}</b>, ${r.ac.name}, FL${MC.S.fl}.
+    const good = dBan.t < -1 / 60;
+    const brg = routeBrg(r), skip = Math.round(o.dSkip || 0);
+    $("routeSummary").innerHTML = `<b>${r.names[0]} → ${r.names[1]}</b>, flying ${compass(brg)} (${String(brg).padStart(3, "0")}°). ${r.ac.name}, FL${MC.S.fl}.
       ${Math.round(o.dist).toLocaleString()} nm (${o.dist >= r.gc.dist ? "+" : ""}${Math.round(o.dist - r.gc.dist)} nm vs great circle), ${Math.round(100 * o.dLand / o.dist)}% over land or coast.
       ${!o.inRange ? `<br><span class="warn">Longer than the ${r.ac.rangeNm.toLocaleString()} nm range: needs a fuel stop.</span>` : ""}
-      ${sup ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}`;
+      ${sup ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}
+      ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Flying subsonic over land on the direct line beats every corridor route here for “${$("objSel").selectedOptions[0].text}”, so that is what is shown. Choose “Time” to see the fastest corridor route.</p>` : ""}
+      ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
     const tv = o.block - r.base.block, sv = o.perSeat - r.base.perSeat;
     $("routeKpis").innerHTML = [
@@ -155,14 +202,12 @@
     };
     $("routeGo").onclick = go;
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
-    $("routeHd").onclick = () => {
-      if (!R) return;
-      const segs = R.opt.segs.filter(s => s.landish).length ? R.opt.segs.filter(s => s.landish) : R.opt.segs;
-      const sx = segs.reduce((a, s) => a + Math.sin(s.brg * Math.PI / 180) * s.d, 0), cy = segs.reduce((a, s) => a + Math.cos(s.brg * Math.PI / 180) * s.d, 0);
-      const brg = ((Math.round(Math.atan2(sx, cy) * 180 / Math.PI / 10) * 10) % 360 + 360) % 360;
-      document.querySelector('#hdSeg [data-v="hd"]').click();
-      const sl = $("hdSlider"); sl.value = brg; sl.dispatchEvent(new Event("input"));
+    $("routeHd").onclick = matchMap;
+    $("routeSwap").onclick = () => {
+      const f = $("fromIn").value; $("fromIn").value = $("toIn").value; $("toIn").value = f;
+      if (R) planRoute(R.B, R.A, [R.names[1], R.names[0]]); else if ($("fromIn").value && $("toIn").value) go();
     };
+    MC.on("refresh", dirHint);
     for (const id of ["fromIn", "toIn"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") go(); });
     for (const id of ["acSel", "objSel"]) $(id).onchange = () => { if (R) planRoute(R.A, R.B, R.names); };
     // tap-friendly routing: start here / end here (works without a keyboard)

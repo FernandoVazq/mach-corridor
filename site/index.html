@@ -97,6 +97,7 @@
       </div>
       <div class="hint" id="hint">Click to inspect a point. Shift-click a second point to plan a route.</div>
       <div class="pickhint" id="pickHint" hidden>Tap the destination</div>
+      <div class="float dirhint" id="dirHint" hidden></div>
     </section>
 
     <aside class="drawer">
@@ -127,6 +128,7 @@
         <h2>Route</h2>
         <div class="routein">
           <label>From<input list="apts" id="fromIn" placeholder="EGLL" autocomplete="off"></label>
+          <button class="btn swap" id="routeSwap" title="Swap direction" aria-label="Swap direction"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M2 5h10m-3-3 3 3-3 3M14 11H4m3-3-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <label>To<input list="apts" id="toIn" placeholder="KJFK" autocomplete="off"></label>
           <button class="btn primary" id="routeGo">Plan</button>
         </div>
@@ -221,10 +223,12 @@
         <li><b>The limit is really a ground-speed limit.</b> The boom stays up when the aircraft moves over the ground slower than sound travels in the air below it. Into the wind you can fly a higher Mach because the wind slows you down, which is why the best-direction arrows point upwind. With the wind behind you the allowed Mach is lower, but you still cover more ground: in strong winds at FL400 the median is M1.25 and 635 kt over the ground into the wind, against M1.05 and 681 kt with it. The tailwind aircraft is faster at 94% of those points.</li>
         <li><b>The forecast is good enough.</b> Against real soundings, GFS misses the boomless Mach by about ±0.015 a day ahead. A 0.03 margin (about 2σ) covers 95% of the cases where the forecast promised too much.</li>
         <li><b>Corridors only matter over land and coasts.</b> Over open ocean full design Mach is already allowed, so routes ignore bright areas at sea. Where a route can stay over water longer, for example through the Mediterranean, it does.</li>
-        <li><b>Corridors save time but don't fix the economics.</b> For a Boom Overture-type aircraft they save about 45 minutes per flight against today's overland ban. A seat still costs about $2,300 more than on a 787-9, and the aircraft burns about 11× the fuel per passenger at today's $1.47/kg, so it pays off only if an hour is worth more than about $1,250 to the passenger.</li>
+        <li><b>Corridors save time but don't fix the economics.</b> For a Boom Overture-type aircraft they save about 25 minutes per flight against today's overland ban where an airline would actually use them (about 45 minutes if every corridor were flown, but slow corridors cost more fuel than the time is worth). A seat still costs about $2,300 more than on a 787-9, and the aircraft burns about 11× the fuel per passenger at today's $1.47/kg, so it pays off only if an hour is worth more than about $1,250 to the passenger.</li>
+        <li><b>The white on the map is direction-specific.</b> A bright corridor in "Best" mode is usually for flying into the wind. The same air, flown the other way, often allows only M1.02–1.08. Plan a route and the map offers to switch to that route's heading.</li>
+        <li><b>Water beats corridors.</b> Over open sea a supersonic aircraft flies its full design Mach (M1.7–2.0), against M1.1–1.3 in a corridor. A route will detour over water (e.g. through the Mediterranean) before it uses a white corridor over land.</li>
         <li><b>Still unproven: the 1 km safety buffer.</b> On Boom XB-1's 28 Jan 2025 flight the model places M1.12 right at the grazing limit. Without the actual flight track and microphone positions the buffer can't be calibrated yet.</li>
       </ol>
-      <p class="muted">Findings 1, 2, 4 and 7 come from the validation in <code>validation/</code> (soundings Oct 2025 – Sep 2026, GFS forecasts Sep – Oct 2026). Findings 3, 5 and 6 come from the live forecast and the Economics tab.</p>
+      <p class="muted">Findings 1, 2, 4 and 9 come from the validation in <code>validation/</code> (soundings Oct 2025 – Sep 2026, GFS forecasts Sep – Oct 2026). Findings 3, 5, 6, 7 and 8 come from the live forecast and the Economics tab.</p>
       <h1>How the map is made</h1>
       <p class="lead">Sound travels faster in warm air. A boom created high up, in cold air, bends upward as it descends into warmer layers. If a layer under the aircraft carries sound faster than the aircraft moves over it, the boom turns around before it reaches the ground. This is Mach cutoff.</p>
       <h2>The calculation</h2>
