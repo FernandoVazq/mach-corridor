@@ -217,38 +217,42 @@
 
   <main class="page method" id="tab-method" hidden>
     <article>
+      <h1>Progress</h1>
+      <p class="muted kpimeta" id="kpiMeta"></p>
+      <div class="kpiboard" id="kpiBoard"></div>
       <h1>What the model tells us</h1>
       <ol class="insights">
         <li><b>Altitude is the lever.</b> Over a year of real soundings (6 US stations, 4,283 launches), the any-direction boomless Mach has a median of 1.067 at FL350 but 1.147 at FL550. With a 0.03 safety margin a usable corridor (≥ M1.05) exists 38% of the time at FL350, 85% at FL500 and 93% at FL550.</li>
         <li><b>Winter and the north are the weak spots; the tropics are the best.</b> At FL500 the corridor is usable 69% of the time in winter against 99% in summer. International Falls (48.6°N) manages 57% at FL500; San Juan is usable essentially always from FL500 up.</li>
         <li><b>The limit is really a ground-speed limit.</b> The boom stays up when the aircraft moves over the ground slower than sound travels in the air below it. Into the wind you can fly a higher Mach because the wind slows you down, which is why the best-direction arrows point upwind. With the wind behind you the allowed Mach is lower, but you still cover more ground: in strong winds at FL400 the median is M1.25 and 635 kt over the ground into the wind, against M1.05 and 681 kt with it. The tailwind aircraft is faster at 94% of those points.</li>
-        <li><b>The forecast is good enough.</b> Against real soundings, GFS misses the boomless Mach by about ±0.015 a day ahead. A 0.03 margin (about 2σ) covers 95% of the cases where the forecast promised too much.</li>
+        <li><b>The margin sets the boom risk.</b> GFS misses the boomless Mach by about ±0.015 a day ahead. Over a year of hindcasts with that error, a single 0.05 margin still lets 1.2% of flights put more than 20 nm of boom on the ground. Auto, a margin per point from the local forecast error (about 0.052 at FL550), brings that to 0.5% and keeps 27 of the 36 minutes perfect knowledge would save.</li>
         <li><b>Corridors only matter over land and coasts.</b> Over open ocean full design Mach is already allowed, so routes ignore bright areas at sea. Where a route can stay over water longer, for example through the Mediterranean, it does.</li>
         <li><b>Corridors save time but don't fix the economics.</b> For a Boom Overture-type aircraft they save about 25 minutes per flight against today's overland ban where an airline would actually use them (about 45 minutes if every corridor were flown, but slow corridors cost more fuel than the time is worth). A seat still costs about $2,300 more than on a 787-9, and the aircraft burns about 11× the fuel per passenger at today's $1.47/kg, so it pays off only if an hour is worth more than about $1,250 to the passenger.</li>
         <li><b>The white on the map is direction-specific.</b> A bright corridor in "Best" mode is usually for flying into the wind. The same air, flown the other way, often allows only M1.02–1.08. Plan a route and the map offers to switch to that route's heading.</li>
         <li><b>Water beats corridors.</b> Over open sea a supersonic aircraft flies its full design Mach (M1.7–2.0), against M1.1–1.3 in a corridor. A route will detour over water (e.g. through the Mediterranean) before it uses a white corridor over land.</li>
-        <li><b>Still unproven: the 1 km safety buffer.</b> On Boom XB-1's 28 Jan 2025 flight the model places M1.12 right at the grazing limit. Without the actual flight track and microphone positions the buffer can't be calibrated yet.</li>
+        <li><b>The 1 km buffer holds, with the margin.</b> NASA's FaINT flights measured 0.01–0.09 psf on the ground when the turning point sat at least one Haglund safe height above it, under the proposed 0.11 psf limit. That height is 650 m in the median land column and 1.0 km at the 90th percentile (one GFS run checked so far). At the exact boomless limit 3% of columns fall short of it; with a 0.05 margin none do. XB-1 flight tracks are still needed to confirm it.</li>
+        <li><b>Supersonic over land without a corridor is 15× too loud.</b> An Overture-class aircraft at M1.7 and FL550 puts about 1.7 psf on the ground (Carlson's method; Concorde measured 1.94 psf at M2). The proposed limit is 0.11 psf, so overland speed comes from Mach cutoff or not at all.</li>
       </ol>
-      <p class="muted">Findings 1, 2, 4 and 9 come from the validation in <code>validation/</code> (soundings Oct 2025 – Sep 2026, GFS forecasts Sep – Oct 2026). Findings 3, 5, 6, 7 and 8 come from the live forecast and the Economics tab.</p>
+      <p class="muted">Findings 1, 2 and 4 come from the validation against soundings and a year of GFS hindcasts (<code>validation/</code>, <code>study/</code>). Findings 9 and 10 use NASA FaINT and TP-1122. The rest come from the live forecast and the Economics tab.</p>
       <h1>How the map is made</h1>
       <p class="lead">Sound travels faster in warm air. A boom created high up, in cold air, bends upward as it descends into warmer layers. If a layer under the aircraft carries sound faster than the aircraft moves over it, the boom turns around before it reaches the ground. This is Mach cutoff.</p>
       <h2>The calculation</h2>
       <p class="eq">M<sub>α</sub> = ( max<sub>z<sub>f</sub> ≤ z &lt; z<sub>a</sub></sub> [ c + w·e<sub>α</sub> ] − w<sub>a</sub>·e<sub>α</sub> ) / ( c<sub>a</sub> cos α ),&nbsp;&nbsp; M = min over rays α</p>
-      <p>For every 1° column of the NOAA GFS forecast, seven flight levels (FL300 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: validation supports 0.03 (about 2σ of the day-ahead error); the map opens at 0.01 and the slider changes it.</p>
+      <p>For every 1° column of the NOAA GFS forecast, seven flight levels (FL300 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: one number from the slider, or Auto, k·σ per point, where σ combines the local 24 h forecast error over a year of hindcasts with the 0.012 the analysis cannot see, and k (3.7–4.1 by level) holds flights with a boom on the ground to 0.5%.</p>
       <h2>Routes</h2>
       <p>Routes come from a time-dependent search on a 1° grid in 16 directions, refined continuously from two independent starting routes. The aircraft meets the forecast for the time it gets there, and ground speed comes from the wind triangle. Climb and descent are subsonic, acceleration and deceleration take time and fuel, and boomless legs are flown in constant-Mach blocks of at least 300 nm.</p>
       <h2>Limits</h2>
       <ul>
         <li>Research prototype, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>
-        <li>Ray acoustics only: no overpressure (psf) and no secondary booms. Not a 14 CFR 91.817 compliance determination.</li>
-        <li>The 1 km buffer and the 0.03 margin are provisional until validated against a year of soundings, GFS forecast error and the XB-1 flight days.</li>
+        <li>Loudness is v0: the primary boom from Carlson's simplified method (NASA TP-1122, within about 15% of flight data), cutoff legs bounded by the FaINT measurements. No secondary booms yet. Not a 14 CFR 91.817 compliance determination.</li>
+        <li>The 1 km buffer is checked against Haglund's safe height, not yet against flight data (XB-1, FaINT microphones).</li>
         <li>Climb or descent angle is not modelled (a −3° descent costs about 0.03 Mach), and horizontal gradients along the ~40 km ray path are ignored.</li>
-        <li>Regulated zone: under 14 CFR 91.817(b) a sonic boom may not reach the surface within the United States, which includes the 12 nm territorial sea and the Great Lakes. Routes treat every country's territory (land, lakes and internal waters) plus 12 nm of territorial sea plus a 24 nm boom-carpet half-width as a zone where the aircraft must be boomless or subsonic. Full supersonic speed is used only beyond that line.</li>
+        <li>Regulated zone: under 14 CFR 91.817(b) a sonic boom may not reach the surface within the United States, which includes the 12 nm territorial sea and the Great Lakes. Routes treat every country's territory (Natural Earth 10 m land, islands and lakes) plus 12 nm of territorial sea plus a 24 nm boom-carpet half-width, measured as great-circle distance on a 0.1° grid, as a zone where the aircraft must be boomless or subsonic. Full supersonic speed is used only beyond that line.</li>
         <li>The FAA proposal (docket FAA-2026-6935) covers the United States. Other countries keep overland bans, so the global map shows physics only.</li>
       </ul>
       <h2>Sanity check</h2>
       <p>A standard atmosphere with no wind gives M 1.15 at FL400 without the buffer and M 1.14 with it, within the range Boom's XB-1 flew without an audible boom in 2025 (M 1.12–1.18). This is a sanity check, not validation.</p>
-      <p class="fine">Data: NOAA GFS via AWS Open Data, updated four times a day. Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
+      <p class="fine">Data: NOAA GFS via AWS Open Data, checked hourly and rebuilt within an hour of each new run. Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
     </article>
   </main>
 
@@ -301,6 +305,7 @@
 <script src="route.js"></script>
 <script src="plan.js"></script>
 <script src="econ.js"></script>
+<script src="kpis.js"></script>
 <script type="module" src="view3d.js"></script>
 </body>
 </html>

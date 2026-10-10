@@ -320,3 +320,22 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .dirhint span { flex: 1; min-width: 0; }
 .dirhint .btn { white-space: nowrap; }
 @media (max-width: 900px) { .dirhint { top: auto; bottom: 70px; left: 10px; right: 10px; max-width: none; font-size: 12px; } }
+
+/* progress board (Method) */
+.kpimeta { margin: -4px 0 10px; font-size: 13px; }
+.kpiboard { display: grid; gap: 2px; margin: 0 0 26px; }
+.kb { display: grid; grid-template-columns: minmax(0, 1fr) 100px 110px 70px 104px; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+.kb-n { font-size: 13.5px; color: var(--ink); line-height: 1.35; }
+.kb-n span { display: block; font-size: 11.5px; color: var(--ink-3); }
+.kb-v { white-space: nowrap; font-size: 17px; font-weight: 600; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.kb-t { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.kb-m { position: relative; height: 6px; border-radius: 3px; background: var(--surface-2); }
+.kb-m i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--mach); }
+.kb-m b { position: absolute; top: -3px; width: 2px; height: 12px; margin-left: -1px; background: var(--ink-2); border-radius: 1px; }
+.kb-s { font-size: 11.5px; font-weight: 500; }
+.kb-s::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: currentColor; vertical-align: 1px; }
+.kb-s.ok { color: var(--good); } .kb-s.gate { color: var(--warn); } .kb-s.wip { color: var(--ink-2); } .kb-s.na { color: var(--ink-3); }
+@media (max-width: 640px) {
+  .kb { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  .kb-m { grid-column: 1 / 3; } .kb-t { display: none; } .kb-s { grid-column: 1 / 3; }
+}

@@ -6,22 +6,22 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 ## How work runs
 
 - **One issue per deliverable**, labelled by hat (`hat:design`, `hat:physics`, `hat:math`, `hat:engineering`, `hat:aerospace`) and milestone = phase.
-- **Sprints of about two weeks**, labelled `sprint-N`. A sprint ends with KPIs re-measured and `docs/kpis.json` updated.
+- **Sprints of about two weeks**, labelled `sprint-N`. A sprint ends with KPIs re-measured and `site/kpis.json` updated.
 - **Gates**: a phase's claims go on the map only after its gate passes. No physics or data change ships without the test suite.
 - **Owners**: cloud session = `engine/`, `site/`, automation; local session (`owner:local`) = `validation/` against soundings and flight data.
 
 ## KPIs
 
-| KPI | Today | Phase gate | Target |
-|---|---|---|---|
-| Flights with a boom on the ground | 1.2 % | 0.5 % | 0.1 % |
-| Minutes saved per overland flight | 28.2 min | — | 30 min |
-| Share of perfect-knowledge saving | 77 % | — | 90 % |
-| Day-ahead boomless-Mach error | 0.015 Mach | 0.01 Mach | 0.008 Mach |
-| Legs with loudness in psf | 0 % | — | 100 % |
-| New GFS data to updated map | 5 h | — | 1 h |
-| 3D playback, mid-range laptop | — | — | 60 fps |
-| WCAG 2.2 AA checks passed | — | — | 100 % |
+| KPI | Start | Today | Phase gate | Target |
+|---|---|---|---|---|
+| Flights with a boom on the ground | 1.2 % | 0.48 % | 0.5 % | 0.1 % |
+| Minutes saved per overland flight | 28.2 min | 27.0 min | — | 30 min |
+| Share of perfect-knowledge saving | 77 % | 74 % | — | 90 % |
+| Day-ahead boomless-Mach error | 0.015 Mach | 0.015 Mach | 0.01 Mach | 0.008 Mach |
+| Legs with loudness in psf | 0 % | 100 % | — | 100 % |
+| New GFS data to updated map | 5 h | 1 h | — | 1 h |
+| 3D playback, mid-range laptop | — | — | — | 60 fps |
+| WCAG 2.2 AA checks passed | — | — | — | 100 % |
 
 
 ## Phase 1 · Precise — due 2026-12-31
@@ -85,6 +85,19 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | [#32](https://github.com/FernandoVazq/mach-corridor/issues/32) | Change control and versioned model | engineering | Release process documented and enforced in CI. |
 | [#33](https://github.com/FernandoVazq/mach-corridor/issues/33) | Comment-ready summary for the FAA advisory circular | aerospace | Ready when the AC opens. |
 | [#34](https://github.com/FernandoVazq/mach-corridor/issues/34) | Country-by-country rule table | aerospace | Table in the app's data, sourced. |
+
+## Sprint log
+
+### Sprint 1 · 10 Oct 2026
+| Issue | Result |
+|---|---|
+| #4 Math test suite | Hamiltonian ray tracer; isothermal cone, circular-arc and invariant checks exact to 1e-5–1e-6; agrees with `mmax_grid` within 0.0015 Mach. In CI. |
+| #1 Margin per point | σ map from 53 weekly hindcasts + 0.012 real-world term; k per level (3.7–4.1) calibrated to the gate. FL550: flights with a boom 1.2% → 0.48% at 27.0 min saved (a single margin needs 0.057 and saves 26.5 min for the same exposure). Gain is modest because the real-world term dominates σ; flow-dependent spread (GEFS, #7) is the next lever. |
+| #2 Exact zone | Great-circle distance to Natural Earth 10 m territory at 0.1°; app, router and study use it. Study headline moves 28.2 → 27.9 min. |
+| #3 Freshness | Hourly check; builds only when a newer complete run is on AWS. |
+| #12 Loudness v0 | Carlson TP-1122 reproduces Sample 1 (74.6 vs 74 Pa) and Concorde (2.04 vs 1.94 psf). Overture M1.7 FL550 ≈ 1.7 psf = 15× the 0.11 limit. Cutoff legs bounded by FaINT (≤ 0.09 psf with the caustic ≥ Haglund safe height). |
+| #15 (first look) | Haglund safe height on one run: median 650 m, p90 1.0 km; at the exact limit 3% of land columns fall short of it, with a 0.05 margin none. |
+| #5 KPI board | Method page renders `site/kpis.json`. |
 
 ## Outside dates
 
