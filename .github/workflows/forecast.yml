@@ -32,7 +32,7 @@ jobs:
         run: pip install -r engine/requirements.txt
       - name: Physics tests
         working-directory: engine
-        run: python test_physics.py
+        run: python test_physics.py && python test_rays.py
       - name: Build forecast atlases from latest GFS
         working-directory: engine
         run: python build.py --out ../site/data
