@@ -1,0 +1,36 @@
+name: Study hindcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      start: { description: "First date (00 UTC)", default: "2025-10-09" }
+      end: { description: "Last date", default: "2026-10-08" }
+      step_days: { description: "Days between samples", default: "7" }
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+      - run: pip install -r engine/requirements.txt
+      - name: Hindcast shard
+        working-directory: engine
+        run: python study.py --start ${{ inputs.start }} --end ${{ inputs.end }} --step-days ${{ inputs.step_days }} --shard ${{ matrix.shard }} --nshards 6 --out ../study_out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: study-shard-${{ matrix.shard }}
+          path: study_out
+          retention-days: 30
