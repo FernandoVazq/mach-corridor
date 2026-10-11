@@ -69,10 +69,11 @@ SIGNAL_M = 60.0          # boom signal length near the caustic, SST-class (~0.2 
 G_MIN = 5e-4             # |dV_P/dz| floor (1/s): caps the safe height at ~1.3 km in near-neutral layers
 
 
-def haglund_buffer(plev, T, U, V, Z, Zground, RH=None, L=SIGNAL_M, z0=500.0, z1=2000.0):
-    """Safe cutoff height per column (Haglund, NASA CR-2417; used in FaINT): dZ_S = R^(1/3) L^(2/3),
-    R = c / |dV_P/dz|, with the V_P gradient taken over [ground + z0, ground + z1] and the steepest-risk
-    (smallest |gradient|) direction of all 72, so one floor protects every heading. Returns (ny, nx) metres."""
+def haglund_buffer(plev, T, U, V, Z, Zground, RH=None, L=SIGNAL_M, z0=500.0, z1=2000.0, per_direction=False):
+    """Safe cutoff height (Haglund, NASA CR-2417; used in FaINT): dZ_S = R^(1/3) L^(2/3), R = c / |dV_P/dz|,
+    V_P = c + w.e for ray direction e, gradient over [ground + z0, ground + z1] (where a caustic at the floor
+    sits). Where V_P does not fall with height the caustic is aloft and the cap (G_MIN) applies.
+    per_direction=True -> {direction deg: (ny, nx)}; else the worst direction per column (ny, nx), metres."""
     plev = np.asarray(plev, dtype=np.float32)
     if RH is not None:
         T = virtual_temperature(T, RH, plev[:, None, None])
@@ -89,12 +90,13 @@ def haglund_buffer(plev, T, U, V, Z, Zground, RH=None, L=SIGNAL_M, z0=500.0, z1=
 
     zg = np.asarray(Zground, np.float32)
     (c0, u0, v0), (c1, u1, v1) = at(zg + z0), at(zg + z1)
-    gmin = np.full(zg.shape, np.inf, np.float32)
+    out, gmin = {}, np.full(zg.shape, np.inf, np.float32)
     for d in np.arange(0, 360, DIR_STEP):
         s, co = np.sin(np.radians(d)), np.cos(np.radians(d))
-        g = ((c1 + u1 * s + v1 * co) - (c0 + u0 * s + v0 * co)) / (z1 - z0)
-        gmin = np.minimum(gmin, np.maximum(-g, G_MIN))       # V_P falling with height -> -g > 0
-    return (c0 / gmin) ** (1 / 3) * L ** (2 / 3)
+        g = np.maximum(-((c1 + u1 * s + v1 * co) - (c0 + u0 * s + v0 * co)) / (z1 - z0), G_MIN)  # V_P falling -> -g > 0
+        out[float(d)] = ((c0 / g) ** (1 / 3) * L ** (2 / 3)).astype(np.float32)
+        gmin = np.minimum(gmin, g)
+    return out if per_direction else (c0 / gmin) ** (1 / 3) * L ** (2 / 3)
 
 
 def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
@@ -107,8 +109,10 @@ def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
     Returns dict: M (H,ny,nx) boomless Mach per direction of travel (NaN = no layer
     available between floor and cruise), c_a, U_a, V_a, z_floor, z_cruise, h_buf.
     """
+    per_dir = None
     if isinstance(h_buf, str) and h_buf == "haglund":
-        h_buf = haglund_buffer(plev, T, U, V, Z, Zground, RH=RH)
+        per_dir = haglund_buffer(plev, T, U, V, Z, Zground, RH=RH, per_direction=True)
+        h_buf = np.median(np.stack(list(per_dir.values())), axis=0)         # reported only
     plev = np.asarray(plev, dtype=np.float32)
     L = len(plev)
     if RH is not None:
@@ -120,20 +124,21 @@ def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
     lerp = lambda X: (1 - wk) * X[k] + wk * X[k + 1]
     ca, Ua, Va, za = lerp(c), lerp(U), lerp(V), lerp(Z)
 
-    zf = (Zground + h_buf).astype(np.float32)
-    # levels strictly between floor and cruise
     below = (plev > p_a)[:, None, None]
-    valid = below & (Z > zf[None])
-    # value at the floor itself (linear in z between bracketing levels)
-    idx = (Z <= zf[None]).sum(axis=0)                       # first level above floor
-    hi = np.clip(idx, 0, L - 1)
-    lo = np.clip(idx - 1, 0, L - 1)
     take = lambda X, i: np.take_along_axis(X, i[None], axis=0)[0]
-    Zlo, Zhi = take(Z, lo), take(Z, hi)
-    f = np.where(Zhi > Zlo, (zf - Zlo) / np.maximum(Zhi - Zlo, 1e-3), 0.0).clip(0, 1)
-    flo = lambda X: (1 - f) * take(X, lo) + f * take(X, hi)
-    cf, Uf, Vf = flo(c), flo(U), flo(V)
-    floor_ok = zf < za
+
+    def floor_at(zf):
+        """levels strictly between floor and cruise, and c, U, V at the floor itself (linear in z)"""
+        valid = below & (Z > zf[None])
+        idx = (Z <= zf[None]).sum(axis=0)                   # first level above floor
+        hi, lo = np.clip(idx, 0, L - 1), np.clip(idx - 1, 0, L - 1)
+        Zlo, Zhi = take(Z, lo), take(Z, hi)
+        f = np.where(Zhi > Zlo, (zf - Zlo) / np.maximum(Zhi - Zlo, 1e-3), 0.0).clip(0, 1)
+        flo = lambda X: (1 - f) * take(X, lo) + f * take(X, hi)
+        return valid, flo(c), flo(U), flo(V), zf < za
+
+    zf = (Zground + h_buf).astype(np.float32)
+    fixed = None if per_dir else floor_at(zf)
 
     # effective sound speed maxima for every absolute direction on a DIR_STEP grid
     dirs = np.arange(0, 360, DIR_STEP)
@@ -141,6 +146,7 @@ def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
     Wa = {}
     for d in dirs:
         s, co = np.float32(np.sin(np.radians(d))), np.float32(np.cos(np.radians(d)))
+        valid, cf, Uf, Vf, floor_ok = fixed or floor_at((Zground + per_dir[float(d)]).astype(np.float32))
         ce = np.where(valid, c + U * s + V * co, -np.inf).max(axis=0)
         ce = np.maximum(ce, np.where(floor_ok, cf + Uf * s + Vf * co, -np.inf))
         F[d] = ce

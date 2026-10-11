@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 study/results/
 study/dashboard/index_doc.json
+study/results_*/

@@ -69,7 +69,7 @@ def test_no_corridor_is_below_one():
 
 
 def test_haglund_buffer():
-    from physics import haglund_buffer
+    from physics import haglund_buffer, mmax_grid
     T, U, V, Z = column()
     hb = float(haglund_buffer(PLEV, T, U, V, Z, np.zeros((1, 1)))[0, 0])
     assert 600 < hb < 760, hb                     # ISA: dc/dz ~ -0.0038 /s -> R ~ 89 km -> ~0.69 km
@@ -77,8 +77,13 @@ def test_haglund_buffer():
     assert m_hag > m_fix, (m_hag, m_fix)          # thinner than 1 km in a standard lapse
     T2, U2, V2, Z2 = column(u_of_z=lambda z: 25 + 0.004 * z)    # shear makes V_P fall faster eastbound...
     hb2 = float(haglund_buffer(PLEV, T2, U2, V2, Z2, np.zeros((1, 1)))[0, 0])
-    assert hb2 > hb, (hb2, hb)                    # ...but westbound slower: the worst direction sets the floor
-    print(f"Haglund buffer ISA {hb:.0f} m (M {m_hag:.3f} vs {m_fix:.3f} with 1 km); with shear {hb2:.0f} m")
+    assert hb2 > hb, (hb2, hb)                    # ...but westbound slower: the worst direction is the cap
+    # per direction: the floor only matters where the caustic sits at it, so the sheared column keeps a
+    # thin buffer for the direction where V_P falls fast
+    m_h_e = mmax_grid(PLEV, T2, U2, V2, Z2, np.zeros((1, 1)), 450, [90], h_buf="haglund", lateral=False)["M"][0, 0, 0]
+    m_f_e = mmax_grid(PLEV, T2, U2, V2, Z2, np.zeros((1, 1)), 450, [90], h_buf=1000, lateral=False)["M"][0, 0, 0]
+    assert abs(m_h_e - m_f_e) < 0.02, (m_h_e, m_f_e)
+    print(f"Haglund buffer ISA {hb:.0f} m (M {m_hag:.3f} vs {m_fix:.3f} with 1 km); sheared worst direction {hb2:.0f} m")
 
 
 if __name__ == "__main__":
