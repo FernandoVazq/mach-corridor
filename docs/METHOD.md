@@ -1,4 +1,4 @@
-# Mach Corridor — Method Document (draft 0.1, 11 Oct 2026)
+# Mach Corridor — Method Document (draft 0.2, 11 Oct 2026)
 
 Written for a reviewer who must decide whether this method can be part of an operator's means of compliance
 under the proposed rule (FAA NPRM "Enabling Supersonic Overland Flight", docket FAA-2026-6935: sonic boom
@@ -59,11 +59,16 @@ land columns fall below it, with a 0.05 margin none (`study/buffer_check.py`).
 
 ### 3.3 Forecast-error margin
 The flown Mach is the forecast boomless Mach minus a margin.
-- **Auto:** k·σ(x), with σ² = σ_ana(x)² + 0.012², where σ_ana is the RMS of (24 h forecast − analysis) over
-  53 weekly hindcasts and 0.012 is the part of the real-world error the analysis does not see (validation
-  against radiosondes: 0.015 total).
+- **Auto, ensemble (default source):** k·√(s² + 0.012²) per point and direction. s is the member spread of
+  the boomless Mach in the 31-member GEFS (daily 00Z run, 0–54 h, `engine/gefs_live.py`); 0.012 is the
+  real-world error no model run sees (validation against radiosondes: 0.015 total).
+- **Auto, fallback:** k·σ(x), with σ² = σ_ana(x)² + 0.012², from 53 weekly hindcasts.
 - k is calibrated per level so that ≤ 0.5% of hindcast flights put > 20 nm of boom on the ground:
-  FL350 3.79, FL450 4.10, FL550 3.74.
+  ensemble FL350 3.69, FL450 3.86, FL550 3.73; fallback FL350 3.79, FL450 4.10, FL550 3.74.
+
+Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
+0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean
+is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
 
 ### 3.4 Loudness (v0)
 - **Primary boom, legs not in cutoff:** Carlson's simplified method (NASA TP-1122):
@@ -113,9 +118,11 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 | Policy (FL550, Overture-class) | Minutes saved vs ban | Flights with > 20 nm boom |
 |---|---|---|
 | Single margin 0.05 | 27.9 | 1.2% |
-| Auto margin (k·σ) | 27.0 | 0.48% |
+| Auto margin, static σ map | 27.0 | 0.5% |
+| Auto margin, GEFS spread | 27.7 | 0.5% |
 | Perfect knowledge | 36.4 | 0% |
 | Fixed M1.05, no weather | 18.9 | boom on 1.1% of distance |
+| Single margin 0.05, computed buffer instead of 1 km | 28.9 | 1.6% |
 
 ### 6.4 Loudness
 Validated only against the published cases in §6.1. **Open:** sBOOM reference cases (#14), X-59 and XB-1

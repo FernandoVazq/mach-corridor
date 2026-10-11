@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-10",
+ "updated": "2026-10-11",
  "kpis": [
   {
    "id": "exposure",
@@ -12,31 +12,31 @@
    "gate": 0.5,
    "source": "Hindcast study, 53 weeks × 48 routes, real-world error, cross-validated",
    "start": 1.2,
-   "note": "Auto margin per point (k·σ), FL550; a single 0.05 margin gives 1.2%"
+   "note": "Auto margin (GEFS spread, static map as fallback), FL550; a single 0.05 margin gives 1.2%"
   },
   {
    "id": "saved",
    "name": "Minutes saved per overland flight",
    "unit": "min",
-   "today": 27.0,
+   "today": 27.7,
    "target": 30,
    "better": "higher",
    "phase": 1,
-   "source": "Hindcast study vs today's ban, Overture-class, FL550, Auto margin",
+   "source": "Hindcast study, 53 weeks × 48 routes × 31 GEFS members",
    "start": 28.2,
-   "note": "Traded for the lower boom exposure; 27.9 at a single 0.05 margin"
+   "note": "Auto margin from the GEFS spread, FL550, at 0.5% boom flights (27.0 with the static map, 27.9 at 0.05 with 1.2% boom flights)"
   },
   {
    "id": "captured",
    "name": "Share of perfect-knowledge saving",
    "unit": "%",
-   "today": 74,
+   "today": 76,
    "target": 90,
    "better": "higher",
    "phase": 1,
    "source": "Hindcast study, Auto margin",
    "start": 77,
-   "note": "Same trade as above"
+   "note": "Ensemble margin"
   },
   {
    "id": "error",
@@ -97,12 +97,17 @@
    "id": "wcag",
    "name": "WCAG 2.2 AA checks passed",
    "unit": "%",
-   "today": null,
+   "today": 100,
    "target": 100,
    "better": "higher",
    "phase": 3,
-   "source": "Not yet audited",
-   "start": null
+   "source": "tests/smoke.mjs",
+   "start": null,
+   "status": [
+    "Automated audit clean",
+    "gate"
+   ],
+   "note": "axe-core, every tab, light/dark/phone, in CI; manual audit pending"
   }
  ],
  "phases": [
@@ -131,5 +136,5 @@
    "gate": "FAA accepts the method as part of an operator's means of compliance"
   }
  ],
- "sprint": 1
+ "sprint": 2
 }
