@@ -71,11 +71,12 @@ def latest_run():
     raise RuntimeError("no complete GFS run found in last 48 h")
 
 
-def fetch(run, fh, want, res="1p00"):
-    """Byte-range download of selected messages -> {(var, level): 2D array}."""
-    idx_r = get(url(run, fh, res) + ".idx")
+def fetch(run, fh, want, res="1p00", src=None):
+    """Byte-range download of selected messages -> {(var, level): 2D array}. src: full GRIB URL (default GFS)."""
+    src = src or url(run, fh, res)
+    idx_r = get(src + ".idx")
     if idx_r is None:
-        raise RuntimeError(f"no idx for {url(run, fh, res)}")
+        raise RuntimeError(f"no idx for {src}")
     idx = idx_r.text.strip().splitlines()
     rows, seen = [], set()
     for i, line in enumerate(idx):
@@ -93,10 +94,10 @@ def fetch(run, fh, want, res="1p00"):
             if cur: blobs.append(cur)
             cur = [s, e, [k]]
     blobs.append(cur)
-    tmp = f"/tmp/gfs_{run}_{res}_{fh:03d}.grb2"
+    tmp = f"/tmp/grb_{abs(hash(src))}.grb2"
     with open(tmp, "wb") as f:
         for s, e, _ in blobs:
-            f.write(get(url(run, fh, res), headers={"Range": f"bytes={s}-{'' if e is None else e}"}).content)
+            f.write(get(src, headers={"Range": f"bytes={s}-{'' if e is None else e}"}).content)
     order = [k for _, _, ks in blobs for k in ks]
     out = {k: np.asarray(g.values, dtype=np.float32) for g, k in zip(pygrib.open(tmp), order)}
     os.remove(tmp)

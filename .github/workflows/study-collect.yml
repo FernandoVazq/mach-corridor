@@ -3,7 +3,9 @@ name: Study collect
 on:
   workflow_dispatch:
     inputs:
-      run_id: { description: "Run id of the 'Study hindcast' workflow", required: true }
+      run_id: { description: "Run id of the hindcast workflow", required: true }
+      pattern: { description: "Artifact name pattern", default: "study-shard-*" }
+      branch: { description: "Target data branch", default: "study-data" }
 
 permissions:
   contents: write
@@ -18,14 +20,14 @@ jobs:
         with:
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
-          pattern: study-shard-*
+          pattern: ${{ inputs.pattern }}
           merge-multiple: true
           path: study_data
       - name: Publish to the study-data branch
         run: |
           cd study_data
           ls | head; du -sh .
-          git init -q -b study-data
+          git init -q -b ${{ inputs.branch }}
           git -c user.name="mach-corridor-bot" -c user.email="actions@users.noreply.github.com" add -A
           git -c user.name="mach-corridor-bot" -c user.email="actions@users.noreply.github.com" commit -q -m "Hindcast data from run ${{ inputs.run_id }}"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" study-data
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ${{ inputs.branch }}
