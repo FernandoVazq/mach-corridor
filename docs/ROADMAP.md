@@ -111,6 +111,20 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 
 **Sprint 3:** GFS 0.25° over the US (#6), ensemble margin per leg time (#36), computed buffer calibration (#35, needs #21), manual accessibility pass (#28), method doc review (#31); local: winter validation (#10); Fernando: XB-1 / FaINT data request (#21).
 
+### Sprint 3 · 11 Oct 2026
+| Item | Result |
+|---|---|
+| Map default | Opens on Auto (ensemble margin) |
+| #36 Leg-time spread | Router uses the GEFS hour when the aircraft reaches each leg; falls back to the static map, never another hour |
+| #10, #6, #11 Balloon validation | 4,004 launches, full year: day-ahead σ 0.0131; winter no worse; 0.25° no better; monthly run scheduled in CI |
+| Method red team | 3 blockers, 7 majors filed (#37–#44); fixed: no interpolation across no-corridor columns, wrong-hour fallback, rays to 60°, time hold-out calibration with shared error fields and bootstrap CIs |
+| Honest calibration | Held out: 0.39–0.48% of flights with any boom at FL550 (95% upper 0.9%); FL350/450 margins fitted on winter fail in summer → ensemble k raised to 4.0/4.25 |
+| Correction | Airliner boom signal ~150 m → safe cushion ~1.25 km; router subtracts the per-aircraft penalty; earlier '+1 min' buffer claim withdrawn |
+| Factor trade study | Wind difference low vs cruise and climb angle dominate; uniform wind does nothing; five drivers explain 92–96% of day-to-day variation |
+| Aircraft study + builder | Cutoff speed is set by the air (aircraft enters via altitude, climb angle, signal length); loudness 8–19× the limit for every conventional design; custom aircraft fly in the planner |
+| UI | Physics tab, keyboard map control, 'When to leave' table |
+| #21 | Data requests sent to Boom and NASA (11 Oct) |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.

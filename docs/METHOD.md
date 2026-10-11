@@ -131,7 +131,7 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 |---|---|---|
 | Day-ahead forecast error of boomless Mach | 1,044 GFS forecasts vs radiosondes, 6 US stations, Sep–Oct 2026 | σ ≈ 0.015 |
 | How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
-| Winter error | Dec–Feb soundings | **Open** (#10) |
+| Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
 
 ### 6.3 Operational value and safety in hindcast
 53 weekly GFS analyses and 24 h forecasts, 48 directed routes, real-world error added (σ 0.012, 300 nm correlation).

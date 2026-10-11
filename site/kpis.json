@@ -5,26 +5,26 @@
    "id": "exposure",
    "name": "Flights with a boom on the ground",
    "unit": "%",
-   "today": 0.48,
+   "today": 0.44,
    "target": 0.1,
    "better": "lower",
    "phase": 1,
    "gate": 0.5,
-   "source": "Hindcast study, 53 weeks × 48 routes, real-world error, cross-validated",
+   "source": "study/robust_eval.py",
    "start": 1.2,
-   "note": "Auto margin (GEFS spread, static map as fallback), FL550; a single 0.05 margin gives 1.2%"
+   "note": "Held out (fit on one half-year, tested on the other): 0.39–0.48% at FL550 with the ensemble margin; 95% upper bound 0.9%"
   },
   {
    "id": "saved",
    "name": "Minutes saved per overland flight",
    "unit": "min",
-   "today": 27.7,
+   "today": 27.6,
    "target": 30,
    "better": "higher",
    "phase": 1,
    "source": "Hindcast study, 53 weeks × 48 routes × 31 GEFS members",
    "start": 28.2,
-   "note": "Auto margin from the GEFS spread, FL550, at 0.5% boom flights (27.0 with the static map, 27.9 at 0.05 with 1.2% boom flights)"
+   "note": "Held-out mean of 29.1 and 26.1 min, ensemble margin, FL550"
   },
   {
    "id": "captured",
@@ -42,13 +42,14 @@
    "id": "error",
    "name": "Day-ahead boomless-Mach error",
    "unit": "Mach",
-   "today": 0.015,
+   "today": 0.0131,
    "target": 0.008,
    "better": "lower",
    "phase": 1,
    "gate": 0.01,
-   "source": "1,044 GFS forecasts vs radiosondes, 6 US stations, Sep-Oct 2026",
-   "start": 0.015
+   "source": "4,004 IGRA2 launches vs GFS 24 h forecast, 6 US stations, Oct 2025 – Sep 2026 (engine/validate.py, monthly in CI)",
+   "start": 0.015,
+   "note": "No better in winter (0.0130) or with 0.25° data (0.0134); analysis vs balloon 0.0103"
   },
   {
    "id": "psf",
@@ -136,5 +137,5 @@
    "gate": "FAA accepts the method as part of an operator's means of compliance"
   }
  ],
- "sprint": 2
+ "sprint": 3
 }
