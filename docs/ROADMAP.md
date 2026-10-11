@@ -15,13 +15,13 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | KPI | Start | Today | Phase gate | Target |
 |---|---|---|---|---|
 | Flights with a boom on the ground | 1.2 % | 0.48 % | 0.5 % | 0.1 % |
-| Minutes saved per overland flight | 28.2 min | 27.0 min | — | 30 min |
-| Share of perfect-knowledge saving | 77 % | 74 % | — | 90 % |
+| Minutes saved per overland flight | 28.2 min | 27.7 min | — | 30 min |
+| Share of perfect-knowledge saving | 77 % | 76 % | — | 90 % |
 | Day-ahead boomless-Mach error | 0.015 Mach | 0.015 Mach | 0.01 Mach | 0.008 Mach |
 | Legs with loudness in psf | 0 % | 100 % | — | 100 % |
 | New GFS data to updated map | 5 h | 1 h | — | 1 h |
 | 3D playback, mid-range laptop | — | — | — | 60 fps |
-| WCAG 2.2 AA checks passed | — | — | — | 100 % |
+| WCAG 2.2 AA checks passed | — | 100 % | — | 100 % |
 
 
 ## Phase 1 · Precise — due 2026-12-31
@@ -98,6 +98,18 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | #12 Loudness v0 | Carlson TP-1122 reproduces Sample 1 (74.6 vs 74 Pa) and Concorde (2.04 vs 1.94 psf). Overture M1.7 FL550 ≈ 1.7 psf = 15× the 0.11 limit. Cutoff legs bounded by FaINT (≤ 0.09 psf with the caustic ≥ Haglund safe height). |
 | #15 (first look) | Haglund safe height on one run: median 650 m, p90 1.0 km; at the exact limit 3% of land columns fall short of it, with a 0.05 margin none. |
 | #5 KPI board | Method page renders `site/kpis.json`. |
+
+### Sprint 2 · 11 Oct 2026
+| Issue | Result |
+|---|---|
+| #7 GEFS spread | 53 weeks × 31 members: forecast error 3–4× larger in the most uncertain tenth of points; ensemble margin at the 0.5% gate saves 27.7 min at FL550 (+1.1 vs one margin), 23.5 at FL450 (+2.4). Live: daily GEFS 00Z, 0–54 h, per level and direction, feeds Auto. |
+| #35 Computed buffer | Haglund safe height per ray direction: median 720 m; +1.0 min per flight at FL550. Kept off the map until FaINT/XB-1 calibration. |
+| #28 Accessibility | axe-core WCAG 2.2 AA: 0 violations on every tab, light/dark/phone; enforced in CI. |
+| #34 Rules by country | Sourced table; only the US proposal, Germany and New Zealand test the boom at the ground. |
+| #31 Method document | Draft 0.2 with V&V evidence and traceability. |
+| CI | Site smoke test before every code deploy (errors, route with psf, accessibility). |
+
+**Sprint 3:** GFS 0.25° over the US (#6), ensemble margin per leg time (#36), computed buffer calibration (#35, needs #21), manual accessibility pass (#28), method doc review (#31); local: winter validation (#10); Fernando: XB-1 / FaINT data request (#21).
 
 ## Outside dates
 
