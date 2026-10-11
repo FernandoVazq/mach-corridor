@@ -30,7 +30,7 @@
     const man = MC().S.man, H = man.forecast_hours, t0 = H[fi];
     const ks = H.map((h, k) => k).filter(k => H[k] >= t0 - 6 && H[k] <= t0 + spanH + 6);
     const frames = await Promise.all(ks.map(async k => ({ h: H[k], a: await MC().loadAtlas(H[k], fl) })));
-    if (MC().S.auto && MC().prepareGefs) await MC().prepareGefs(fl, fi);   // ensemble spread for the Auto margin
+    if (MC().S.auto && MC().prepareGefs) await Promise.all(ks.map(k => MC().prepareGefs(fl, k)));   // ensemble spread at each leg's time
     return {
       fl, t0, frames,
       at(tHr) {
@@ -56,7 +56,7 @@
     let M, type, mcut = null, skipped = false;
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
-      mcut = L(a => m.mHeading(a, brg, lon, lat)) - (typeof margin === "function" ? margin(lon, lat, field.fl, brg) : margin);
+      mcut = L(a => m.mHeading(a, brg, lon, lat)) - (typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + (field.t0 + tHr) * 3.6e6) : margin);
       let use = mode === "corr" && mcut >= m.FLOOR;
       if (use && E && E.obj && E.obj !== "time") {
         const st0 = { c, along, cross }, per = Mx => {

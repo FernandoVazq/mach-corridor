@@ -104,9 +104,9 @@
     try { gefs.meta = await fetch(DATA + "gefs/gefs.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw 0; return r.json(); }); }
     catch (e) { gefs.meta = null; }
   }
-  function gefsFh(fi = S.fi) {        // GEFS hour matching the GFS valid time, within 3 h
+  function gefsFh(fi = S.fi, validMs = null) {   // GEFS hour matching a valid time (GFS index or ms), within 3 h
     if (!gefs.meta) return null;
-    const v = Date.parse(S.man.valid_times[fi]), h = (v - Date.parse(gefs.meta.run_time)) / 3.6e6;
+    const v = validMs ?? Date.parse(S.man.valid_times[fi]), h = (v - Date.parse(gefs.meta.run_time)) / 3.6e6;
     const fh = gefs.meta.fhs.reduce((b, x) => Math.abs(x - h) < Math.abs(b - h) ? x : b, gefs.meta.fhs[0]);
     return Math.abs(fh - h) <= 3 ? fh : null;
   }
@@ -117,7 +117,7 @@
       .then(a => { gefs.ready.set(key, a); return a; }).catch(() => null));
     return gefs.pending.get(key);
   }
-  const gefsNow = (fl, fi = S.fi) => { const fh = gefsFh(fi); return fh == null ? null : gefs.ready.get(`${fh}_${fl}`) || null; };
+  const gefsNow = (fl, fi = S.fi, validMs = null) => { const fh = gefsFh(fi, validMs); return fh == null ? null : gefs.ready.get(`${fh}_${fl}`) || null; };
   // spread for direction tile t at (lon, lat), bilinear on the GEFS grid (2 deg, lon -180.., lat 90..)
   function sdAt(a, t, lon, lat) {
     const m = gefs.meta, gx = m.nx, gy = m.ny, d = m.d, step = m.sd_step;
@@ -259,9 +259,10 @@
     return (f(i0, j0) * (1 - di) + f(i1, j0) * di) * (1 - dj) + (f(i0, j0 + 1) * (1 - di) + f(i1, j0 + 1) * di) * dj;
   };
   // brg (deg): direction of travel of a route leg; without it, the map's direction tile
-  function marginAt(lon, lat, fl = S.fl, brg = null) {
+  // validMs: when the aircraft is there (route legs); default the map's time
+  function marginAt(lon, lat, fl = S.fl, brg = null, validMs = null) {
     if (!S.auto) return S.margin;
-    const ga = gefsNow(fl);
+    const ga = gefsNow(fl, S.fi, validMs) || gefsNow(fl);
     if (ga && brg != null) {
       const h = ((brg % 360) + 360) % 360 / 10, t0 = Math.floor(h) % 36, t1 = (t0 + 1) % 36;
       return ensMargin(fl, Math.max(sdAt(ga, t0, lon, lat), sdAt(ga, t1, lon, lat)));
