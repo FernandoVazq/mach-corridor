@@ -25,7 +25,7 @@ STATIONS = {   # IGRA2 id: (name, lat, lon)
     "RQM00078526": ("San Juan PR", 18.43, -66.00),
     "USM00072493": ("Oakland CA", 37.73, -122.22),
     "USM00072501": ("Upton NY", 40.87, -72.86),
-    "USM00072469": ("Denver CO", 39.77, -104.87),
+    "USM00072202": ("Miami FL", 25.75, -80.38),
 }
 IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/{}-data.txt.zip"
 FLS = [350, 450, 550]
