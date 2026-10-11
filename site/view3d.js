@@ -263,6 +263,7 @@ function glowLine(pts, color) {
   return g;
 }
 const SHOCK_TIME = { value: 0 };
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");   // still pressure fronts when the viewer asks for less motion
 /* ---------- aircraft model (symbolic size, built once) ---------- */
 let AC = null;
 function aircraftModel() {
@@ -338,7 +339,7 @@ function ensureColumnScene() {
   C = { el, renderer, scene, camera, controls, group, terrain, tick: null }; window.__c3 = C;
   const resize = () => { const r = el.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
   new ResizeObserver(resize).observe(el); resize();
-  const loop = now => { requestAnimationFrame(loop); if (!$("col3d").open) return; SHOCK_TIME.value = now / 1000; C.tick && C.tick(now); controls.update(); renderer.render(scene, camera); };
+  const loop = now => { requestAnimationFrame(loop); if (!$("col3d").open) return; if (!REDUCED.matches) SHOCK_TIME.value = now / 1000; C.tick && C.tick(now); controls.update(); renderer.render(scene, camera); };
   requestAnimationFrame(loop);
   return C;
 }

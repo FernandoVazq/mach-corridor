@@ -608,7 +608,7 @@
       }
     }
     const mark = () => el.querySelectorAll("button").forEach(b => {
-      const on = b.dataset.v === String(get()); b.classList.toggle("on", on); b.setAttribute("aria-checked", on);
+      const on = b.dataset.v === String(get()); b.classList.toggle("on", on); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", on);
     });
     el.querySelectorAll("button").forEach(b => b.onclick = () => { set(isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v); mark(); });
     mark(); return mark;
