@@ -28,7 +28,7 @@
   ];
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
-  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.01, auto: false, fade: false, view: "2d", thresh: 0, relief: true,
+  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.05, auto: true, fade: false, view: "2d", thresh: 0, relief: true,
               t: d3.zoomIdentity, sel: null, playing: null };
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -744,7 +744,7 @@
     if (d === "min" || d === "max") S.hd = d; else if (d != null && !isNaN(+d)) { S.hd = "hd"; S.hdDeg = (Math.round(+d / 10) * 10) % 360; }
     S.fi = Math.min(fhs().length - 1, S.fi);
     if (p.get("t")) S.fi = Math.min(fhs().length - 1, Math.max(0, +p.get("t")));
-    if (p.get("mg") === "auto") S.auto = true; else if (p.get("mg") != null) S.margin = Math.max(0, +p.get("mg"));
+    if (p.get("mg") === "auto") S.auto = true; else if (p.get("mg") != null && !isNaN(+p.get("mg"))) { S.auto = false; S.margin = Math.max(0, +p.get("mg")); }
     if (p.get("v") === "3d") S.view = "3d";
     if (p.get("th")) S.thresh = +p.get("th");
     return p;

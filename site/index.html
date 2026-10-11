@@ -55,7 +55,7 @@
         </div>
         <div class="row r4">
           <span class="k">Margin</span>
-          <input type="range" id="marginSlider" min="0" max="0.06" step="0.005" value="0.01" aria-label="Forecast-error margin in Mach">
+          <input type="range" id="marginSlider" min="0" max="0.08" step="0.005" value="0.05" aria-label="Forecast-error margin in Mach">
           <output id="marginLbl" class="v"></output>
           <button id="marginAuto" class="chip" aria-pressed="false" hidden title="Per-point margin from a year of forecast errors">Auto</button>
         </div>
@@ -238,7 +238,7 @@
       <p class="lead">Sound travels faster in warm air. A boom created high up, in cold air, bends upward as it descends into warmer layers. If a layer under the aircraft carries sound faster than the aircraft moves over it, the boom turns around before it reaches the ground. This is Mach cutoff.</p>
       <h2>The calculation</h2>
       <p class="eq">M<sub>α</sub> = ( max<sub>z<sub>f</sub> ≤ z &lt; z<sub>a</sub></sub> [ c + w·e<sub>α</sub> ] − w<sub>a</sub>·e<sub>α</sub> ) / ( c<sub>a</sub> cos α ),&nbsp;&nbsp; M = min over rays α</p>
-      <p>For every 1° column of the NOAA GFS forecast, seven flight levels (FL300 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: one number from the slider, or Auto. Auto is k·√(s² + 0.012²) per point and direction, where s is the spread of the 31-member GEFS ensemble for that hour (daily 00Z run) and 0.012 is the error no model run sees; k (3.7–3.9 by level) holds flights with a boom on the ground to 0.5% in a year of hindcasts. Without a fresh ensemble, Auto falls back to a fixed map of the local forecast error.</p>
+      <p>For every 1° column of the NOAA GFS forecast, seven flight levels (FL300 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: one number from the slider, or Auto. Auto is k·√(s² + 0.012²) per point and direction, where s is the spread of the 31-member GEFS ensemble for that hour (daily 00Z run) and 0.012 is the error no model run sees; k (3.7–3.9 by level) holds flights with a boom on the ground to 0.5% in a year of hindcasts. Without a fresh ensemble, Auto falls back to a fixed map of the local forecast error. The map opens on Auto; turning it off gives one margin for the whole world (0.05 by default).</p>
       <h2>Routes</h2>
       <p>Routes come from a time-dependent search on a 1° grid in 16 directions, refined continuously from two independent starting routes. The aircraft meets the forecast for the time it gets there, and ground speed comes from the wind triangle. Climb and descent are subsonic, acceleration and deceleration take time and fuel, and boomless legs are flown in constant-Mach blocks of at least 300 nm.</p>
       <h2>Where it applies</h2>
