@@ -65,14 +65,50 @@ def cruise_interp(plev, p_a):
     return k, float(wk)
 
 
+SIGNAL_M = 60.0          # boom signal length near the caustic, SST-class (~0.2 s x 300 m/s)
+G_MIN = 5e-4             # |dV_P/dz| floor (1/s): caps the safe height at ~1.3 km in near-neutral layers
+
+
+def haglund_buffer(plev, T, U, V, Z, Zground, RH=None, L=SIGNAL_M, z0=500.0, z1=2000.0):
+    """Safe cutoff height per column (Haglund, NASA CR-2417; used in FaINT): dZ_S = R^(1/3) L^(2/3),
+    R = c / |dV_P/dz|, with the V_P gradient taken over [ground + z0, ground + z1] and the steepest-risk
+    (smallest |gradient|) direction of all 72, so one floor protects every heading. Returns (ny, nx) metres."""
+    plev = np.asarray(plev, dtype=np.float32)
+    if RH is not None:
+        T = virtual_temperature(T, RH, plev[:, None, None])
+    c = sound_speed(T).astype(np.float32)
+    L_ = len(plev)
+    take = lambda X, i: np.take_along_axis(X, i[None], axis=0)[0]
+
+    def at(zq):
+        idx = (Z <= zq[None]).sum(axis=0)
+        hi, lo = np.clip(idx, 0, L_ - 1), np.clip(idx - 1, 0, L_ - 1)
+        Zlo, Zhi = take(Z, lo), take(Z, hi)
+        f = np.where(Zhi > Zlo, (zq - Zlo) / np.maximum(Zhi - Zlo, 1e-3), 0.0).clip(0, 1)
+        return [(1 - f) * take(X, lo) + f * take(X, hi) for X in (c, U, V)]
+
+    zg = np.asarray(Zground, np.float32)
+    (c0, u0, v0), (c1, u1, v1) = at(zg + z0), at(zg + z1)
+    gmin = np.full(zg.shape, np.inf, np.float32)
+    for d in np.arange(0, 360, DIR_STEP):
+        s, co = np.sin(np.radians(d)), np.cos(np.radians(d))
+        g = ((c1 + u1 * s + v1 * co) - (c0 + u0 * s + v0 * co)) / (z1 - z0)
+        gmin = np.minimum(gmin, np.maximum(-g, G_MIN))       # V_P falling with height -> -g > 0
+    return (c0 / gmin) ** (1 / 3) * L ** (2 / 3)
+
+
 def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
               h_buf=H_BUF_DEFAULT, alphas=ALPHAS, lateral=True):
     """
     plev (L,) hPa descending; T,U,V,Z[,RH] (L,ny,nx) on pressure levels (Z geopotential m).
     Zground (ny,nx): terrain height to protect (use the max over the boom footprint).
+    h_buf: metres above Zground the turning point must stay (number or (ny,nx) array), or "haglund"
+    for the computed safe cutoff height per column (haglund_buffer).
     Returns dict: M (H,ny,nx) boomless Mach per direction of travel (NaN = no layer
-    available between floor and cruise), c_a, U_a, V_a, z_floor, z_cruise.
+    available between floor and cruise), c_a, U_a, V_a, z_floor, z_cruise, h_buf.
     """
+    if isinstance(h_buf, str) and h_buf == "haglund":
+        h_buf = haglund_buffer(plev, T, U, V, Z, Zground, RH=RH)
     plev = np.asarray(plev, dtype=np.float32)
     L = len(plev)
     if RH is not None:
@@ -125,7 +161,7 @@ def mmax_grid(plev, T, U, V, Z, Zground, fl_ft, headings_deg, RH=None,
                     M = np.where(ok, np.minimum(M, Ma), M)
         M = np.where(np.isfinite(M), M, np.nan)
         out[i] = M
-    return {"M": out, "c_a": ca, "U_a": Ua, "V_a": Va, "z_floor": zf, "z_cruise": za}
+    return {"M": out, "c_a": ca, "U_a": Ua, "V_a": Va, "z_floor": zf, "z_cruise": za, "h_buf": h_buf}
 
 
 def footprint_max(orog_q, radius_cells=2):

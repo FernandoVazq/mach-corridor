@@ -72,11 +72,13 @@ def main():
             except Exception as e:
                 print(f"{d} {mem} skipped: {e}", file=sys.stderr, flush=True)
                 continue
+            tm = time.time()
             for fl in FLS:
                 M = mmax_grid(np.array(build.PLEV, float), T, U, V, Z, zfoot, fl, build.HEADINGS, RH=RH)["M"]
                 stacks[fl].append(np.where(np.isfinite(M) & (M > 1.0), M, 0.98).astype(np.float32))
+            print(f"  {d} {mem}: fetched+computed in {time.time() - tm:.0f}s", flush=True)
         n = len(stacks[FLS[0]])
-        if n < 10:
+        if n < min(10, a.members):
             print(f"{d}: only {n} members, skipped", file=sys.stderr, flush=True)
             continue
         out = {"members": np.array(n)}

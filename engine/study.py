@@ -36,8 +36,10 @@ def main():
     ap.add_argument("--shard", type=int, default=0)
     ap.add_argument("--nshards", type=int, default=1)
     ap.add_argument("--out", default="study_out")
+    ap.add_argument("--buffer", default="1000", help='metres, or "haglund" for the computed safe height')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
+    hb = a.buffer if a.buffer == "haglund" else float(a.buffer)
     d0, d1 = dt.date.fromisoformat(a.start), dt.date.fromisoformat(a.end)
     dates = [d0 + dt.timedelta(days=i) for i in range(0, (d1 - d0).days + 1, a.step_days)]
     mine = dates[a.shard::a.nshards]
@@ -55,8 +57,10 @@ def main():
                 if "land" not in out:
                     out["land"] = np.clip(np.round(F[("LAND", "surface")] * 255), 0, 255).astype(np.uint8)
                 for fl in FLS:
-                    r = mmax_grid(np.array(build.PLEV, float), T, U, V, Z, zfoot, fl, build.HEADINGS, RH=RH)
+                    r = mmax_grid(np.array(build.PLEV, float), T, U, V, Z, zfoot, fl, build.HEADINGS, RH=RH, h_buf=hb)
                     out[f"{kind}_{fl}_M"] = build.encode_M(r["M"])
+                    if kind == "ana" and fl == FLS[0] and np.ndim(r["h_buf"]) == 2:
+                        out["hbuf"] = np.clip(np.round(r["h_buf"] / 10), 0, 255).astype(np.uint8)   # metres / 10
                     out[f"{kind}_{fl}_c"] = r["c_a"].astype(np.float16)
                     out[f"{kind}_{fl}_u"] = r["U_a"].astype(np.float16)
                     out[f"{kind}_{fl}_v"] = r["V_a"].astype(np.float16)

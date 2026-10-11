@@ -68,6 +68,19 @@ def test_no_corridor_is_below_one():
     print(f"Isothermal column: M_max {m:.3f} (no corridor)")
 
 
+def test_haglund_buffer():
+    from physics import haglund_buffer
+    T, U, V, Z = column()
+    hb = float(haglund_buffer(PLEV, T, U, V, Z, np.zeros((1, 1)))[0, 0])
+    assert 600 < hb < 760, hb                     # ISA: dc/dz ~ -0.0038 /s -> R ~ 89 km -> ~0.69 km
+    m_fix, m_hag = run(450, 90, h_buf=1000), run(450, 90, h_buf="haglund")
+    assert m_hag > m_fix, (m_hag, m_fix)          # thinner than 1 km in a standard lapse
+    T2, U2, V2, Z2 = column(u_of_z=lambda z: 25 + 0.004 * z)    # shear makes V_P fall faster eastbound...
+    hb2 = float(haglund_buffer(PLEV, T2, U2, V2, Z2, np.zeros((1, 1)))[0, 0])
+    assert hb2 > hb, (hb2, hb)                    # ...but westbound slower: the worst direction sets the floor
+    print(f"Haglund buffer ISA {hb:.0f} m (M {m_hag:.3f} vs {m_fix:.3f} with 1 km); with shear {hb2:.0f} m")
+
+
 if __name__ == "__main__":
-    test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one()
+    test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one(); test_haglund_buffer()
     print("all physics tests passed")

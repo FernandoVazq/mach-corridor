@@ -6,6 +6,7 @@ on:
       start: { description: "First date (00 UTC)", default: "2025-10-09" }
       end: { description: "Last date", default: "2026-10-08" }
       step_days: { description: "Days between samples", default: "7" }
+      buffer: { description: "Turning-height buffer: metres or haglund", default: "1000" }
 
 permissions:
   contents: read
@@ -28,9 +29,9 @@ jobs:
       - run: pip install -r engine/requirements.txt
       - name: Hindcast shard
         working-directory: engine
-        run: python study.py --start ${{ inputs.start }} --end ${{ inputs.end }} --step-days ${{ inputs.step_days }} --shard ${{ matrix.shard }} --nshards 6 --out ../study_out
+        run: python study.py --start ${{ inputs.start }} --end ${{ inputs.end }} --step-days ${{ inputs.step_days }} --shard ${{ matrix.shard }} --nshards 6 --buffer ${{ inputs.buffer }} --out ../study_out
       - uses: actions/upload-artifact@v4
         with:
-          name: study-shard-${{ matrix.shard }}
+          name: study-${{ inputs.buffer }}-shard-${{ matrix.shard }}
           path: study_out
           retention-days: 30
