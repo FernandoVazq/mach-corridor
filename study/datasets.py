@@ -122,6 +122,28 @@ D["margin_point"] = [dict(fl=int(fl), kind=lab, par=x["par"], saved=x["saved"], 
                      for key, lab in (("uniform", "One margin everywhere"), ("point", "Margin per point (k·σ)"))
                      for fl, xs in mev[key].items() for x in xs]
 
+# GEFS (gefs_eval.py): spread-skill deciles and the margin frontier with the ensemble
+ge = os.path.join(RES, "gefs_eval.json")
+if os.path.exists(ge):
+    G = json.load(open(ge))
+    D["spread_skill"] = [dict(fl=int(fl), decile=i + 1, spread=x["spread"], rmse=x["rmse"], id=f"{fl}-{i + 1}")
+                         for fl, xs in G["spread_skill"].items() for i, x in enumerate(xs)]
+    LB = {"uniform": "One margin everywhere", "point": "Margin per point (k·σ)", "ensemble": "Ensemble margin (k·spread)"}
+    D["margin_frontier"] = [dict(fl=int(fl), kind=LB[k], par=x["par"], saved=x["saved"], flights_boom_pct=x["anyb"], id=f"{fl}-{k}-{x['par']}")
+                            for fl, v in G["flights"].items() for k in LB for x in v[k]]
+    D["margin_gate"] = [dict(fl=int(fl), kind=LB[k], saved_at_gate=v["gate"][k]["saved"], par=v["gate"][k]["par"], id=f"{fl}-{k}")
+                        for fl, v in G["flights"].items() for k in LB]
+# computed buffer (Haglund) vs fixed 1 km: same policy, minutes saved
+hg = os.path.join(HERE, "results_haglund", "rows.json")
+if os.path.exists(hg):
+    H = json.load(open(hg)); out = []
+    for tag, rs in (("Fixed 1 km", rows), ("Computed (Haglund)", H)):
+        for fl in FLS:
+            f_ = [r["saved_min"] for r in rs if r["fl"] == fl and r["policy"] == "fcst" and abs(r["par"] - HEAD_M) < 1e-9 and r["land_nm"] > 0]
+            o_ = [r["saved_min"] for r in rs if r["fl"] == fl and r["policy"] == "oracle" and r["land_nm"] > 0]
+            out.append(dict(buffer=tag, fl=fl, saved=round(mean(f_), 2), perfect=round(mean(o_), 2), id=f"{tag}-{fl}"))
+    D["buffer_compare"] = out
+
 os.makedirs(OUT, exist_ok=True)
 for k, v in D.items():
     with open(os.path.join(OUT, f"{k}.json"), "w") as fh:
