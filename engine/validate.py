@@ -86,7 +86,8 @@ def to_levels(s, z_sfc):
     if any(x is None for x in (T, Z, U, V)):
         return None
     above = PLEV < p.max()
-    top_ok = np.isfinite(T[PLEV >= 70]).all() and np.isfinite(Z[PLEV >= 70]).all()
+    sel = (PLEV >= 70) & (PLEV <= p.max())          # levels between the top needed for FL550 and the ground
+    top_ok = np.isfinite(T[sel]).all() and np.isfinite(Z[sel]).all()
     if not top_ok:
         return None
     # levels below the surface: far below the floor so physics ignores them; values copied from the lowest level
