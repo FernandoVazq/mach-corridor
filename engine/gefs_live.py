@@ -18,7 +18,7 @@ from physics import mmax_grid
 from gefs import MEMBERS, WANT, BASE
 
 FHS = list(range(0, 55, 6))
-K = {350: 3.69, 450: 3.86, 550: 3.73}          # gefs_eval.json, 0.5% gate, 24 h lead
+K = {350: 4.0, 450: 4.25, 550: 3.75}   # robust_eval.json: the larger k of the two half-year fits (time hold-out), 24 h lead
 
 
 def src(run, mem, part, fh):
