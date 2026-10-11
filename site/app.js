@@ -681,7 +681,14 @@
     }
     const mark = () => el.querySelectorAll("button").forEach(b => {
       const on = b.dataset.v === String(get()); b.classList.toggle("on", on); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", on);
+      b.tabIndex = on ? 0 : -1;
     });
+    el.onkeydown = e => {                     // radio-group pattern: arrows move the selection
+      const bs = [...el.querySelectorAll("button")], i = bs.indexOf(document.activeElement);
+      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (i < 0 || !d) return;
+      const n = bs[(i + d + bs.length) % bs.length]; n.click(); n.focus(); e.preventDefault();
+    };
     el.querySelectorAll("button").forEach(b => b.onclick = () => { set(isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v); mark(); });
     mark(); return mark;
   }
@@ -774,6 +781,20 @@
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mouseleave", () => tip.hidden = true);
     canvas.addEventListener("click", onClick);
+    // keyboard: arrows pan, +/- zoom, Enter inspects the centre (Shift+Enter plans a route to it)
+    canvas.tabIndex = 0;
+    canvas.addEventListener("keydown", e => {
+      const step = 60, sel = d3.select(canvas);
+      const pan = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[e.key];
+      if (pan) { sel.call(zoom.translateBy, pan[0] / S.t.k, pan[1] / S.t.k); e.preventDefault(); }
+      else if (e.key === "+" || e.key === "=") { sel.call(zoom.scaleBy, 1.4); e.preventDefault(); }
+      else if (e.key === "-" || e.key === "_") { sel.call(zoom.scaleBy, 1 / 1.4); e.preventDefault(); }
+      else if (e.key === "Enter") {
+        const [lon, lat] = toLonLat(W / 2, H / 2);
+        if (lat <= 90 && lat >= -90) { pick(lon, lat, e.shiftKey); showTip(describe(normLon(lon), lat), W / 2, H / 2); }
+        e.preventDefault();
+      }
+    });
     layout();
     window.addEventListener("resize", () => { layout(); schedule(); });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { colorKey = ""; schedule(); });
