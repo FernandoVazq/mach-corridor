@@ -1,0 +1,90 @@
+name: Validate vs balloons
+
+on:
+  workflow_dispatch:
+    inputs:
+      start: { description: "First day", default: "2025-12-01" }
+      end: { description: "Last day", default: "2026-02-28" }
+      every: { description: "Use every n-th day", default: "2" }
+      res: { description: "GFS resolutions", default: "1p00,0p25" }
+  schedule:
+    - cron: "17 9 3 * *"       # monthly: the previous month (issue #11)
+
+permissions:
+  contents: write
+
+jobs:
+  soundings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      start: ${{ steps.w.outputs.start }}
+      end: ${{ steps.w.outputs.end }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: engine/requirements.txt }
+      - run: pip install -r engine/requirements.txt
+      - id: w
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            S=$(date -u -d "$(date -u +%Y-%m-01) -1 month" +%Y-%m-%d); E=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m-%d)
+          else S="${{ inputs.start }}"; E="${{ inputs.end }}"; fi
+          echo "start=$S" >> "$GITHUB_OUTPUT"; echo "end=$E" >> "$GITHUB_OUTPUT"
+      - working-directory: engine
+        run: |
+          set -o pipefail
+          python validate.py --fetch-soundings --start ${{ steps.w.outputs.start }} --end ${{ steps.w.outputs.end }} --out ../val 2>&1 | tee ../val_log.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: soundings, path: val/soundings.json, retention-days: 7 }
+      - name: Publish the log
+        if: always()
+        run: |
+          mkdir -p lb && cp val_log.txt lb/ 2>/dev/null || echo none > lb/val_log.txt
+          cd lb && git init -q -b ci-log-val-s && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm log
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-log-val-s
+
+  shard:
+    needs: soundings
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: engine/requirements.txt }
+      - run: pip install -r engine/requirements.txt
+      - uses: actions/download-artifact@v4
+        with: { name: soundings, path: val }
+      - working-directory: engine
+        run: |
+          set -o pipefail
+          EV="${{ inputs.every }}"; [ -z "$EV" ] && EV=1
+          RS="${{ inputs.res }}"; [ -z "$RS" ] && RS=1p00,0p25
+          python validate.py --soundings ../val/soundings.json --start ${{ needs.soundings.outputs.start }} --end ${{ needs.soundings.outputs.end }} \
+            --every $EV --res $RS --shard ${{ matrix.shard }} --nshards 10 --out ../val_out 2>&1 | tee ../val_log.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "val-shard-${{ matrix.shard }}", path: val_out, retention-days: 30 }
+      - name: Publish the log
+        if: always()
+        run: |
+          mkdir -p lb && cp val_log.txt lb/ 2>/dev/null || echo none > lb/val_log.txt
+          cd lb && git init -q -b ci-log-val-${{ matrix.shard }} && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm log
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-log-val-${{ matrix.shard }}
+
+  collect:
+    needs: [soundings, shard]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: "val-shard-*", merge-multiple: true, path: vd }
+      - run: |
+          cd vd && cat rows_*.jsonl > rows.jsonl && rm rows_*.jsonl && wc -l rows.jsonl
+          B="validation-data-${{ needs.soundings.outputs.start }}"
+          git init -q -b "$B" && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm "Validation ${{ needs.soundings.outputs.start }} to ${{ needs.soundings.outputs.end }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" "$B"
