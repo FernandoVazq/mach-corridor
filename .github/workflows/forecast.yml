@@ -51,6 +51,10 @@ jobs:
       - name: Build forecast atlases from latest GFS
         working-directory: engine
         run: python build.py --out ../site/data
+      - name: Add the latest GEFS spread (margin per point and direction), if any
+        run: |
+          git clone -q --depth 1 --single-branch -b gefs-live "https://github.com/${{ github.repository }}" site/data/gefs || echo "no GEFS spread yet"
+          rm -rf site/data/gefs/.git
       - name: Publish latest data snapshot to forecast-data branch
         run: |
           cd site/data

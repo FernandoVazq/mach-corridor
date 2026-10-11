@@ -85,6 +85,54 @@
     cache.set(k, p);
     return p;
   }
+  function imgBytes(src) {
+    return new Promise((res, rej) => {
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, img.width, img.height).data, a = new Uint8Array(img.width * img.height);
+        for (let i = 0; i < a.length; i++) a[i] = d[i * 4];
+        res(a);
+      };
+      img.onerror = rej; img.src = src;
+    });
+  }
+  // ---------- live ensemble spread (engine/gefs_live.py): margin per point and direction ----------
+  const gefs = { meta: null, pending: new Map(), ready: new Map(), maxSd: new Map() };
+  async function loadGefsMeta() {
+    try { gefs.meta = await fetch(DATA + "gefs/gefs.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw 0; return r.json(); }); }
+    catch (e) { gefs.meta = null; }
+  }
+  function gefsFh(fi = S.fi) {        // GEFS hour matching the GFS valid time, within 3 h
+    if (!gefs.meta) return null;
+    const v = Date.parse(S.man.valid_times[fi]), h = (v - Date.parse(gefs.meta.run_time)) / 3.6e6;
+    const fh = gefs.meta.fhs.reduce((b, x) => Math.abs(x - h) < Math.abs(b - h) ? x : b, gefs.meta.fhs[0]);
+    return Math.abs(fh - h) <= 3 ? fh : null;
+  }
+  async function prepareGefs(fl, fi = S.fi) {
+    const fh = gefsFh(fi); if (fh == null || !gefs.meta.fls.includes(fl)) return null;
+    const key = `${fh}_${fl}`;
+    if (!gefs.pending.has(key)) gefs.pending.set(key, imgBytes(DATA + "gefs/" + `g${String(fh).padStart(3, "0")}_FL${fl}.png?r=${gefs.meta.run}`)
+      .then(a => { gefs.ready.set(key, a); return a; }).catch(() => null));
+    return gefs.pending.get(key);
+  }
+  const gefsNow = (fl, fi = S.fi) => { const fh = gefsFh(fi); return fh == null ? null : gefs.ready.get(`${fh}_${fl}`) || null; };
+  // spread for direction tile t at (lon, lat), bilinear on the GEFS grid (2 deg, lon -180.., lat 90..)
+  function sdAt(a, t, lon, lat) {
+    const m = gefs.meta, gx = m.nx, gy = m.ny, d = m.d, step = m.sd_step;
+    const fi = ((((lon + 180) % 360) + 360) % 360) / d, fj = Math.min(gy - 1, Math.max(0, (90 - lat) / d));
+    const i0 = Math.floor(fi) % gx, j0 = Math.min(gy - 2, Math.floor(fj)), di = fi - Math.floor(fi), dj = fj - j0, i1 = (i0 + 1) % gx;
+    const r = (i, j) => a[(Math.floor(t / 6) * gy + j) * 6 * gx + (t % 6) * gx + i];
+    return step * ((r(i0, j0) * (1 - di) + r(i1, j0) * di) * (1 - dj) + (r(i0, j0 + 1) * (1 - di) + r(i1, j0 + 1) * di) * dj);
+  }
+  const nodeLL = (i, j) => [i - 180, 90 - j];          // 1-degree map node -> lon, lat
+  function sdMax(a, key) {             // spread of the worst direction per 1-degree node (for "any" and "best" views)
+    if (gefs.maxSd.has(key)) return gefs.maxSd.get(key);
+    const m = new Float32Array(NY * NX);
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); let v = 0; for (let t = 0; t < 36; t++) v = Math.max(v, sdAt(a, t, lo, la)); m[j * NX + i] = v; }
+    gefs.maxSd.set(key, m); return m;
+  }
   const profCache = new Map();
   function loadProfiles(fh) {
     if (profCache.has(fh)) return profCache.get(fh);
@@ -152,7 +200,7 @@
 
   async function refresh() {
     if (!S.man) return;
-    current = await loadAtlas(fhs()[S.fi], S.fl);
+    [current] = await Promise.all([loadAtlas(fhs()[S.fi], S.fl), S.auto ? prepareGefs(S.fl) : null]);
     colorKey = "";
     updateKpis(); updateInspector(); schedule(); writeHash();
     emit("refresh");
@@ -187,18 +235,40 @@
   }
   const nearest = (obj, fl) => { const ks = Object.keys(obj).map(Number); const lo = Math.max(...ks.filter(x => x <= fl), Math.min(...ks)), hi = Math.min(...ks.filter(x => x >= fl), Math.max(...ks)); return (obj[lo] + obj[hi]) / 2; };
   const kAt = fl => sigma ? nearest(sigma.k, fl) : 0;
+  const kEns = fl => gefs.meta ? nearest(gefs.meta.k, fl) : 0;
+  const S_EXTRA = 0.012;
+  const ensMargin = (fl, sd) => kEns(fl) * Math.sqrt(sd * sd + S_EXTRA * S_EXTRA);
   const mgCache = {};
-  function marginGrid(fl = S.fl) {    // per 1-degree node, for a level and the current mode
-    const k = S.auto && sigma ? "a" + fl : "f" + S.margin;
+  // per 1-degree node, for a level, the current mode and the map's direction tile
+  function marginGrid(fl = S.fl) {
+    const ga = S.auto ? gefsNow(fl) : null, tile = curTile();
+    const k = !S.auto ? "f" + S.margin : ga ? `e${gefsFh()}_${tile}` : sigma ? "a" : "f" + S.margin;
     if (mgCache[fl] && mgCache[fl].k === k) return mgCache[fl].g;
-    const kk = kAt(fl), g = S.auto && sigma ? sigmaGrid(fl).map(v => kk * v) : new Float32Array(NY * NX).fill(S.margin);
+    let g;
+    if (ga) {
+      g = new Float32Array(NY * NX);
+      const mx = tile >= 36 ? sdMax(ga, `${gefsFh()}_${fl}`) : null;
+      for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = ensMargin(fl, mx ? mx[j * NX + i] : sdAt(ga, tile, lo, la)); }
+    } else if (S.auto && sigma) { const kk = kAt(fl); g = sigmaGrid(fl).map(v => kk * v); }
+    else g = new Float32Array(NY * NX).fill(S.margin);
     mgCache[fl] = { k, g }; return g;
   }
-  function marginAt(lon, lat, fl = S.fl) {
-    if (!(S.auto && sigma)) return S.margin;
-    const g = marginGrid(fl), fi = ((lon + 180) % 360 + 360) % 360, fj = Math.min(180, Math.max(0, 90 - lat));
+  const bil = (f, lon, lat) => {
+    const fi = ((lon + 180) % 360 + 360) % 360, fj = Math.min(180, Math.max(0, 90 - lat));
     const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), di = fi - i0, dj = fj - j0, i1 = (i0 + 1) % NX;
-    return (g[j0 * NX + i0] * (1 - di) + g[j0 * NX + i1] * di) * (1 - dj) + (g[(j0 + 1) * NX + i0] * (1 - di) + g[(j0 + 1) * NX + i1] * di) * dj;
+    return (f(i0, j0) * (1 - di) + f(i1, j0) * di) * (1 - dj) + (f(i0, j0 + 1) * (1 - di) + f(i1, j0 + 1) * di) * dj;
+  };
+  // brg (deg): direction of travel of a route leg; without it, the map's direction tile
+  function marginAt(lon, lat, fl = S.fl, brg = null) {
+    if (!S.auto) return S.margin;
+    const ga = gefsNow(fl);
+    if (ga && brg != null) {
+      const h = ((brg % 360) + 360) % 360 / 10, t0 = Math.floor(h) % 36, t1 = (t0 + 1) % 36;
+      return ensMargin(fl, Math.max(sdAt(ga, t0, lon, lat), sdAt(ga, t1, lon, lat)));
+    }
+    if (!ga && !sigma) return S.margin;
+    const g = marginGrid(fl);
+    return bil((i, j) => g[j * NX + i], lon, lat);
   }
   const marginTypical = () => S.auto && sigma ? kAt(S.fl) * nearest(sigma.landMedian, S.fl) : S.margin;
 
@@ -562,6 +632,7 @@
     $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
     $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");
     $("marginSlider").disabled = !!(S.auto && sigma);
+    $("marginAuto").title = S.auto && gefsNow(S.fl) ? `Margin per point and direction from the 31-member GEFS spread (run ${gefs.meta.run.slice(0, 8)} 00Z)` : "Margin per point from a year of forecast errors";
   }
 
   // ---------- hover / click ----------
@@ -691,7 +762,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
-    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt,
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 
@@ -715,7 +786,7 @@
       land = topojson.mesh(topo, topo.objects.countries, (a, b) => a === b);
       borders = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
       landGeo = topojson.merge(topo, topo.objects.countries.geometries);
-      await Promise.all([loadZone().catch(e => { console.warn("zone", e); buildRestricted(); }), loadSigma().catch(e => console.warn("sigma", e))]);
+      await Promise.all([loadZone().catch(e => { console.warn("zone", e); buildRestricted(); }), loadSigma().catch(e => console.warn("sigma", e)), loadGefsMeta()]);
       const p = readHash();
       buildControls();
       const rt = new Date(man.run_time), gen = new Date(man.generated);
