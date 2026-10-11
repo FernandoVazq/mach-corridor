@@ -59,6 +59,12 @@ jobs:
           git -c user.name="mach-corridor-bot" -c user.email="actions@users.noreply.github.com" commit -q -m "GFS $(python -c 'import json;print(json.load(open("manifest.json"))["run"])')"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" forecast-data
           rm -rf .git
+      - name: Site smoke test (code changes only; no JS errors, route with psf, WCAG 2.2 AA audit clean)
+        if: github.event_name != 'schedule'
+        run: |
+          cd tests && npm i --no-audit --no-fund --silent && npx playwright install --with-deps chromium > /dev/null
+          (cd ../site && python -m http.server 8765 > /dev/null 2>&1 &)
+          sleep 2 && node smoke.mjs http://localhost:8765/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

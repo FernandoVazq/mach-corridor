@@ -56,7 +56,7 @@ button { cursor: pointer; }
 .seg button:hover { color: var(--ink); }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(15, 27, 45, .14); font-weight: 500; }
 .chip { border: 1px solid var(--rule); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 2px 9px; font-size: 12px; cursor: pointer; }
-.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 500; }
 input[type=range] { accent-color: var(--ink); width: 100%; }
 input[type=range]:disabled { opacity: .35; }
 select, input[type=number], input[list], input:not([type]) { height: 32px; border: 1px solid var(--rule); border-radius: 7px; background: var(--surface); padding: 0 8px; width: 100%; min-width: 0; }

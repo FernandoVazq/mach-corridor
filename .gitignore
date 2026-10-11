@@ -5,3 +5,4 @@ __pycache__/
 study/results/
 study/dashboard/index_doc.json
 study/results_*/
+tests/node_modules
