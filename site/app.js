@@ -738,7 +738,8 @@
   }
   function setTab(t) {
     document.querySelectorAll(".tabs button").forEach(b => { const on = b.dataset.tab === t; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
-    for (const k of ["map", "econ", "method"]) $("tab-" + k).hidden = t !== k;
+    for (const k of ["map", "econ", "physics", "method"]) $("tab-" + k).hidden = t !== k;
+    window.dispatchEvent(new CustomEvent("mc-tab", { detail: t }));
     if (t === "map") { layout(); schedule(); }
   }
   function togglePlay() {

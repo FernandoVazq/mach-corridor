@@ -72,9 +72,9 @@ def test_haglund_buffer():
     from physics import haglund_buffer, mmax_grid
     T, U, V, Z = column()
     hb = float(haglund_buffer(PLEV, T, U, V, Z, np.zeros((1, 1)))[0, 0])
-    assert 600 < hb < 760, hb                     # ISA: dc/dz ~ -0.0038 /s -> R ~ 89 km -> ~0.69 km
+    assert 1150 < hb < 1350, hb                   # ISA: dc/dz ~ -0.0038 /s -> R ~ 89 km; SST signal 150 m -> ~1.25 km
     m_fix, m_hag = run(450, 90, h_buf=1000), run(450, 90, h_buf="haglund")
-    assert m_hag > m_fix, (m_hag, m_fix)          # thinner than 1 km in a standard lapse
+    assert m_hag < m_fix, (m_hag, m_fix)          # an SST-length boom needs more than 1 km in a standard lapse
     T2, U2, V2, Z2 = column(u_of_z=lambda z: 25 + 0.004 * z)    # shear makes V_P fall faster eastbound...
     hb2 = float(haglund_buffer(PLEV, T2, U2, V2, Z2, np.zeros((1, 1)))[0, 0])
     assert hb2 > hb, (hb2, hb)                    # ...but westbound slower: the worst direction is the cap

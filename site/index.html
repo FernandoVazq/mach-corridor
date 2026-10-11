@@ -22,6 +22,7 @@
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" data-tab="map" class="on" aria-selected="true">Map</button>
       <button role="tab" data-tab="econ" aria-selected="false">Economics</button>
+      <button role="tab" data-tab="physics" aria-selected="false">Physics</button>
       <button role="tab" data-tab="method" aria-selected="false">Method</button>
     </nav>
     <div class="status">
@@ -217,6 +218,63 @@
     </div>
   </main>
 
+  <main class="page phys" id="tab-physics" hidden>
+    <div class="phead">
+      <div>
+        <h1>Physics</h1>
+        <p>What decides whether the boom reaches the ground, and what your aircraft changes. Measured on a year of weather balloons at six US stations and on every land column of the global forecast.</p>
+      </div>
+    </div>
+    <div class="plain" id="physPlain"></div>
+    <div class="pctl">
+      <div class="seg" id="phFl" role="radiogroup" aria-label="Flight level"></div>
+      <div class="seg" id="phSrc" role="radiogroup" aria-label="Data"></div>
+    </div>
+    <div class="grid2">
+      <figure class="panel" tabindex="0">
+        <figcaption><b>What moves the boomless Mach</b><span>Change from one realistic nudge to each factor. Bar: typical change; line: 80% of cases.</span></figcaption>
+        <svg id="phTornado" viewBox="0 0 520 420" role="img" aria-label="Sensitivity of the boomless Mach to each factor"></svg>
+      </figure>
+      <figure class="panel" tabindex="0">
+        <figcaption><b>What changes it day to day</b><span>Effect of a normal day-to-day swing (one standard deviation) of each driver.</span></figcaption>
+        <svg id="chImp" viewBox="0 0 520 260" role="img" aria-label="Day-to-day drivers of the boomless Mach"></svg>
+        <p class="fine" id="impNote"></p>
+      </figure>
+      <figure class="panel" tabindex="0">
+        <figcaption><b>Altitude is the lever</b><span>Boomless Mach in any direction by cruise altitude: median and the middle 80% of days.</span></figcaption>
+        <svg id="chAlt" viewBox="0 0 520 300" role="img" aria-label="Boomless Mach by flight level"></svg>
+      </figure>
+      <figure class="panel" tabindex="0">
+        <figcaption><b>How good is the forecast</b><span>Error of the boomless Mach against the balloon, by flight level.</span></figcaption>
+        <svg id="chVal" viewBox="0 0 520 300" role="img" aria-label="Forecast error against balloons"></svg>
+      </figure>
+    </div>
+    <h2 class="h2">Build an aircraft <span class="muted">Change its numbers and see its boom, its corridor and its routes.</span></h2>
+    <div class="acbuild" id="acBuild">
+      <label>Start from<select id="abPreset"></select></label>
+      <label>Weight in cruise, t<input type="number" id="abW" min="1" max="600" step="1"></label>
+      <label>Length, m<input type="number" id="abL" min="5" max="150" step="0.5"></label>
+      <label>Cruise level, FL<input type="number" id="abFL" min="300" max="650" step="10"></label>
+      <label>Design Mach<input type="number" id="abM" min="1.1" max="3" step="0.05"></label>
+      <label>Seats<input type="number" id="abSeats" min="1" max="400" step="1"></label>
+      <label>Fuel at design Mach, kg/nm<input type="number" id="abFuel" min="0.5" max="60" step="0.1"></label>
+      <label>Other costs, $/block hour<input type="number" id="abNF" min="500" max="30000" step="100"></label>
+      <label>Range, nm<input type="number" id="abR" min="500" max="9000" step="50"></label>
+    </div>
+    <div class="kpirow" id="abKpis"></div>
+    <div class="grid2">
+      <figure class="panel" tabindex="0">
+        <figcaption><b>How loud if the boom reaches the ground</b><span>Ground overpressure by Mach at its cruise level (Carlson, ±15%). Dashed: the proposed 0.11 psf limit.</span></figcaption>
+        <svg id="chPsf" viewBox="0 0 520 300" role="img" aria-label="Ground overpressure by Mach"></svg>
+      </figure>
+      <figure class="panel" tabindex="0">
+        <figcaption><b>Longer aircraft need a thicker cushion</b><span>Height the turning point must keep above the ground (Haglund), by aircraft length. The map uses 1 km.</span></figcaption>
+        <svg id="chBuf" viewBox="0 0 520 300" role="img" aria-label="Safe height by aircraft length"></svg>
+      </figure>
+    </div>
+    <div class="abgo"><button class="btn primary" id="abUse">Plan routes with this aircraft</button><span class="fine" id="abNote"></span></div>
+  </main>
+
   <main class="page method" id="tab-method" hidden>
     <article>
       <h1>Progress</h1>
@@ -307,6 +365,7 @@
 <script src="vendor/topojson-client.min.js"></script>
 <script src="aircraft.js"></script>
 <script src="boom.js"></script>
+<script src="physics.js"></script>
 <script src="app.js"></script>
 <script src="route.js"></script>
 <script src="plan.js"></script>

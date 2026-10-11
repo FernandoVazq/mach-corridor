@@ -1,4 +1,4 @@
-# Mach Corridor — Method Document (draft 0.2, 11 Oct 2026)
+# Mach Corridor — Method Document (draft 0.3, 11 Oct 2026)
 
 Written for a reviewer who must decide whether this method can be part of an operator's means of compliance
 under the proposed rule (FAA NPRM "Enabling Supersonic Overland Flight", docket FAA-2026-6935: sonic boom
@@ -60,11 +60,29 @@ land columns fall below it, with a 0.05 margin none (`study/buffer_check.py`).
 ### 3.3 Forecast-error margin
 The flown Mach is the forecast boomless Mach minus a margin.
 - **Auto, ensemble (default source):** k·√(s² + 0.012²) per point and direction. s is the member spread of
-  the boomless Mach in the 31-member GEFS (daily 00Z run, 0–54 h, `engine/gefs_live.py`); 0.012 is the
+  the boomless Mach in the GEFS (daily 00Z run, 0–54 h, at least 20 of 31 members, published on a 2° grid in
+  0.001 steps, `engine/gefs_live.py`); 0.012 is the
   real-world error no model run sees (validation against radiosondes: 0.015 total).
 - **Auto, fallback:** k·σ(x), with σ² = σ_ana(x)² + 0.012², from 53 weekly hindcasts.
-- k is calibrated per level so that ≤ 0.5% of hindcast flights put > 20 nm of boom on the ground:
-  ensemble FL350 3.69, FL450 3.86, FL550 3.73; fallback FL350 3.79, FL450 4.10, FL550 3.74.
+- k per level: ensemble FL350 4.0, FL450 4.25, FL550 3.75 (the larger of two half-year fits, see below);
+  fallback FL350 3.79, FL450 4.10, FL550 3.74 (2-fold cross-validated over dates). Other levels use the
+  neighbouring values. If GEFS has no hour within 3 h of a leg, that leg uses the fallback map.
+
+**Time hold-out (`study/robust_eval.py`).** k fitted on Oct–Mar is tested on Apr–Oct and the reverse. The real-world
+error is one spatial field per date shared by all routes (Gaussian covariance, L = 300 nm; 100 and 1000 nm as
+sensitivity). Exposure = share of flights with any boom on the ground; 95% interval from a block bootstrap over dates.
+
+| Level | Policy | Held-out exposure (any boom) | 95% upper | Minutes saved |
+|---|---|---|---|---|
+| FL550 | one margin (0.06) | 0.39 / 0.40% | 0.72% | 27.5 / 24.3 |
+| FL550 | ensemble (k 3.75) | 0.39 / 0.48% | 0.88% | 29.1 / 26.1 |
+| FL450 | one margin | 2.0% / 0% | 3.7% | 23.7 / 18.1 |
+| FL450 | ensemble | 1.0% / 0.1% | 1.9% | 24.1 / 21.5 |
+
+Reading: at FL550 the 0.5% target holds out of sample with every policy, and the ensemble saves 1.6–1.8 min
+more. At FL350–450 a margin fitted on winter fails in summer (1–3%); the ensemble generalises best, and its k was
+raised to the larger fit. The 95% upper bounds (0.7–1.9%) show that one year of weekly dates cannot yet
+demonstrate the 0.5% target with confidence.
 
 Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
 0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean
@@ -109,7 +127,7 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 | Question | Data | Result |
 |---|---|---|
 | Day-ahead forecast error of boomless Mach | 1,044 GFS forecasts vs radiosondes, 6 US stations, Sep–Oct 2026 | σ ≈ 0.015 |
-| How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% (margin 0.03) |
+| How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
 | Winter error | Dec–Feb soundings | **Open** (#10) |
 
 ### 6.3 Operational value and safety in hindcast
@@ -119,7 +137,7 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 |---|---|---|
 | Single margin 0.05 | 27.9 | 1.2% |
 | Auto margin, static σ map | 27.0 | 0.5% |
-| Auto margin, GEFS spread | 27.7 | 0.5% |
+| Auto margin, GEFS spread | 27.7 (in sample); 26.1–29.1 held out | 0.4–0.5% held out, 95% upper 0.9% |
 | Perfect knowledge | 36.4 | 0% |
 | Fixed M1.05, no weather | 18.9 | boom on 1.1% of distance |
 | Single margin 0.05, computed buffer instead of 1 km | 28.9 | 1.6% |
@@ -164,3 +182,23 @@ measurements (#21), secondary booms (#16).
 - NASA DFRC Fact Sheet FS-016 (sonic boom overpressures).
 - FAA NPRM *Enabling Supersonic Overland Flight*, 91 FR 40470, 2 July 2026, docket FAA-2026-6935.
 - NOAA GFS and GEFS v12 documentation (NCEP).
+
+## 11. Independent review (11 Oct 2026)
+A reviewer who had not seen the work (FAA noise-certification, propagation physics, statistics) found:
+
+| # | Severity | Finding | Status |
+|---|---|---|---|
+| 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | #37; any-boom rate now reported (§3.3) |
+| 2 | blocker | Secondary booms from over-water legs can land inland | #38 (with #16) |
+| 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | #39 |
+| 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |
+| 5 | major | 0.012 real-world term rests on 2 months at 6 stations | full-year balloon validation (§6.2) |
+| 6 | major | Hindcast truth is the same model; interpolation across no-corridor columns | router no longer interpolates across them; #41 for independent truth |
+| 7 | major | Terrain smoothing and ray reach beyond ±0.5° | #42 |
+| 8 | major | Hindcast flies great circles, the router chases high forecasts; wrong-hour spread fallback | fallback fixed; #40 |
+| 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | #44 |
+| 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | #43 |
+| 11 | minor | Lateral rays stopped at 45° | fixed: up to 60° within the Mach cone |
+| 12–14 | minor | Availability at 0.03 margin; k reconciliation; 00 UTC only | §6.2 note; §3.3 reconciled; balloon validation uses 00 and 12 UTC |
+
+**Consequence:** no compliance claim is made until findings 1–3 are closed. They are Phase 2 gate items.

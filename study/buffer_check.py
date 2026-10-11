@@ -26,7 +26,7 @@ c, u, v, Z, ground = a[:L] / 10, a[L:2 * L] / 10, a[2 * L:3 * L] / 10, a[3 * L:4
 plev = np.array(man["plev"], float)
 p_a = float(isa_pressure_hpa(550 * 100 * 0.3048))
 lat = 90 - 2 * np.arange(ny)
-BUF, SIG_LEN = 1000.0, 60.0
+BUF, SIG_LEN = 1000.0, 150.0                      # SST-class signal (engine/aircraft_study.py)
 
 res = {"limit": [], "margin": []}
 for j in range(ny):

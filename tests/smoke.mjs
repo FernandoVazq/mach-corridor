@@ -18,8 +18,8 @@ for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 8
   await p.waitForFunction(() => /psf/.test(document.getElementById('routeKpis')?.innerText || ''), null, { timeout: 60000 });
   const key = `${w}-${scheme}`;
   report[key] = { ready_ms: tReady, route_ms: Date.now() - t0 };
-  for (const tab of ['map', 'econ', 'method']) {
-    if (tab !== 'map') { await p.click(`button[data-tab="${tab}"]`); await p.waitForTimeout(tab === 'econ' ? 15000 : 1000); }
+  for (const tab of ['map', 'econ', 'physics', 'method']) {
+    if (tab !== 'map') { await p.click(`button[data-tab="${tab}"]`); await p.waitForTimeout(tab === 'econ' ? 15000 : 1500); }
     await p.addScriptTag({ content: axe });
     const r = await p.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => `${v.id} (${v.nodes.length}): ${v.nodes[0].target.join(' ')}`));
     report[key][tab] = r.length;

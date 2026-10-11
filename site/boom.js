@@ -26,5 +26,22 @@ window.BOOM = (() => {
     }
     return { land, sea, overland: psf(o.ac, o.ac.design, fl) };
   }
-  return { psf, route, LIMIT, CUTOFF_MAX };
+  // ---- aircraft-specific pieces (engine/aircraft_study.py) ----
+  // shape factor from the lift parameter when only weight and length are known (custom aircraft):
+  // K_S = max(0.06, 0.85 sqrt(K_L)), K_L = sqrt(M^2-1) W / (1.4 p_v M^2 l^2); ~15% vs Concorde and SR-71
+  function shapeFactor(weight_t, length, M, fl) {
+    const v = isa(fl * 100 * 0.3048), KL = Math.sqrt(M * M - 1) * weight_t * 1000 * 9.80665 / (1.4 * v.p * M * M * length * length);
+    return Math.max(0.06, 0.85 * Math.sqrt(KL));
+  }
+  // signal length on the ground (Carlson duration x sound speed) and Haglund's safe height for it
+  const R_TYP = 89000, DMDZ = -0.0064 / 500;
+  function signalLength(ac, M, fl) {
+    const h = fl * 100 * 0.3048, v = isa(h), g = isa(0), b2 = Math.sqrt(M * M - 1);
+    const dt = 0.85 * (3.42 / v.a) * M / Math.pow(b2, 0.75) * Math.pow(h, 0.25) * Math.pow(ac.boom.length, 0.75) * ac.boom.ks;
+    return dt * g.a;
+  }
+  const safeHeight = (ac, fl, M = 1.15) => ac.boom ? Math.cbrt(R_TYP) * Math.pow(signalLength(ac, M, fl), 2 / 3) : 1000;
+  // Mach the map's 1 km floor over-promises for a long signal (never a bonus for short ones)
+  const bufferPenalty = (ac, fl) => Math.min(0, (safeHeight(ac, fl) - 1000) * DMDZ);
+  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, bufferPenalty, isa };
 })();

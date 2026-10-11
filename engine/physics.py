@@ -65,7 +65,7 @@ def cruise_interp(plev, p_a):
     return k, float(wk)
 
 
-SIGNAL_M = 60.0          # boom signal length near the caustic, SST-class (~0.2 s x 300 m/s)
+SIGNAL_M = 150.0         # boom signal length, SST-class (Carlson duration ~0.3-0.35 s x 340 m/s; aircraft_study.py)
 G_MIN = 5e-4             # |dV_P/dz| floor (1/s): caps the safe height at ~1.3 km in near-neutral layers
 
 
