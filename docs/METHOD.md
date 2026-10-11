@@ -51,11 +51,14 @@ The turning point is a caustic (focused boom). It must stay above the highest te
 buffer:
 - **Default:** 1 km.
 - **Computed (Open, under evaluation):** Haglund's safe cutoff height per ray direction,
-  ΔZ_S = R^{1/3} L^{2/3}, R = c / |dV_P/dz| over 0.5–2 km above ground, L = 60 m (SST-class signal),
-  capped at 1.35 km where V_P does not fall with height (NASA CR-2417; used in FaINT).
+  ΔZ_S = R^{1/3} L^{2/3}, R = c / |dV_P/dz| over 0.5–2 km above ground, L = 150 m (SST-class signal: Carlson
+  duration × sound speed), capped at about 2.5 km where V_P hardly falls with height (NASA CR-2417; used in FaINT).
 
-Evidence: on one GFS run, ΔZ_S has a median of 650 m and a 90th percentile of 1.0 km; at the exact limit 3% of
-land columns fall below it, with a 0.05 margin none (`study/buffer_check.py`).
+Evidence (`study/buffer_check.py`, one GFS run, SST signal 150 m): ΔZ_S median 1.2 km, 90th percentile 1.8 km; at
+the exact limit the caustic is below ΔZ_S in 33% of land columns, with a 0.05 margin in none (the margin, not the
+1 km, provides the clearance; see review finding 3). The router subtracts the aircraft's extra cushion,
+(ΔZ_S − 1 km) × 1.3×10⁻⁵ Mach/m, never adding speed for short signals (`site/boom.js`, `bufferPenalty`).
+An earlier version of this check used a 60 m signal and found 3%; that signal length was too short for an airliner.
 
 ### 3.3 Forecast-error margin
 The flown Mach is the forecast boomless Mach minus a margin.
@@ -140,7 +143,7 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 | Auto margin, GEFS spread | 27.7 (in sample); 26.1–29.1 held out | 0.4–0.5% held out, 95% upper 0.9% |
 | Perfect knowledge | 36.4 | 0% |
 | Fixed M1.05, no weather | 18.9 | boom on 1.1% of distance |
-| Single margin 0.05, computed buffer instead of 1 km | 28.9 | 1.6% |
+| Single margin 0.05, computed buffer (60 m signal; superseded) | 28.9 | 1.6% |
 
 ### 6.4 Loudness
 Validated only against the published cases in §6.1. **Open:** sBOOM reference cases (#14), X-59 and XB-1
