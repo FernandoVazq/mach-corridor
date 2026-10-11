@@ -104,6 +104,17 @@
       renderFl(rows);
       await new Promise(res => setTimeout(res, 0));
     }
+    // departure-time advice: the corridor moves with the weather, so the same flight can be faster at another hour
+    const deps = [], H = MC.S.man.forecast_hours, est = r.opt.block;
+    $("depTable").innerHTML = "<tr><td class='muted'>Computing departures…</td></tr>";
+    for (let k = 0; k < H.length; k++) {
+      if (H[k] + est > H[H.length - 1] + 3) break;          // the flight must end inside the forecast
+      const f = await RT.makeField(MC.S.fl, k);
+      if (my !== seq) return;
+      deps.push({ k, t: MC.S.man.valid_times[k], o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 300) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
+      renderDep(deps, obj);
+      await new Promise(res => setTimeout(res, 0));
+    }
   }
 
   function render(r) {
@@ -181,6 +192,14 @@
     g2.append("g").attr("class", "axis").attr("transform", `translate(0,${h2})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat(d => d3.format(",")(d) + (d === 0 ? " nm" : ""))).call(s => s.select(".domain").attr("stroke", "var(--rule)"));
     svg.attr("viewBox", `0 0 340 ${6 + h1 + gap + h2 + 22}`);
     svg.on("click", ev => { const [px] = d3.pointer(ev, g.node()); window.MC3D?.openRoute(Math.max(0, Math.min(e.dist, x.invert(px)))); });
+  }
+
+  function renderDep(rows, obj) {
+    const metric = x => obj === "time" ? x.o.block : obj === "cost" ? x.o.op : x.o.gen;
+    const best = rows.reduce((b, x) => (metric(x) < metric(b) ? x : b), rows[0]);
+    $("depTable").innerHTML = `<tr><th>Departure (UTC)</th><th>Block</th><th>vs ban</th><th>Boomless</th><th>$/seat</th></tr>` +
+      rows.map(x => `<tr class="${x === best ? "hl" : ""} ${x.k === MC.S.fi ? "cur" : ""}"><td>${d3.utcFormat("%a %H:%M")(new Date(x.t))}${x === best ? " (best)" : ""}</td><td>${fmtT(x.o.block)}</td>
+        <td class="${x.o.block < x.b.block ? "pos" : ""}">${fmtMin(x.o.block - x.b.block)}</td><td>${x.o.dLand ? Math.round(100 * x.o.dBoomless / x.o.dLand) + "%" : "–"}</td><td>${money(x.o.perSeat)}</td></tr>`).join("");
   }
 
   function renderFl(rows) {
