@@ -32,7 +32,7 @@ GAMMA = 1.4
 R_AIR = 287.05
 FT = 0.3048
 H_BUF_DEFAULT = 1000.0                     # m above highest nearby terrain (placeholder; calibrate w/ NASA FaINT)
-ALPHAS = (7.5, 15.0, 22.5, 30.0, 37.5, 45.0)   # lateral ray directions (deg), +/- each
+ALPHAS = (7.5, 15.0, 22.5, 30.0, 37.5, 45.0, 52.5, 60.0)   # lateral ray directions (deg), +/- each; |alpha| <= acos(1/M) is enforced below
 DIR_STEP = 2.5                             # absolute-direction grid (deg)
 
 

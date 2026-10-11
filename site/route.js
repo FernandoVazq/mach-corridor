@@ -56,7 +56,7 @@
     let M, type, mcut = null, skipped = false;
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
-      mcut = L(a => m.mHeading(a, brg, lon, lat)) - (typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + (field.t0 + tHr) * 3.6e6) : margin);
+      mcut = L(a => m.mHeadingSafe(a, brg, lon, lat)) - (typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + (field.t0 + tHr) * 3.6e6) : margin);
       let use = mode === "corr" && mcut >= m.FLOOR;
       if (use && E && E.obj && E.obj !== "time") {
         const st0 = { c, along, cross }, per = Mx => {

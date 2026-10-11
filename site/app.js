@@ -170,6 +170,17 @@
     const h = ((hdg % 360) + 360) % 360 / 10, k0 = Math.floor(h) % 36, k1 = (k0 + 1) % 36;
     return Math.min(mAt(a, k0, lon, lat), mAt(a, k1, lon, lat));
   }
+  // for flight decisions: no interpolation across a no-corridor column (it would invent ~M1.1 next to "none")
+  function mSafe(a, tile, lon, lat) {
+    const fi = ((lon + 180) % 360 + 360) % 360, fj = Math.min(180, Math.max(0, 90 - lat));
+    const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), i1 = (i0 + 1) % NX;
+    if (!raw(a, tile, i0, j0) || !raw(a, tile, i1, j0) || !raw(a, tile, i0, j0 + 1) || !raw(a, tile, i1, j0 + 1)) return 0.98;
+    return mAt(a, tile, lon, lat);
+  }
+  function mHeadingSafe(a, hdg, lon, lat) {
+    const h = ((hdg % 360) + 360) % 360 / 10, k0 = Math.floor(h) % 36, k1 = (k0 + 1) % 36;
+    return Math.min(mSafe(a, k0, lon, lat), mSafe(a, k1, lon, lat));
+  }
   const cAt = (a, lon, lat) => sample(a, A().tile_c, lon, lat) + enc().c_offset;
   const landAt = (a, lon, lat) => sample(a, A().tile_land, lon, lat) / 255;
   const windAt = (a, lon, lat) => [sample(a, A().tile_u, lon, lat) - enc().wind_offset, sample(a, A().tile_v, lon, lat) - enc().wind_offset];
@@ -262,12 +273,13 @@
   // validMs: when the aircraft is there (route legs); default the map's time
   function marginAt(lon, lat, fl = S.fl, brg = null, validMs = null) {
     if (!S.auto) return S.margin;
-    const ga = gefsNow(fl, S.fi, validMs) || gefsNow(fl);
+    const ga = gefsNow(fl, S.fi, validMs);       // no spread for that hour -> static map below, never another hour's spread
     if (ga && brg != null) {
       const h = ((brg % 360) + 360) % 360 / 10, t0 = Math.floor(h) % 36, t1 = (t0 + 1) % 36;
       return ensMargin(fl, Math.max(sdAt(ga, t0, lon, lat), sdAt(ga, t1, lon, lat)));
     }
-    if (!ga && !sigma) return S.margin;
+    if (!ga && !sigma) return Math.max(S.margin, 0.05);
+    if (!ga && validMs != null) { const kk = kAt(fl), sg = sigmaGrid(fl); return kk * bil((i, j) => sg[j * NX + i], lon, lat); }
     const g = marginGrid(fl);
     return bil((i, j) => g[j * NX + i], lon, lat);
   }
@@ -760,7 +772,7 @@
 
   // ---------- public API for plan.js / view3d.js ----------
   window.MC = {
-    S, APT, AIRPORTS, FLOOR, KT, loadAtlas, loadProfiles, profileAt, mAt, mHeading, cAt, landAt, windAt, tileOf, curTile,
+    S, APT, AIRPORTS, FLOOR, KT, loadAtlas, loadProfiles, profileAt, mAt, mHeading, mHeadingSafe, cAt, landAt, windAt, tileOf, curTile,
     colorFor, toM, raw, off, setTab: t => setTab(t), fit: pts => {
       const ls = pts.map(p => normLon(p[0])), as = pts.map(p => p[1]);
       if (Math.max(...ls) - Math.min(...ls) > 180) return;
