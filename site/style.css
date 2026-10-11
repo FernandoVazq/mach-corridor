@@ -339,3 +339,5 @@ dialog.big[open] { display: flex; flex-direction: column; }
   .kb { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   .kb-m { grid-column: 1 / 3; } .kb-t { display: none; } .kb-s { grid-column: 1 / 3; }
 }
+.tbl.rules th, .tbl.rules td { text-align: left; white-space: normal; vertical-align: top; }
+.tbl.rules td:nth-child(2) { white-space: nowrap; }

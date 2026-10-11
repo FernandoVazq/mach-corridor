@@ -241,6 +241,10 @@
       <p>For every 1° column of the NOAA GFS forecast, seven flight levels (FL300 to FL600) and 36 directions of travel, the map finds the largest Mach for which every boom ray, straight down and to the sides, turns at least 1 km above the highest terrain under the boom footprint. The speed of sound uses virtual temperature and the wind along each ray is included. A forecast-error margin is subtracted: one number from the slider, or Auto, k·σ per point, where σ combines the local 24 h forecast error over a year of hindcasts with the 0.012 the analysis cannot see, and k (3.7–4.1 by level) holds flights with a boom on the ground to 0.5%.</p>
       <h2>Routes</h2>
       <p>Routes come from a time-dependent search on a 1° grid in 16 directions, refined continuously from two independent starting routes. The aircraft meets the forecast for the time it gets there, and ground speed comes from the wind triangle. Climb and descent are subsonic, acceleration and deceleration take time and fuel, and boomless legs are flown in constant-Mach blocks of at least 300 nm.</p>
+      <h2>Where it applies</h2>
+      <p>Mach cutoff unlocks speed only where the rule is written about the boom reaching the ground. Elsewhere the test is the aircraft's Mach number. The map treats every territory as restricted until its rule says otherwise.</p>
+      <div class="tscroll" tabindex="0" role="region" aria-label="Rules by country"><table class="tbl rules" id="rulesTbl"></table></div>
+      <p class="fine" id="rulesNote"></p>
       <h2>Limits</h2>
       <ul>
         <li>Research prototype, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>

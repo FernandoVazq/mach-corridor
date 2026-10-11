@@ -24,3 +24,13 @@
     </div>`;
   }).join("");
 })();
+
+/* Rules by country (Method): site/geo/rules.json, sources in docs/RULES.md */
+(async () => {
+  const t = document.getElementById("rulesTbl"); if (!t) return;
+  let R; try { R = await fetch("geo/rules.json").then(r => r.json()); } catch (e) { return; }
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  t.innerHTML = "<tr><th>Country</th><th>Status</th><th>What the rule tests</th></tr>" + R.rules.map(r =>
+    `<tr><td><a href="${r.source}" rel="noopener">${esc(r.country)}</a></td><td>${esc(r.status)}</td><td>${r.boom_based ? "<b>Boom at the ground.</b> " : ""}${esc(r.test)}</td></tr>`).join("");
+  document.getElementById("rulesNote").innerHTML = `No instrument found, general ban assumed: ${R.unverified.join(", ")}. ICAO: ${esc(R.icao)} Checked ${R.updated}; full table in <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/docs/RULES.md">docs/RULES.md</a>.`;
+})();

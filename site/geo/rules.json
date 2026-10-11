@@ -1,0 +1,115 @@
+{
+ "updated": "2026-10-11",
+ "note": "Every territory is treated as restricted (boomless or subsonic) unless its rule says otherwise. Mach cutoff helps only where the rule is written about the boom reaching the ground.",
+ "rules": [
+  {
+   "code": "US",
+   "country": "United States",
+   "status": "ban; standard proposed",
+   "test": "Mach number today; proposed: boom at the surface ≤ 0.11 psf (primary + secondary)",
+   "instrument": "14 CFR 91.817/91.818; NPRM FAA-2026-6935 (2 Jul 2026)",
+   "pending": "Final rule targeted mid-2027; SAM Act passed House, cleared Senate Commerce",
+   "source": "https://www.federalregister.gov/documents/2026/07/02/2026-13440/enabling-supersonic-overland-flight",
+   "boom_based": true
+  },
+  {
+   "code": "DE",
+   "country": "Germany",
+   "status": "permit",
+   "test": "Boom not detectable on the ground (exceptions to the EU VFR ban)",
+   "instrument": "§ 38 LuftVO",
+   "pending": "none found",
+   "source": "https://www.gesetze-im-internet.de/luftvo_2015/__38.html",
+   "boom_based": true
+  },
+  {
+   "code": "NZ",
+   "country": "New Zealand",
+   "status": "permit",
+   "test": "Above M0.92 needs approval; boom must not reach the surface on flights entering or leaving NZ",
+   "instrument": "CAR Part 91, rule 91.805",
+   "pending": "none found",
+   "source": "https://www.aviation.govt.nz/rules/rule-part/part-91/subpart-j/",
+   "boom_based": true
+  },
+  {
+   "code": "CA",
+   "country": "Canada",
+   "status": "ban",
+   "test": "Mach number (true Mach ≥ 1)",
+   "instrument": "CARs SOR/96-433, Supersonic Flight",
+   "pending": "none found",
+   "source": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/page-57.html",
+   "boom_based": false
+  },
+  {
+   "code": "EU",
+   "country": "EU / EASA (incl. FR, NO; CH assumed)",
+   "status": "permit (VFR only)",
+   "test": "Mach number; no EU rule for IFR",
+   "instrument": "Reg (EU) 923/2012 SERA.5005(d)(1)",
+   "pending": "NPA 2026-02 covers take-off/landing noise only",
+   "source": "https://legislation.gov.uk/eur/2016/1185/annexes/2016-07-20/data.xht",
+   "boom_based": false
+  },
+  {
+   "code": "GB",
+   "country": "United Kingdom",
+   "status": "permit (VFR); IFR gap",
+   "test": "Mach number",
+   "instrument": "UK SERA.5005(d)(1)",
+   "pending": "Proposed SERA.5015(d) for IFR (CAA Task 0170, 2024); adoption unverified",
+   "source": "https://www.caa.co.uk/media/mtbjmxer/task_0170_prohibition_of_supersonic_flight_over_land_oid.pdf",
+   "boom_based": false
+  },
+  {
+   "code": "RU",
+   "country": "Russia",
+   "status": "permit",
+   "test": "Mach number, allowed above 11,000 m or in special zones",
+   "instrument": "Government Decree No. 138 (2010), para 50",
+   "pending": "none found",
+   "source": "https://pravo.ppt.ru/postanovlenie/pravitelstvo/n-138-35389",
+   "boom_based": false
+  },
+  {
+   "code": "AU",
+   "country": "Australia",
+   "status": "permit",
+   "test": "Supersonic-capable aircraft need an approval with conditions",
+   "instrument": "Air Navigation (Aircraft Noise) Regulations 2018, s 6(2), s 16",
+   "pending": "none found",
+   "source": "https://legislation.gov.au/F2018L00448/asmade/2018-03-29/text/original/epub/OEBPS/document_1/document_1.html",
+   "boom_based": false
+  },
+  {
+   "code": "BR",
+   "country": "Brazil",
+   "status": "permit",
+   "test": "Mach number (authorisation to exceed Mach 1)",
+   "instrument": "RBAC 91 §91.1713 (Amdt 07, 2026)",
+   "pending": "none found",
+   "source": "https://pergamum.anac.gov.br/pergamum/vinculos/RBAC91EMD07.pdf",
+   "boom_based": false
+  }
+ ],
+ "unverified": [
+  "MX",
+  "AR",
+  "CL",
+  "CO",
+  "CN",
+  "JP",
+  "IN",
+  "KR",
+  "SG",
+  "AE",
+  "SA",
+  "QA",
+  "TR",
+  "EG",
+  "ZA",
+  "KE"
+ ],
+ "icao": "No en-route standard; CAEP/14 drafting, not expected before about 2031. Annex 2: VFR supersonic only with ATS authorisation. Chicago Convention Art. 1-2: sovereignty over land and the 12 nm territorial sea."
+}
