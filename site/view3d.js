@@ -611,8 +611,11 @@ function drawCeff(F, za, ground, zf, M) {
   g.append("text").attr("x", w).attr("y", h + 22).attr("text-anchor", "end").text("sound speed + wind along track, m/s");
   g.append("path").datum(pts).attr("fill", "none").attr("stroke", "var(--mach)").attr("stroke-width", 2).attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1])));
   g.append("line").attr("x1", x(Iv)).attr("x2", x(Iv)).attr("y1", 0).attr("y2", h).attr("stroke", "var(--text)").attr("stroke-dasharray", "4 3");
-  g.append("text").attr("x", Math.min(x(Iv) + 3, w - 70)).attr("y", -1).text("aircraft speed");
-  g.append("text").attr("x", 14).attr("y", y(za) - 3).text("cruise");
+  // "aircraft speed" runs up its own dashed line; "cruise" marks the cruise level with a tick, clear of the other label
+  const xi = Math.max(0, Math.min(w, x(Iv))), side = xi > w - 14 ? -4 : 11;
+  g.append("text").attr("transform", `translate(${xi + side},${h * 0.62}) rotate(-90)`).attr("text-anchor", "middle").text("aircraft speed");
+  g.append("line").attr("x1", 10).attr("x2", w).attr("y1", y(za)).attr("y2", y(za)).attr("stroke", "var(--text)").attr("stroke-width", 0.6).attr("opacity", 0.35);
+  g.append("text").attr("x", 14).attr("y", y(za) - 3).text(`cruise FL${state.fl}`);
 }
 
 /* real terrain: AWS Terrain Tiles (Terrarium encoding, CORS-enabled public bucket), zoom 8 ≈ 600 m/px */
@@ -696,8 +699,9 @@ const easeIO = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 /* along the route */
 function routeAt(x) {
   const R = window.MCPLAN.getRoute(), segs = R.opt.segs;
+  x = Number.isFinite(x) ? Math.max(0, Math.min(R.opt.dist, x)) : 0;
   let i = segs.findIndex(s => x < s.x1); if (i < 0) i = segs.length - 1;
-  const s = segs[i], f = Math.max(0, Math.min(1, (x - s.x0) / s.d)), p = d3.geoInterpolate(s.p, s.q)(f);
+  const s = segs[i], f = s.d > 0 ? Math.max(0, Math.min(1, (x - s.x0) / s.d)) : 0, p = d3.geoInterpolate(s.p, s.q)(f);
   let t = 0; for (let k = 0; k < i; k++) t += segs[k].t; t += s.t * f;
   const MC = window.MC, H = MC.S.man.forecast_hours, T = H[R.fi] + t;
   let fhIndex = 0; H.forEach((h, k) => { if (Math.abs(h - T) < Math.abs(H[fhIndex] - T)) fhIndex = k; });
@@ -750,13 +754,19 @@ async function play() {
   shadow.rotation.x = -Math.PI / 2; shadow.scale.set(2.2, 1, 1); fx.add(shadow);
   PB = { x, D, last: performance.now(), dynAt: 0, uiAt: 0, busy: false, rebuildAt: 0, puffs: [], touched: false, camBase: null };
   $("c3Play").classList.add("on");
-  const v0 = D / 70;                                    // nm per second in cruise: a whole route in just over a minute
-  const speed = x => { const u = Math.min(1, Math.min(x, D - x) / 80); return v0 * (0.018 + 0.982 * Math.pow(u, 1.5)); };
+  // takeoff and landing ease over a ramp that scales with the route (80 nm on long routes, 15% of a short one);
+  // the cruise rate is set so the whole flight plays in 35 s (short hops) to 75 s (long routes)
+  const Lr = Math.min(80, 0.15 * D), A0 = 0.03, T = Math.max(35, Math.min(75, 35 + D / 60));
+  let I = 0; for (let k = 0; k < 200; k++) { const u = (k + 0.5) / 200; I += 1 / (A0 + (1 - A0) * Math.pow(u, 1.5)) / 200; }
+  const v0 = (D - 2 * Lr + 2 * Lr * I) / T;             // nm per second in cruise
+  const speed = x => { const u = Math.max(0, Math.min(1, Math.min(x, D - x) / Lr)); return v0 * (A0 + (1 - A0) * Math.pow(u, 1.5)); };
   const chase = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
   sc.tick = now => {
     if (!PB) return;
-    const dt = Math.min(0.05, (now - PB.last) / 1000); PB.last = now;
-    PB.x = Math.min(D, PB.x + speed(PB.x) * dt);
+    // the frame timestamp can precede the performance.now() taken when play started: never step backwards
+    const dt = Math.max(0, Math.min(0.1, (now - PB.last) / 1000)); PB.last = Math.max(PB.last, now);
+    PB.x = Math.max(0, Math.min(D, PB.x + speed(PB.x) * dt));
+    if (!Number.isFinite(PB.x)) PB.x = state.routeX || 0;
     const q = routeAt(PB.x); state.routeX = PB.x; state.lon = q.lon; state.lat = q.lat; state.hd = q.hd; state.M = q.M;
     // terrain: slide under the aircraft; when it nears the edge of what was built (or the destination), build the
     // next patch one chunk per frame in the background and swap it in, so there is no visible hitch
