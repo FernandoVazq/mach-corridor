@@ -160,7 +160,15 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 |---|---|---|
 | Day-ahead forecast error of boomless Mach | 1,044 GFS forecasts vs radiosondes, 6 US stations, Sep–Oct 2026 | σ ≈ 0.015 |
 | How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
+| Error by forecast age | 2,006 launches, same stations and year, every 2nd day, GFS 1° (`study/results/validation_leads.json`) | RMS 0.0104 analysis, 0.0113 at 6 h, 0.0119 at 12 h, 0.0132 at 24 h; bias −0.003 at every age. **Unsafe side** (model allows more than the balloon; semi-RMS): 0.0079, 0.0088, 0.0095, 0.0108. 99th percentile of unsafe error 0.021, 0.024, 0.025, 0.029 |
 | Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
+
+**Phase 1 error gate (0.010).** The RMS gate is not met at any forecast age, including the analysis
+(0.0104): what is left is the difference between a 1° grid column and one balloon, not forecast skill. Two
+findings matter for operations: (1) re-planning with the run issued about 6 h before departure cuts the error
+14% and the unsafe tail by 0.005 Mach; (2) the bias is on the safe side. **Proposed** (owner's decision, not yet
+adopted): measure the gate on the unsafe side only, where 6 h and 12 h re-planning pass (0.0088, 0.0095) and
+24 h does not (0.0108); and require plans to use a run at most 12 h old at departure.
 
 ### 6.3 Operational value and safety in hindcast
 53 weekly GFS analyses and 24 h forecasts, 48 directed routes, real-world error added (σ 0.012, 300 nm correlation).
