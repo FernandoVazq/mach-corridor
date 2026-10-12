@@ -1,0 +1,78 @@
+2026101206 nodes 13196
+tiles 13806
+0 tiles 1 s
+500 tiles 4 s
+1000 tiles 8 s
+1500 tiles 11 s
+2000 tiles 15 s
+2500 tiles 19 s
+3000 tiles 23 s
+3500 tiles 27 s
+4000 tiles 30 s
+4500 tiles 34 s
+5000 tiles 38 s
+5500 tiles 42 s
+6000 tiles 45 s
+6500 tiles 49 s
+7000 tiles 53 s
+7500 tiles 57 s
+8000 tiles 61 s
+8500 tiles 64 s
+9000 tiles 68 s
+9500 tiles 72 s
+10000 tiles 76 s
+10500 tiles 80 s
+11000 tiles 83 s
+11500 tiles 87 s
+12000 tiles 91 s
+12500 tiles 95 s
+13000 tiles 98 s
+13500 tiles 102 s
+{
+ "run": "2026101206",
+ "zoom": 8,
+ "nodes": 13196,
+ "tiles": 13806,
+ "missing_tiles": 0,
+ "dem_minus_gfs": {
+  "median_m": 258,
+  "p90_m": 960,
+  "p99_m": 1741,
+  "share_higher": 0.927
+ },
+ "bands": [
+  {
+   "gfs_footprint_m": "300-1000",
+   "nodes": 7107,
+   "dem_minus_gfs_median_m": 149,
+   "p90_m": 696,
+   "max_m": 2548,
+   "mach_cost_median": 0.0019
+  },
+  {
+   "gfs_footprint_m": "1000-2000",
+   "nodes": 3476,
+   "dem_minus_gfs_median_m": 415,
+   "p90_m": 1008,
+   "max_m": 2870,
+   "mach_cost_median": 0.0053
+  },
+  {
+   "gfs_footprint_m": "2000-3500",
+   "nodes": 2072,
+   "dem_minus_gfs_median_m": 574,
+   "p90_m": 1241,
+   "max_m": 3271,
+   "mach_cost_median": 0.0073
+  },
+  {
+   "gfs_footprint_m": "3500-9000",
+   "nodes": 541,
+   "dem_minus_gfs_median_m": 813,
+   "p90_m": 1619,
+   "max_m": 3109,
+   "mach_cost_median": 0.0104
+  }
+ ],
+ "mach_per_m": 1.2800000000000001e-05
+}
