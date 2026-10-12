@@ -1,8 +1,9 @@
 /* Loudness v0 (engine/boom.py, tested there against NASA TP-1122 and Concorde): primary-boom ground overpressure
    from Carlson's simplified method, and the FaINT bound for Mach-cutoff legs.
    dp = K_p K_R sqrt(p_v p_g) (M²−1)^(1/8) h^(−3/4) l^(3/4) K_S   (K_R 1.9, K_p 1.0; ±15% vs flight data)
-   Cutoff legs: NASA FaINT measured 0.01–0.09 psf on the ground with the caustic at least one Haglund safe
-   height above it; with the 1 km buffer plus margin that holds on every land column checked (study/buffer_check.py). */
+   Cutoff legs: linear caustic (Airy) theory, engine/caustic.py, checked against NASA FaINT. The quiet height
+   (caustic height giving 0.11 psf on the ground) and the per-leg ground psf use closed forms fitted to that model
+   (study/results/caustic.json); the psf form is scaled x1.25 so it never under-predicts the model near the limit. */
 window.BOOM = (() => {
   const PSF = 47.880258, K_R = 1.9, LIMIT = 0.11, CUTOFF_MAX = 0.09;
   function isa(h) {
@@ -21,7 +22,7 @@ window.BOOM = (() => {
     let land = 0, sea = 0;
     for (const s of o.segs) {
       if (s.M <= 1) continue;
-      if (s.landish) land = Math.max(land, s.type === "boomless" ? CUTOFF_MAX : psf(o.ac, s.M, fl));
+      if (s.landish) land = Math.max(land, legPsf(s, o.ac, fl));
       else sea = Math.max(sea, psf(o.ac, s.M, fl));
     }
     return { land, sea, overland: psf(o.ac, o.ac.design, fl) };
@@ -41,7 +42,33 @@ window.BOOM = (() => {
     return dt * g.a;
   }
   const safeHeight = (ac, fl, M = 1.15) => ac.boom ? Math.cbrt(R_TYP) * Math.pow(signalLength(ac, M, fl), 2 / 3) : 1000;
-  // Mach the map's 1 km floor over-promises for a long signal (never a bonus for short ones)
-  const bufferPenalty = (ac, fl) => Math.min(0, (safeHeight(ac, fl) - 1000) * DMDZ);
-  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, bufferPenalty, isa };
+  // free-field boom arriving at a turning point ~1.5 km up (no ground reflection)
+  const freePsf = (ac, M, fl) => psf(ac, M, fl, 1500) / K_R;
+  // caustic height above ground that gives 0.11 psf on the ground, from the same (conservative) form as shadowPsf
+  const S = [1.308, 0.5662, -3.5556, 0.1023, -0.3039], S_SAFETY = 1.25;
+  function quietHeight(ac, fl, M = 1.15) {
+    if (!ac.boom) return 1000;
+    const hs = safeHeight(ac, fl, M);
+    let lo = 0.6 * hs, hi = 4 * hs;
+    if (shadowPsf(ac, M, fl, lo) <= LIMIT) return lo;
+    for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (shadowPsf(ac, M, fl, mid) > LIMIT) lo = mid; else hi = mid; }
+    return hi;
+  }
+  // ground psf with the caustic D metres above the ground (engine/caustic.py shadow_psf_fit, x1.25)
+  function shadowPsf(ac, M, fl, D) {
+    if (!ac.boom) return 0;
+    const L = signalLength(ac, M, fl), r = Math.max(0.6, D / safeHeight(ac, fl, M));
+    return S_SAFETY * freePsf(ac, M, fl) * Math.exp(S[0] + S[1] * Math.pow(r, 1.5) + S[2] * r + S[4] * Math.log(L / 100));
+  }
+  // Mach the map's 1 km floor over-promises when the quiet height is above it (never a bonus below it)
+  const bufferPenalty = (ac, fl) => Math.min(0, (quietHeight(ac, fl) - 1000) * DMDZ);
+  // caustic height above the highest terrain for a boomless leg: the map's limit puts it at 1 km; every 0.0128 Mach
+  // flown below that limit lifts it about 1 km (DMDZ, sensitivity study)
+  function legCausticHeight(s, ac, fl) {
+    if (s.mcut == null || !Number.isFinite(s.margin)) return 1000;
+    const mMap = s.mcut + s.margin - bufferPenalty(ac, fl);
+    return 1000 + Math.max(0, mMap - s.M) / -DMDZ;
+  }
+  const legPsf = (s, ac, fl) => s.M <= 1 ? 0 : s.type === "boomless" ? shadowPsf(ac, s.M, fl, legCausticHeight(s, ac, fl)) : psf(ac, s.M, fl);
+  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, bufferPenalty, isa };
 })();

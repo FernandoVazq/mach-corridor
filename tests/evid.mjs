@@ -1,4 +1,5 @@
 // Fail-closed and evidence-file check: plan on the local (old) data, corridors must be off, then on in study mode. Usage: node evid.mjs
+import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = []; p.on('pageerror', e => errs.push(e.message));

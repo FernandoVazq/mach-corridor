@@ -71,14 +71,14 @@
     if (!(p.W > 0 && p.L > 0 && p.M > 1 && p.FL >= 300)) return;
     const c = makeCustom(p), isa = BOOM.isa(p.FL * 100 * 0.3048);
     const psfD = BOOM.psf(c, p.M, p.FL), psfC = BOOM.psf(c, 1.15, p.FL);
-    const hS = BOOM.safeHeight(c, p.FL), pen = BOOM.bufferPenalty(c, p.FL), Mb = boomlessAt(p.FL) + pen;
+    const hS = BOOM.quietHeight(c, p.FL), pen = BOOM.bufferPenalty(c, p.FL), Mb = boomlessAt(p.FL) + pen;
     const gs = Mb * isa.a * 1.943844, fr = c.fuelPerNm(Mb) / c.fuelPerNm(p.M);
     const k = (v, l, d, cls = "") => `<div class="kpi"><div class="kl">${l}</div><div class="kv ${cls}">${v}</div><div class="kd">${d}</div></div>`;
     $("abKpis").innerHTML = [
       k(`${f2(psfD)} psf`, `Boom at M${p.M}`, `${Math.round(psfD / BOOM.LIMIT)}× the 0.11 psf limit`, psfD > BOOM.LIMIT ? "neg" : "pos"),
       k(`M${Mb.toFixed(3)}`, `Boomless over land, FL${p.FL}`, `median day, any direction`),
       k(`${Math.round(gs)} kt`, "Speed over land, no wind", `${(gs / 488).toFixed(2)}× a 787 (488 kt)`),
-      k(`${Math.round(hS)} m`, "Cushion it needs", pen < 0 ? `${(pen).toFixed(3)} Mach vs the map's 1 km` : "1 km covers it"),
+      k(`${Math.round(hS)} m`, "Cushion for ≤ 0.11 psf", pen < 0 ? `${(pen).toFixed(3)} Mach vs the map's 1 km` : "1 km covers it"),
       k(`${f2(psfC)} psf`, "If the cutoff fails at M1.15", "why the margin matters", "neg"),
       k(`${fr.toFixed(2)}×`, "Fuel per nm, boomless vs design", "slow supersonic is inefficient"),
     ].join("");
@@ -197,8 +197,8 @@
     svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => d3.format(",")(d) + " m")).call(axisStyle);
     svg.append("line").attr("class", "lim").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(1000)).attr("y2", y(1000));
     svg.append("text").attr("x", W - m.r).attr("y", y(1000) - 5).attr("text-anchor", "end").style("font-size", "11px").style("fill", "var(--ink-2)").text("map: 1 km");
-    svg.append("path").datum(r).attr("fill", "none").attr("stroke", "var(--ink-3)").attr("stroke-width", 2).attr("d", d3.line().x(d => x(d.length_m)).y(d => y(d.safe_height_m)));
-    const h = BOOM.safeHeight(c, p.FL);
+    svg.append("path").datum(r).attr("fill", "none").attr("stroke", "var(--ink-3)").attr("stroke-width", 2).attr("d", d3.line().x(d => x(d.length_m)).y(d => y(d.quiet_height_m ?? d.safe_height_m)));
+    const h = BOOM.quietHeight(c, p.FL);
     svg.append("circle").attr("cx", x(Math.min(120, p.L))).attr("cy", y(Math.min(2100, h))).attr("r", 6).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2)
       .append("title").text(`Your aircraft: ${Math.round(h)} m`);
     svg.append("text").attr("x", x(Math.min(120, p.L)) + 9).attr("y", y(Math.min(2100, h)) + 4).style("font-size", "11.5px").style("fill", "var(--ink)").text("your aircraft");
@@ -220,7 +220,7 @@
       `<b>Direction matters as much as the weather.</b> In the same air, the best and worst direction differ by ${s550.heading_spread.median.toFixed(3)} Mach on a median day (${s350.heading_spread.median.toFixed(3)} at FL350).`,
       `<b>Descending costs speed.</b> A 3° descent lowers the limit by ${Math.abs(F.descent.median).toFixed(3)} Mach and a 3° climb raises it by ${F.climb.median.toFixed(3)}, which is why descents are flown subsonic.`,
       `<b>Every 500 m of terrain or cushion costs about ${Math.abs(F.terrain.median).toFixed(3)} Mach</b> (up to ${Math.abs(F.terrain.p10).toFixed(3)} where the air is calm).`,
-      `<b>The airplane barely changes the limit, but it decides how loud it is.</b> Only its altitude and the length of its boom enter: a ${ov.length_m} m airliner needs a ${(ov.safe_height_m / 1000).toFixed(1)} km cushion (${ov.mach_vs_1km_buffer.toFixed(3)} Mach), a ${xb.length_m} m demonstrator ${(xb.safe_height_m / 1000).toFixed(1)} km. If the boom does land, an Overture-class aircraft puts ${ov.psf_design} psf on the ground, ${Math.round(ov.psf_design / 0.11)}× the limit.`,
+      `<b>The airplane barely changes the limit, but it decides how loud it is.</b> Only its altitude and the length of its boom enter: a ${ov.length_m} m airliner needs its turning point ${(ov.quiet_height_m / 1000).toFixed(1)} km above the ground to stay under 0.11 psf (${ov.mach_vs_1km_buffer.toFixed(3)} Mach), a ${xb.length_m} m demonstrator ${(xb.quiet_height_m / 1000).toFixed(1)} km. If the boom does land, an Overture-class aircraft puts ${ov.psf_design} psf on the ground, ${Math.round(ov.psf_design / 0.11)}× the limit.`,
     ];
     if (v && v.all) L.push(`<b>Forecast skill.</b> Against a year of balloons, the day-ahead forecast misses by ±${v.all.f24_1p00.rmse.toFixed(4)} Mach (1σ) and the analysis by ±${v.all.ana_1p00.rmse.toFixed(4)}. Finer 0.25° data does not help (±${v.all.f24_0p25.rmse.toFixed(4)}): the error is in the weather, not the grid.`);
     $("physPlain").innerHTML = `<h3>In plain words</h3><ol>${L.map(x => `<li>${x}</li>`).join("")}</ol>`;

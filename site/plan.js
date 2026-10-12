@@ -139,7 +139,7 @@
       k(dMoney(sv), "Cost per seat vs 787-9", sv <= 0 ? "pos" : "neg"),
       k(`${Math.round(Math.abs(o.windAvg))} kt`, o.windAvg >= 0 ? "Average tailwind" : "Average headwind", o.windAvg >= 0 ? "pos" : "neg"),
       k(o.dLand ? Math.round(100 * o.dBoomless / o.dLand) + "%" : "–", "Land legs flown boomless"),
-      sup ? k(bm.land ? `${bm.land <= BOOM.CUTOFF_MAX ? "≤ " : ""}${bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
+      sup ? k(bm.land ? `${bm.land < 0.01 ? "< 0.01" : bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
           : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
     drawLadder(r); drawProfile(o);
@@ -170,7 +170,7 @@
       const row = { i, from_nm: Math.round(s.x0 * 10) / 10, to_nm: Math.round(s.x1 * 10) / 10, lat: Math.round(s.lat * 1e3) / 1e3, lon: Math.round(s.lon * 1e3) / 1e3,
         heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
         mach: r4(s.M), boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
-        wind_along_kt: Math.round(s.along * RT.KT), psf_ground: s.type === "boomless" ? `<= ${BOOM.CUTOFF_MAX}` : s.M > 1 ? r4(BOOM.psf(r.ac, s.M, r.fl)) : 0 };
+        wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null };
       t += s.t; return row;
     });
     const bm = BOOM.route(o, r.fl), age = RT.dataAgeH();

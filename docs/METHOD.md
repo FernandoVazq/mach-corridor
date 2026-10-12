@@ -95,8 +95,19 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
 - **Primary boom, legs not in cutoff:** Carlson's simplified method (NASA TP-1122):
   Δp = K_p K_R √(p_v p_g) (M²−1)^{1/8} h^{−3/4} l^{3/4} K_S, with K_R = 1.9, K_p = 1.0 and K_S = 0.088
   (SST-class).
-- **Cutoff legs:** bounded by the NASA FaINT measurements, 0.01–0.09 psf with the caustic at least one ΔZ_S
-  above ground (Cliatt et al. 2016).
+- **Cutoff legs (v1, `engine/caustic.py`):** linear fold-caustic theory. Each frequency of Carlson's incident
+  N-wave is matched through the turning point with an Airy function, β = (2k²/R)^{1/3}, and meets a rigid ground
+  D below the caustic: p(D,ω) = P_inc(ω)·2√π(β z_ref)^{1/4} e^{−iπ/4}·[Ai(βD) − Ai′/Bi′·Bi]. High frequencies decay
+  first, so the ground boom falls fast with D.
+  - **Check against FaINT** (F-18, M1.15, 37,000 ft, Cliatt et al. 2016 Table 2): caustic 1–2 ΔZ_S up, model
+    0.01–0.12 psf vs measured 0.03–0.09; above 2 ΔZ_S model ≤ 0.011 vs measured 0.01–0.10 (noise floor).
+    Within 1 ΔZ_S the model over-predicts (0.1–1.9 vs 0.03–0.33): linear theory without nonlinear focusing
+    limits, conservative.
+  - **Quiet height** (caustic height giving 0.11 psf): 1.05–1.16 ΔZ_S for airliners and bizjets, about
+    1.3 km for a 61 m airliner at FL550, 0.8 km for a bizjet, 0.45 km for XB-1 (`study/results/caustic.json`).
+  - **Site:** closed forms fitted to the model (quiet height within 0.04 ΔZ_S; psf −19%/+26% near the limit,
+    scaled ×1.25 so never below the model). The router's cushion is the quiet height; each boomless leg reports
+    its psf at caustic height 1 km + (map limit − flown Mach)/0.0128 per km.
 
 ## 4. Regulated zone
 Inside national territory, plus 12 nm of territorial sea, plus a 24 nm boom-carpet half-width (great-circle
@@ -140,6 +151,9 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 | Carlson sample problem 1 | 74.6 Pa vs 74 printed | pass |
 | Concorde M2 FL520 | 2.04 vs 1.94 psf measured (NASA FS-016) | pass (±15%) |
 | FaINT eq. 8 | 71 / 86 dB reproduced | pass |
+| Airy matching above the caustic → GO amplitude | 5% | pass (`test_caustic.py`) |
+| Rigid ground in deep shadow → 2 Ai | asymptotic | pass |
+| F-18 shadow-zone psf vs FaINT bins (1–2 ΔZ_S, > 2 ΔZ_S) | inside measured range | pass |
 
 ### 6.2 Validation against the atmosphere
 | Question | Data | Result |
@@ -161,8 +175,8 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 | Single margin 0.05, computed buffer (60 m signal; superseded) | 28.9 | 1.6% |
 
 ### 6.4 Loudness
-Validated only against the published cases in §6.1. **Open:** sBOOM reference cases (#14), X-59 and XB-1
-measurements (#21), secondary booms (#16).
+Primary boom: the published cases in §6.1. Below the caustic: FaINT (§3.4). **Open:** sBOOM reference cases
+(#14), X-59 and XB-1 measurements (#21), secondary booms (#16).
 
 ## 7. Known limitations
 | Limitation | Effect | Bound or plan |
@@ -210,7 +224,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 |---|---|---|---|
 | 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | #37; any-boom rate now reported (§3.3) |
 | 2 | blocker | Secondary booms from over-water legs can land inland | #38 (with #16) |
-| 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | #39 |
+| 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | model in place (§3.4): physics-based, FaINT-checked loudness below the caustic for any aircraft; open until checked on an airliner-size boom (#21) |
 | 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |
 | 5 | major | 0.012 real-world term rests on 2 months at 6 stations | full-year balloon validation (§6.2) |
 | 6 | major | Hindcast truth is the same model; interpolation across no-corridor columns | router no longer interpolates across them; #41 for independent truth |

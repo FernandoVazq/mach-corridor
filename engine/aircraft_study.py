@@ -4,6 +4,7 @@ Aircraft study: what about the airplane changes the boomless speed, and what cha
 1. The Mach-cutoff limit is a property of the air between the aircraft and the ground. The airplane enters only
    through (a) the altitude it cruises at, (b) the length of its boom signal, which sets the safe height of the
    turning point (Haglund: dZ = R^(1/3) L^(2/3)), and (c) climb or descent.
+   The quiet height (caustic height giving 0.11 psf on the ground) comes from engine/caustic.py.
 2. When the boom does reach the ground, its strength follows Carlson's simplified method (NASA TP-1122) with the
    lift-dominated shape factor K_S = max(0.06, 0.85 sqrt(K_L)), calibrated on TP-1122 sample 2 and checked against
    Concorde (2.15 vs 1.94 psf measured), SR-71 (1.04 vs 0.9) and the Concorde-class Carlson result (1.89 vs 1.66):
@@ -13,6 +14,7 @@ Output: study/results/aircraft.json
 import json, math, os
 import numpy as np
 from boom import carlson, lift_parameter, isa, PSF
+from caustic import depth_for
 
 C_KS = 0.85
 DMDZ = -0.0064 / 500          # boomless Mach per metre of floor (sensitivity study, GFS land columns, FL550 median)
@@ -52,10 +54,12 @@ def main():
         p_c, dt_c, *_ = psf(W, L, max(Mc, 1.05), fl)
         Lsig = ag * dt_c
         buf = buffer_for(Lsig)
+        quiet = depth_for(W, L, max(Mc, 1.05), fl * 100 * 0.3048, R_TYP, 0.11)     # caustic height for 0.11 psf (engine/caustic.py)
         _, _, ac = isa(fl * 100 * 0.3048)
         types.append(dict(name=n, weight_t=W, length_m=L, design_mach=Md, fl=fl, seats=seats, psf_design=round(p_d, 2),
                           boomless_mach_median=round(Mc, 3), psf_if_cutoff_fails=round(p_c, 2), signal_m=round(Lsig),
-                          safe_height_m=round(buf), mach_vs_1km_buffer=round((buf - 1000) * DMDZ, 4),
+                          safe_height_m=round(buf), quiet_height_m=None if quiet is None else round(quiet),
+                          mach_vs_1km_buffer=round(min(0, ((quiet or buf) - 1000) * DMDZ), 4),
                           ground_speed_kt_no_wind=round(Mc * ac * 1.943844), shape_factor=round(ks, 3)))
         print(types[-1])
     grid = [dict(weight_t=W, length_m=L, psf=round(psf(W, L, 1.4, 550)[0], 3)) for W in range(10, 261, 10) for L in range(15, 101, 5)]
@@ -66,8 +70,9 @@ def main():
     for L in range(10, 121, 10):
         W = 160 * (L / 61.0) ** 2.5
         sig = isa(0)[2] * psf(W, L, 1.15, 550)[1]
+        q = depth_for(W, L, 1.15, 550 * 100 * 0.3048, R_TYP, 0.11)
         by_len.append(dict(length_m=L, weight_t=round(W, 1), signal_m=round(sig), safe_height_m=round(buffer_for(sig)),
-                           mach_vs_1km_buffer=round((buffer_for(sig) - 1000) * DMDZ, 4)))
+                           quiet_height_m=None if q is None else round(q), mach_vs_1km_buffer=round(min(0, ((q or 0) - 1000) * DMDZ), 4)))
     out = dict(types=types, psf_grid_m14_fl550=grid, psf_by_fl_m14=by_fl, psf_by_mach_fl550=by_mach, buffer_by_length=by_len,
                model=dict(ks="max(0.06, 0.85*sqrt(K_L))", accuracy="~15% vs Concorde, SR-71 and Carlson's sample problems", dMdz=DMDZ, R=R_TYP))
     p = os.path.join(os.path.dirname(__file__), "..", "study", "results", "aircraft.json")
