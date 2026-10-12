@@ -1,4 +1,4 @@
-# Mach Corridor — Method Document (draft 0.3, 11 Oct 2026)
+# Mach Corridor — Method Document (draft 0.4, 12 Oct 2026)
 
 Written for a reviewer who must decide whether this method can be part of an operator's means of compliance
 under the proposed rule (FAA NPRM "Enabling Supersonic Overland Flight", docket FAA-2026-6935: sonic boom
@@ -9,13 +9,15 @@ claim below points to code, a test or a dataset in this repository; unvalidated 
 
 For a supersonic aircraft at a given flight level, position, time and direction of travel, the method gives
 the **highest Mach at which no primary-boom ray reaches the ground** (Mach cutoff), with a margin for forecast
-error, and the **expected ground overpressure** of each leg. It does not yet compute secondary booms (Open, §8).
+error, the **expected ground overpressure** of each leg (primary boom, and below the turning point on cutoff legs),
+and whether a leg's **secondary booms** would land on regulated land (§4.1; their loudness is not computed).
 
 | Output | Where | Evidence |
 |---|---|---|
 | Boomless Mach, 36 directions × 7 levels, 0–48 h | `engine/physics.py`, `engine/build.py` | §6.1–6.3 |
 | Margin for forecast error | `study/margin.py`, `site/geo/sigma.*` | §6.3 |
-| Ground overpressure per leg (primary boom) | `engine/boom.py`, `site/boom.js` | §6.4 |
+| Ground overpressure per leg (primary boom; below the turning point on cutoff legs) | `engine/boom.py`, `engine/caustic.py`, `site/boom.js` | §3.4, §6.4 |
+| Secondary-boom landing check | `engine/secondary.py`, `site/route.js` | §4.1 |
 | Regulated zone (territory + 12 nm + 24 nm) | `engine/zone.py` | §4 |
 | Route and Mach profile | `site/route.js` | §5 |
 
@@ -57,7 +59,8 @@ buffer:
 Evidence (`study/buffer_check.py`, one GFS run, SST signal 150 m): ΔZ_S median 1.2 km, 90th percentile 1.8 km; at
 the exact limit the caustic is below ΔZ_S in 33% of land columns, with a 0.05 margin in none (the margin, not the
 1 km, provides the clearance; see review finding 3). The router subtracts the aircraft's extra cushion,
-(ΔZ_S − 1 km) × 1.3×10⁻⁵ Mach/m, never adding speed for short signals (`site/boom.js`, `bufferPenalty`).
+(quiet height − 1 km) × 1.3×10⁻⁵ Mach/m, where the quiet height is the turning-point height that gives 0.11 psf on the
+ground (§3.4, about 1.05–1.16 ΔZ_S); it never adds speed for short signals (`site/boom.js`, `bufferPenalty`).
 An earlier version of this check used a 60 m signal and found 3%; that signal length was too short for an airliner.
 
 ### 3.3 Forecast-error margin
@@ -91,7 +94,7 @@ Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast ris
 0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean
 is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
 
-### 3.4 Loudness (v0)
+### 3.4 Loudness
 - **Primary boom, legs not in cutoff:** Carlson's simplified method (NASA TP-1122):
   Δp = K_p K_R √(p_v p_g) (M²−1)^{1/8} h^{−3/4} l^{3/4} K_S, with K_R = 1.9, K_p = 1.0 and K_S = 0.088
   (SST-class).
