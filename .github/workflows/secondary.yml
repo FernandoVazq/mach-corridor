@@ -1,0 +1,52 @@
+name: Secondary booms study
+
+on:
+  workflow_dispatch:
+    inputs:
+      start: { description: "First month", default: "2025-10-01" }
+
+permissions:
+  contents: write
+
+jobs:
+  month:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        m: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: engine/requirements.txt }
+      - run: pip install -r engine/requirements.txt
+      - working-directory: engine
+        run: |
+          set -o pipefail
+          S=$(date -u -d "${{ inputs.start }} +${{ matrix.m }} month" +%Y-%m-%d)
+          python secondary.py --start $S --months 1 --rows ../rows_${{ matrix.m }}.json 2>&1 | tee ../sec_log.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: "sec-${{ matrix.m }}", path: "rows_${{ matrix.m }}.json", retention-days: 30 }
+      - name: Publish the log
+        if: always()
+        run: |
+          mkdir -p lb && cp sec_log.txt lb/ 2>/dev/null || echo none > lb/sec_log.txt
+          cd lb && git init -q -b ci-log-sec-${{ matrix.m }} && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm log
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-log-sec-${{ matrix.m }}
+
+  collect:
+    needs: month
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install numpy scipy
+      - uses: actions/download-artifact@v4
+        with: { pattern: "sec-*", merge-multiple: true, path: sd }
+      - run: |
+          cd engine && python -c "import secondary,sys; sys.argv=['x','--summarise']+__import__('glob').glob('../sd/rows_*.json')+['--out','../sd/secondary.json']; secondary.main()" | tail -60
+          cd ../sd && git init -q -b study-secondary && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm "Secondary booms ${{ inputs.start }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" study-secondary
