@@ -103,6 +103,9 @@ boom ×2 below 0.6 ΔZ_S). Boom Overture class.
 | FL450 | ensemble | 1.0 / 0.08% | 1.85% | 23.7 / 21.2 |
 | FL350 | ensemble | 0.69 / 0% | 1.39% | 17.8 / 18.0 |
 
+Fitting k directly on the psf event (`psf_eval.py --fit`, first k whose fit-half rate is ≤ 0.5%) gives the same
+values as shipped: FL550 3.75 both halves, FL450 4.0 / 4.25, FL350 3.75 / 4.0.
+
 Reading: in the rule's unit the FL550 point estimates meet 0.5%, and the per-aircraft cushion is what does it
 (it cuts violations about three times for under a minute). With the site's ×1.25 psf factor FL550 is 0.56–0.69%.
 
@@ -286,7 +289,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 
 | # | Severity | Finding | Status |
 |---|---|---|---|
-| 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | hindcast scored in psf (§3.3): FL550 0.39–0.48% of flights > 0.11 psf, 95% upper 0.88%; k still fitted on any-boom (#37) |
+| 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | hindcast scored in psf (§3.3): FL550 0.39–0.48% of flights > 0.11 psf, 95% upper 0.88%; k refitted on the psf event = shipped k. Open: a tighter 95% bound needs more dates (#37) |
 | 2 | blocker | Secondary booms from over-water legs can land inland | year study and live router check in place (§4.1); loudness of secondaries not computed, landing on land treated as a violation (#38) |
 | 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | model in place (§3.4): physics-based, FaINT-checked loudness below the caustic for any aircraft; open until checked on an airliner-size boom (#21) |
 | 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |

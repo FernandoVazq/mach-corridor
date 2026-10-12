@@ -1,0 +1,29 @@
+name: DEM floor study
+
+on:
+  workflow_dispatch:
+    inputs:
+      zoom: { description: "Terrarium zoom (8 = ~600 m)", default: "8" }
+
+permissions:
+  contents: write
+
+jobs:
+  dem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: engine/requirements.txt }
+      - run: pip install -r engine/requirements.txt pillow
+      - working-directory: engine
+        run: |
+          set -o pipefail
+          python dem_floor.py --zoom ${{ inputs.zoom }} 2>&1 | tee ../dem_log.txt
+      - name: Publish results and log
+        if: always()
+        run: |
+          mkdir -p out && cp dem_log.txt out/ && cp engine/data/dem_footprint_max.npy study/results/dem_floor.json out/ 2>/dev/null || true
+          cd out && git init -q -b study-dem && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm "DEM floor"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" study-dem

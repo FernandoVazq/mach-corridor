@@ -11,13 +11,15 @@ other, shared real-world error field L = 300 nm), with two changes:
   2. "Shipped" = the router as it flies today: the margin plus the aircraft's quiet-height cushion
      (bufferPenalty). "As calibrated" = margin only, as in robust_eval.
 Aircraft: Boom Overture class (160 t, 61 m). Output: study/results/psf_eval.json
-Usage: python psf_eval.py <study-data> <gefs-data>
+Usage: python psf_eval.py <study-data> <gefs-data> [--fit]   (--fit: also fit k on the psf event)
 """
 import json, math, os, sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "engine"))
+FIT = "--fit" in sys.argv
+sys.argv = [a for a in sys.argv if a != "--fit"]
 import robust_eval as RE                                   # noqa: E402  (loads the hindcast)
 from caustic import aircraft_wave, haglund, depth_for, ground_psf as model_psf, isa, PSF   # noqa: E402
 from boom import carlson, lift_parameter                   # noqa: E402
@@ -108,5 +110,29 @@ def main():
     print("wrote psf_eval.json")
 
 
+
+
+def fit_psf():
+    """k fitted directly on the rule's event (flights > 0.11 psf, router as it flies) on one half-year, tested on
+    the other; first k (ascending) whose fit-half exposure is <= 0.5%."""
+    E = RE.fields(300, seed=11); SCALE[0] = 1.0
+    out = {}
+    for fl in RE.FLE:
+        ac = aircraft_at(fl)
+        for pol, pars in (("ensemble", np.round(np.arange(2.0, 7.01, 0.25), 2)), ("uniform", np.round(np.arange(0.03, 0.10, 0.005), 3))):
+            res = []
+            for fit, (fd, td) in (("H1", (RE.H1, RE.H2)), ("H2", (RE.H2, RE.H1))):
+                mk = lambda par: (lambda r, d: par * np.sqrt(RE.SD[(r["name"], d, fl)] ** 2 + RE.S_EXTRA ** 2)) if pol == "ensemble" else (lambda r, d: par)
+                chosen = pars[-1]
+                for par in pars:
+                    A = np.concatenate([v for v in run(fl, mk(par), fd, E, ac, True).values()])
+                    if 100 * A[:, 0].mean() <= RE.GATE: chosen = par; break
+                per = run(fl, mk(chosen), td, E, ac, True); A = np.concatenate([per[d] for d in td])
+                res.append(dict(fit=fit, par=float(chosen), gt011=round(100 * A[:, 0].mean(), 2), gt011_ci95=boot(per, td, 0), saved_min=round(float(A[:, 3].mean()), 2)))
+            out[f"FL{fl}_{pol}"] = res; print("fit", fl, pol, res, flush=True)
+    path = os.path.join(RE.OUT, "psf_eval.json"); J = json.load(open(path)); J["fit_on_psf"] = out
+    json.dump(J, open(path, "w"), indent=1); print("added fit_on_psf")
+
+
 if __name__ == "__main__":
-    main()
+    fit_psf() if FIT else main()
