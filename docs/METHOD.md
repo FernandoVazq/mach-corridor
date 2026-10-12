@@ -111,6 +111,21 @@ country is treated as restricted unless its rule says otherwise (`docs/RULES.md`
 - Objectives: time, cost, or cost plus passenger time. Over land a corridor is flown only where it beats
   subsonic on the objective.
 
+### 5.1 Fail-closed rules and evidence file
+Over land a corridor is flown only when all of these hold; otherwise that leg is planned subsonic and the
+reason is recorded (`site/route.js` `failClosed`):
+
+| Rule | Limit |
+|---|---|
+| Forecast run age at planning time | ≤ 18 h (two missed 6-hourly runs) |
+| Aircraft time inside the forecast | leg time ≤ last forecast hour |
+| Forecast-error margin available | finite margin (ensemble spread, else the static error map) |
+
+Old data can be used on purpose as a **study** (switch in the route panel); the evidence file then records
+`study_mode_off: false`. "Download evidence" exports every leg (position, time, lead time, Mach, boomless
+limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and GEFS runs, the code version
+(`code_version` = commit of the build) and six pass/fail checks, as JSON plus a CSV of the legs.
+
 ## 6. Verification and validation
 
 ### 6.1 Verification (code does what the equations say; runs in CI before every build)
@@ -164,7 +179,8 @@ measurements (#21), secondary booms (#16).
 - Every map carries the GFS run id; hindcast data live on versioned branches (`study-data`,
   `study-data-gefs`, `study-data-haglund`).
 - Datasets are rebuilt from code (`study/datasets.py`).
-- Phase 4 adds a model version number on every evidence file and a frozen regression set of 1,000 soundings.
+- Every evidence file carries the code version (build commit) and data runs (§5.1). Phase 4 adds a frozen
+  regression set of 1,000 soundings.
 - Software assurance: ground planning tool, so DO-178C does not apply directly. The plan follows its spirit
   (requirements → code → test traceability, this document) and DO-200B for the data chain.
 
@@ -177,6 +193,7 @@ measurements (#21), secondary booms (#16).
 | Primary-boom psf per leg | `boom.py`, `boom.js` | `test_boom.py` |
 | Restricted zone exact to 0.1° | `zone.py` | visual check, `study/common.zone_at` |
 | Data fresh within 1 h | `fresh.py` | workflow history |
+| No corridor on stale or missing data | `route.js failClosed` | evidence file `checks`, `tests/evid.mjs` |
 
 ## 10. References
 - Carlson, H. W., *Simplified Sonic-Boom Prediction*, NASA TP-1122, 1978.
@@ -200,7 +217,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 | 7 | major | Terrain smoothing and ray reach beyond ±0.5° | #42 |
 | 8 | major | Hindcast flies great circles, the router chases high forecasts; wrong-hour spread fallback | fallback fixed; #40 |
 | 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | #44 |
-| 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | #43 |
+| 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | stale data, forecast coverage and evidence file done (§5.1); air-data allowance and monitoring open (#43) |
 | 11 | minor | Lateral rays stopped at 45° | fixed: up to 60° within the Mach cone |
 | 12–14 | minor | Availability at 0.03 margin; k reconciliation; 00 UTC only | §6.2 note; §3.3 reconciled; balloon validation uses 00 and 12 UTC |
 

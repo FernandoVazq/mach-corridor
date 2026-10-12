@@ -226,6 +226,7 @@ def build(run, out_dir):
         "run": run,
         "run_time": iso(run_t),
         "generated": iso(dt.datetime.now(dt.timezone.utc).replace(microsecond=0)),
+        "code_version": os.environ.get("GITHUB_SHA", "local")[:7],
         "source": "NOAA GFS 1.0 deg pressure levels + 0.25 deg orography (AWS Open Data noaa-gfs-bdp-pds)",
         "physics": {"h_buf_m": H_BUF_DEFAULT, "terrain": orog_note, "lateral_rays": True,
                     "virtual_temperature": have_rh, "surface_layer_used": False},

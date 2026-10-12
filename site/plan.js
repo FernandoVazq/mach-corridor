@@ -125,8 +125,9 @@
     $("routeSummary").innerHTML = `<b>${r.names[0]} → ${r.names[1]}</b>, flying ${compass(brg)} (${String(brg).padStart(3, "0")}°). ${r.ac.name}, FL${MC.S.fl}.
       ${Math.round(o.dist).toLocaleString()} nm (${o.dist >= r.gc.dist ? "+" : ""}${Math.round(o.dist - r.gc.dist)} nm vs great circle), ${Math.round(100 * o.dLand / o.dist)}% over land or coast.
       ${!o.inRange ? `<br><span class="warn">Longer than the ${r.ac.rangeNm.toLocaleString()} nm range: needs a fuel stop.</span>` : ""}
-      ${sup ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}
+      ${sup && !(o.dHold && o.dHold.stale) ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}
       ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Flying subsonic over land on the direct line beats every corridor route here for “${$("objSel").selectedOptions[0].text}”, so that is what is shown. Choose “Time” to see the fastest corridor route.</p>` : ""}
+      ${sup ? holdNote(o) : ""}
       ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
     const bm = sup ? BOOM.route(o, MC.S.fl) : null;
@@ -145,6 +146,64 @@
     $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>";
     const inf = o.path.info;
     $("optNote").textContent = sup && inf ? `Route search: time-dependent grid search, then continuous refinement from two starting routes${inf.startsAgree < 0.002 ? ", which agree" : ` (they differ by ${(100 * inf.startsAgree).toFixed(1)}%; the better is shown)`}. Best for this forecast and cost model; not a proof of the global optimum. Weather is taken at the time the aircraft reaches each point.` : "";
+  }
+
+  const HOLD = { stale: "the forecast is too old", beyond: "the flight runs past the end of the forecast", nomargin: "no forecast-error margin was available" };
+  function holdNote(o) {
+    const h = Object.entries(o.dHold || {}).filter(([, d]) => d > 1);
+    const age = RT.dataAgeH();
+    let out = "";
+    if (age > RT.STALE_H) out += `<div class="verdict neg">Forecast run is ${Math.round(age)} h old (limit ${RT.STALE_H} h). ${MC.S.allowStale
+      ? "Corridors are shown anyway because you chose a <b>study with old data</b>; not for flight."
+      : "Corridors are switched off (fail-closed)."} <button class="btn" id="staleBtn">${MC.S.allowStale ? "Back to fail-closed" : "Use it anyway (study only)"}</button></div>`;
+    for (const [k, d] of h) if (k !== "stale") out += `<p class="fine warn">Fail-closed: ${Math.round(d).toLocaleString()} nm over land flown subsonic because ${HOLD[k]}.</p>`;
+    return out;
+  }
+
+  // ---- evidence file: everything behind the plan, leg by leg (operational assurance, issue #43) ----
+  function evidence(r) {
+    const o = r.opt, man = MC.S.man, gm = MC.gefsMeta, dep = Date.parse(man.valid_times[r.fi]);
+    const iso = ms => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+    const r4 = x => x == null || !Number.isFinite(x) ? null : Math.round(x * 1e4) / 1e4;
+    let t = 0;
+    const legs = o.segs.map((s, i) => {
+      const row = { i, from_nm: Math.round(s.x0 * 10) / 10, to_nm: Math.round(s.x1 * 10) / 10, lat: Math.round(s.lat * 1e3) / 1e3, lon: Math.round(s.lon * 1e3) / 1e3,
+        heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
+        mach: r4(s.M), boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
+        wind_along_kt: Math.round(s.along * RT.KT), psf_ground: s.type === "boomless" ? `<= ${BOOM.CUTOFF_MAX}` : s.M > 1 ? r4(BOOM.psf(r.ac, s.M, r.fl)) : 0 };
+      t += s.t; return row;
+    });
+    const bm = BOOM.route(o, r.fl), age = RT.dataAgeH();
+    const checks = [
+      ["forecast_fresh", age <= RT.STALE_H, `run ${man.run_time}, ${age.toFixed(1)} h old at export (limit ${RT.STALE_H} h)`],
+      ["inside_forecast", !(o.dHold && o.dHold.beyond), `flight ends ${iso(dep + o.air * 3.6e6)}, forecast ends ${man.valid_times[man.valid_times.length - 1]}`],
+      ["margin_available", !(o.dHold && o.dHold.nomargin), MC.S.auto ? (gm ? `ensemble spread, GEFS ${gm.run_time}` : "static error map (ensemble unavailable)") : `fixed ${MC.S.margin}`],
+      ["boom_on_land_within_limit", bm.land <= BOOM.LIMIT, `${bm.land.toFixed(3)} psf vs ${BOOM.LIMIT} psf`],
+      ["no_supersonic_over_land_above_limit", !o.segs.some(s => s.landish && s.M > 1 && s.type !== "boomless"), "every supersonic land leg is a cutoff leg"],
+      ["study_mode_off", !MC.S.allowStale, MC.S.allowStale ? "old data used on purpose: not for flight" : "fail-closed rules active"],
+    ].map(([id, pass, note]) => ({ id, pass, note }));
+    return {
+      kind: "Mach Corridor flight evidence", disclaimer: "Research prototype. Not certified for flight planning.",
+      exported_utc: iso(Date.now()), site: location.origin + location.pathname, link: location.href,
+      code_version: man.code_version || null, method: "docs/METHOD.md", data: { gfs_run: man.run_time, built: man.generated, source: man.source, physics: man.physics,
+        gefs_run: gm ? gm.run_time : null },
+      route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
+        flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
+      summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), fuel_kg: Math.round(o.fuel) },
+      checks, all_checks_pass: checks.every(c => c.pass), legs,
+    };
+  }
+  function download(name, text, type) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function exportEvidence() {
+    if (!R) return;
+    const ev = evidence(R), base = `mach-corridor_${R.names.join("-")}_${ev.route.departure_utc.slice(0, 13).replace(/[-:T]/g, "")}Z_FL${R.fl}`;
+    download(base + ".json", JSON.stringify(ev, null, 1), "application/json");
+    const cols = Object.keys(ev.legs[0]);
+    download(base + "_legs.csv", [cols.join(","), ...ev.legs.map(l => cols.map(c => l[c] ?? "").join(","))].join("\n"), "text/csv");
   }
 
   function drawLadder(r) {
@@ -225,6 +284,11 @@
     };
     $("routeGo").onclick = go;
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
+    $("evidenceBtn").onclick = exportEvidence;
+    $("routeSummary").addEventListener("click", ev => {
+      if (ev.target.id !== "staleBtn" || !R) return;
+      MC.S.allowStale = !MC.S.allowStale; planRoute(R.A, R.B, R.names);
+    });
     $("routeHd").onclick = matchMap;
     $("routeSwap").onclick = () => {
       const f = $("fromIn").value; $("fromIn").value = $("toIn").value; $("toIn").value = f;
@@ -266,5 +330,5 @@
       if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
     }
   });
-  window.MCPLAN = { planRoute, getRoute: () => R };
+  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R) };
 })();

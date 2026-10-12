@@ -53,11 +53,15 @@
     const rz = m.restrictedAt ? m.restrictedAt(lon, lat) : null;
     const landish = rz == null ? m.landAt(a0, lon, lat) > COAST : rz;
     const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD), along = u * s + v * co, cross = u * co - v * s;
-    let M, type, mcut = null, skipped = false;
+    let M, type, mcut = null, skipped = false, mg = null, hold = null;
+    const leadH = field.t0 + tHr;                       // hours after the forecast run when the aircraft is here
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
-      mcut = (window.BOOM ? BOOM.bufferPenalty(ac, field.fl) : 0) + L(a => m.mHeadingSafe(a, brg, lon, lat)) - (typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + (field.t0 + tHr) * 3.6e6) : margin);
-      let use = mode === "corr" && mcut >= m.FLOOR;
+      mg = typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + leadH * 3.6e6) : margin;
+      mcut = (window.BOOM ? BOOM.bufferPenalty(ac, field.fl) : 0) + L(a => m.mHeadingSafe(a, brg, lon, lat)) - mg;
+      // fail closed: no corridor on old data, past the end of the forecast, or without a margin
+      hold = failClosed(field, tHr, mg);
+      let use = mode === "corr" && !hold && mcut >= m.FLOOR;
       if (use && E && E.obj && E.obj !== "time") {
         const st0 = { c, along, cross }, per = Mx => {
           const { tas, gs } = groundSpeed(Mx, st0), op = ac.fuelPerNm(Mx) * tas / gs * E.fuel + ac.nonFuelPerBH / gs;
@@ -68,7 +72,18 @@
       if (use) { M = Math.min(mcut, ac.design); type = "boomless"; }
       else { M = ac.sub; type = "sub"; }
     } else { M = ac.design; type = "super"; }
-    return { M, type, c, along, cross, landish, mcut, brg, skipped };
+    return { M, type, c, along, cross, landish, mcut, brg, skipped, margin: mg, hold, leadH, lon, lat };
+  }
+  // Fail-closed rules (docs/METHOD.md §6): a corridor is flown only when the weather behind it is current and
+  // covers the time the aircraft is there. Anything else falls back to subsonic over land.
+  const STALE_H = 18;                                   // GFS runs every 6 h and is built hourly: 18 h = two missed runs
+  const dataAgeH = () => (Date.now() - Date.parse(MC().S.man.run_time)) / 3.6e6;
+  function failClosed(field, tHr, mg) {
+    const S = MC().S, H = S.man.forecast_hours;
+    if (dataAgeH() > STALE_H && !S.allowStale) return "stale";
+    if (field.t0 + tHr > H[H.length - 1]) return "beyond";
+    if (!Number.isFinite(mg)) return "nomargin";
+    return null;
   }
   function groundSpeed(M, st) {
     const tas = M * st.c * KT, xw = st.cross * KT;
@@ -117,6 +132,7 @@
       let t = 0;
       times = segs.map(s => { const t0 = t; s.t = s.d / groundSpeed(s.M, s).gs; t += s.t; return t0; });
     }
+    const dHold = {};
     let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, dSkip = 0, tAcc = 0, windSum = 0, worstHead = 0;
     for (const s of segs) {
       const { tas, gs } = groundSpeed(s.M, s);
@@ -125,6 +141,7 @@
       if (s.landish) dLand += s.d;
       if (s.type === "boomless") dBoomless += s.d;
       if (s.skipped && s.type !== "climb") dSkip += s.d;
+      if (s.hold && s.type !== "climb") dHold[s.hold] = (dHold[s.hold] || 0) + s.d;
       if (s.M > 1) dSuper += s.d;
       if (s.accel || s.decel) tAcc += s.t;
     }
@@ -135,7 +152,7 @@
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,
              fuelPerSeat: fuel / pax, co2PerSeat: fuel * CO2_PER_KG / pax, gen: op + E.vot * pax * block,
-             dLand, dBoomless, dSuper, dSkip, tAcc, windAvg: windSum / total, worstHead,
+             dLand, dBoomless, dSuper, dSkip, dHold, tAcc, windAvg: windSum / total, worstHead,
              inRange: total <= ac.rangeNm, mode, ac };
   }
 
@@ -226,5 +243,5 @@
     if (val(b) < val(o)) { b.path.info = { ...(o.path.info || {}), subBetter: true }; return b; }
     return o;
   }
-  window.ROUTE = { makeField, evalPath, optimise, bestRoute, hav, bearing, nearestFL, KT, CO2_PER_KG };
+  window.ROUTE = { makeField, evalPath, optimise, bestRoute, hav, bearing, nearestFL, KT, CO2_PER_KG, STALE_H, dataAgeH };
 })();
