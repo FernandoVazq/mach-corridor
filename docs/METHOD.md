@@ -166,6 +166,17 @@ above, winds tapered to zero at 70 km. Thermospheric returns (0.1–0.3 Pa) are 
 - Objectives: time, cost, or cost plus passenger time. Over land a corridor is flown only where it beats
   subsonic on the objective.
 
+- **Approach (issue #44).** Just above its cutoff Mach a boom ray grazes down and lands far ahead: along-track
+  landing distance at +0.002 Mach median 48 km, 99th percentile 86 km, max 90 km (+0.01: 68 km p99; at M1.7,
+  16 km), from 60 ocean columns × 4 headings of a live GFS run (`study/forward_reach.py`). Slowing down at the
+  36 nm zone edge left only about 44 km to the 12 nm line, so most last near-cutoff booms of an approach would
+  have landed inside. The router now flies at the cutoff Mach any over-water leg with regulated ground
+  (territory + 12 nm) within 90 km ahead (±10°); the deceleration to it ends before that point. Accelerating
+  away from a coast puts those rays seaward.
+- **Turns (issue #44).** A turning aircraft focuses its rays. A 2× focus needs about 0.3 km more cushion below
+  the turning point (1.62 vs 1.32 km for an airliner, caustic model; 1.5×: +0.17 km; 3×: +0.5 km), so boomless
+  legs whose heading changes by more than 2° per 15 nm fly 0.004 Mach slower. Cost in tests: 0–1 min per route.
+
 ### 5.1 Fail-closed rules and evidence file
 Over land a corridor is flown only when all of these hold; otherwise that leg is planned subsonic and the
 reason is recorded (`site/route.js` `failClosed`):
@@ -283,7 +294,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 | 6 | major | Hindcast truth is the same model; interpolation across no-corridor columns | router no longer interpolates across them; #41 for independent truth |
 | 7 | major | Terrain smoothing and ray reach beyond ±0.5° | #42 |
 | 8 | major | Hindcast flies great circles, the router chases high forecasts; wrong-hour spread fallback | fallback fixed; #40 |
-| 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | #44 |
+| 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | approach reach (90 km) and turn focusing (0.004 Mach) in the router (§5); manoeuvre-rate limits for the flight crew open (#44) |
 | 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | stale data, forecast coverage and evidence file done (§5.1); air-data allowance and monitoring open (#43) |
 | 11 | minor | Lateral rays stopped at 45° | fixed: up to 60° within the Mach cone |
 | 12–14 | minor | Availability at 0.03 margin; k reconciliation; 00 UTC only | §6.2 note; §3.3 reconciled; balloon validation uses 00 and 12 UTC |

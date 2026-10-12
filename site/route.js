@@ -54,7 +54,7 @@
     const rz = m.restrictedAt ? m.restrictedAt(lon, lat) : null;
     const landish = rz == null ? m.landAt(a0, lon, lat) > COAST : rz;
     const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD), along = u * s + v * co, cross = u * co - v * s;
-    let M, type, mcut = null, skipped = false, mg = null, hold = null, sb = null;
+    let M, type, mcut = null, skipped = false, mg = null, hold = null, sb = null, ah = false;
     const leadH = field.t0 + tHr;                       // hours after the forecast run when the aircraft is here
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
@@ -76,14 +76,32 @@
       // over open water: design Mach, unless its secondary booms (bent back by the stratosphere) would land on
       // regulated land; then fly that leg at the cutoff Mach, which also traps the secondaries (engine/secondary.py)
       sb = secondaries(field, tHr, ac.design, c, u, v, lon, lat, brg);
-      if (sb.hit) {
+      ah = approachHit(field, lon, lat, brg);
+      if (sb.hit || ah) {
         mg = typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + leadH * 3.6e6) : margin;
         mcut = (window.BOOM ? BOOM.bufferPenalty(ac, field.fl) : 0) + L(a => m.mHeadingSafe(a, brg, lon, lat)) - mg;
         hold = failClosed(field, tHr, mg);
         if (!hold && mcut >= m.FLOOR) { M = Math.min(mcut, ac.design); type = "boomless"; } else { M = ac.sub; type = "sub"; }
       } else { M = ac.design; type = "super"; }
     } else { M = ac.design; type = "super"; }
-    return { M, type, c, along, cross, landish, mcut, brg, skipped, margin: mg, hold, leadH, lon, lat, ssb: sb };
+    return { M, type, c, along, cross, landish, mcut, brg, skipped, margin: mg, hold, leadH, lon, lat, ssb: sb, approach: ah };
+  }
+
+  // Forward reach (issue #44): just above its cutoff Mach a boom ray grazes down and lands far ahead of the
+  // aircraft. A leg flown faster than the cutoff must have no regulated ground (territory + 12 nm) within
+  // REACH_KM ahead along its track (±10°), so the slow-down to the cutoff Mach ends before that point.
+  // REACH_KM = largest along-track landing distance of near-cutoff rays (+0.002 Mach: median 48, p99 86, max 90 km; study/results/forward_reach.json)
+  const REACH_KM = 90;
+  const TURN_DEG = 2, TURN_PEN = 0.004;
+  function approachHit(field, lon, lat, brg) {
+    const m = MC();
+    if (window.__noReach || !m.regulatedLand || (m.landDistKm && m.landDistKm(lon, lat) > REACH_KM + 111)) return false;
+    const key = ((Math.round(lon * 4) + 1440) * 800 + Math.round(lat * 4) + 400) * 73 + Math.round((((brg % 360) + 360) % 360) / 5);
+    field.reachCache = field.reachCache || new Map();
+    if (field.reachCache.has(key)) return field.reachCache.get(key);
+    let hit = false;
+    for (const d of [-10, 0, 10]) for (let r = 10; r <= REACH_KM && !hit; r += 10) { const p = dest(lon, lat, brg + d, r); hit = !!m.regulatedLand(p[0], p[1]); }
+    field.reachCache.set(key, hit); return hit;
   }
 
   // Secondary-boom landing check for a supersonic leg over water. Rays of the Mach cone at azimuth a travel along
@@ -165,6 +183,16 @@
         if (ac.supersonic && (cum < CLIMB_NM || cum + d > total - DESC_NM)) { s.M = Math.min(s.M, ac.sub); s.type = "climb"; }
         cum += d; return s;
       });
+      // turns (issue #44): a turning aircraft focuses its rays; a 2x focus needs ~0.3 km more cushion below the
+      // turning point (engine/caustic.py: 1.62 vs 1.32 km for an airliner) = 0.004 Mach off boomless legs in a turn
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i]; if (s.type !== "boomless") continue;
+        const d = j => j >= 0 && j < segs.length ? Math.abs(((segs[j].brg - s.brg + 540) % 360) - 180) : 0;
+        if (window.__noTurn || Math.max(d(i - 1), d(i + 1)) <= TURN_DEG) continue;
+        s.turn = true;
+        const Mt = Math.min(s.M, (s.mcut != null ? s.mcut : s.M) - TURN_PEN);
+        if (Mt >= MC().FLOOR) s.M = Mt; else { s.M = ac.sub; s.type = "sub"; }
+      }
       const base = segs.map(s => s.M);
       for (let i = 0; i < segs.length; i++) if (segs[i].type === "boomless") {
         let m = base[i];
@@ -181,7 +209,7 @@
       let t = 0;
       times = segs.map(s => { const t0 = t; s.t = s.d / groundSpeed(s.M, s).gs; t += s.t; return t0; });
     }
-    const dHold = {}; let dSsb = 0, ssbNoData = false;
+    const dHold = {}; let dSsb = 0, dReach = 0, ssbNoData = false;
     let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, dSkip = 0, tAcc = 0, windSum = 0, worstHead = 0;
     for (const s of segs) {
       const { tas, gs } = groundSpeed(s.M, s);
@@ -192,6 +220,7 @@
       if (s.skipped && s.type !== "climb") dSkip += s.d;
       if (s.hold && s.type !== "climb") dHold[s.hold] = (dHold[s.hold] || 0) + s.d;
       if (s.ssb && s.ssb.hit && s.type !== "climb") dSsb += s.d;
+      if (s.approach && !(s.ssb && s.ssb.hit) && s.type !== "climb") dReach += s.d;
       if (s.ssb && s.ssb.nodata) ssbNoData = true;
       if (s.M > 1) dSuper += s.d;
       if (s.accel || s.decel) tAcc += s.t;
@@ -203,7 +232,7 @@
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,
              fuelPerSeat: fuel / pax, co2PerSeat: fuel * CO2_PER_KG / pax, gen: op + E.vot * pax * block,
-             dLand, dBoomless, dSuper, dSkip, dHold, dSsb, ssbNoData, tAcc, windAvg: windSum / total, worstHead,
+             dLand, dBoomless, dSuper, dSkip, dHold, dSsb, dReach, ssbNoData, tAcc, windAvg: windSum / total, worstHead,
              inRange: total <= ac.rangeNm, mode, ac };
   }
 
@@ -294,5 +323,5 @@
     if (val(b) < val(o)) { b.path.info = { ...(o.path.info || {}), subBetter: true }; return b; }
     return o;
   }
-  window.ROUTE = { makeField, evalPath, optimise, bestRoute, hav, bearing, nearestFL, KT, CO2_PER_KG, STALE_H, dataAgeH };
+  window.ROUTE = { makeField, evalPath, optimise, bestRoute, hav, bearing, nearestFL, KT, CO2_PER_KG, STALE_H, dataAgeH, get REACH_KM() { return REACH_KM; } };
 })();

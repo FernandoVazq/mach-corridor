@@ -160,7 +160,8 @@
   function holdNote(o) {
     const h = Object.entries(o.dHold || {}).filter(([, d]) => d > 1);
     let ssbTxt = "";
-    if (o.dSsb > 1) ssbTxt = `<p class="fine">Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.</p>`;
+    if (o.dReach > 1) ssbTxt += `<p class="fine">Approach: ${Math.round(o.dReach).toLocaleString()} nm over water flown at the cutoff Mach because a boom just above it would land up to ${RT.REACH_KM} km ahead, on regulated ground.</p>`;
+    if (o.dSsb > 1) ssbTxt += `<p class="fine">Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.</p>`;
     const age = RT.dataAgeH();
     let out = "";
     if (age > RT.STALE_H) out += `<div class="verdict neg">Forecast run is ${Math.round(age)} h old (limit ${RT.STALE_H} h). ${MC.S.allowStale
@@ -181,6 +182,7 @@
         heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
         mach: r4(s.M), boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
         wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null,
+        approach_limited: !!s.approach,
         secondary: s.ssb ? (s.ssb.hit ? "would land on regulated land: leg slowed to cutoff" : s.ssb.pts.length ? "lands at sea" : "none") + (s.ssb.nodata ? " (no stratosphere data)" : "") : null };
       t += s.t; return row;
     });
@@ -202,7 +204,7 @@
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
       summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
-        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), fuel_kg: Math.round(o.fuel) },
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
       checks, all_checks_pass: checks.every(c => c.pass), legs,
     };
   }
