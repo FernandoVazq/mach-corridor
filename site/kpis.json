@@ -49,7 +49,7 @@
    "gate": 0.01,
    "source": "4,004 IGRA2 launches vs GFS 24 h forecast, 6 US stations, Oct 2025 – Sep 2026 (engine/validate.py, monthly in CI)",
    "start": 0.015,
-   "note": "RMS of all errors. 6 h before departure 0.0113, 12 h 0.0119, analysis 0.0104 (2,006 launches). Unsafe side only (model allows more than the balloon): 0.0108 at 24 h, 0.0088 at 6 h. Gate metric under review: see Method 6.2"
+   "note": "RMS of all errors. 6 h before departure 0.0113, 12 h 0.0119, analysis 0.0104 (2,006 launches). Unsafe side only (model allows more than the balloon): 0.0108 at 24 h, 0.0088 at 6 h. Mountain stations ~20% worse (margin raised there), Europe 0.011. Gate metric under review: see Method 6.2"
   },
   {
    "id": "psf",
@@ -137,5 +137,5 @@
    "gate": "FAA accepts the method as part of an operator's means of compliance"
   }
  ],
- "sprint": 4
+ "sprint": 5
 }

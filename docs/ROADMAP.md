@@ -134,6 +134,15 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | #38/#16 Secondary booms | Year study: on regulated land for 12% of headings flown 70–150 km offshore, 2.5% at 250–400 km. Live stratosphere tables every 12 h; router slows any over-water leg whose secondaries would land on land; map dots; fallback 125–420 km |
 | Fix | 3D playback NaN (first frame stepped backwards); CI smoke test failing after #39 (quiet height recomputed on every leg) → memoised |
 
+### Sprint 5 · 12 Oct 2026
+| Item | Result |
+|---|---|
+| #37 Hindcast in psf | Each held-out flight scored by its highest ground psf (caustic model): FL550 0.39 / 0.48% of flights > 0.11 psf as the router flies (95% upper 0.88%); without the per-aircraft cushion 1.39 / 1.28%. k refitted on the psf event = shipped k |
+| #44 Approach and turns | Near-cutoff booms land up to 90 km ahead (median 48 km): over-water legs with regulated ground within 90 km ahead fly at the cutoff Mach. Turns: 2× focus needs +0.3 km cushion → 0.004 Mach off boomless legs in a turn. Cost 0–1 min per route |
+| #42 DEM floor | Real terrain above the GFS footprint max at 93% of nodes (+0.8 km median above 3.5 km) → floor uses the higher; live land median Mach FL550 1.147 → 1.143 |
+| New balloon stations | 1,494 launches at 3 mountain, Alaska and 2 European stations: mountains ~20% worse → margin's real-world term 0.015 over mountains; Europe best (0.011 at 24 h) |
+| Docs | Paper draft and Method updated; outreach and product plan written |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.
