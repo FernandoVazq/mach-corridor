@@ -3,6 +3,7 @@ import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = []; p.on('pageerror', e => errs.push(e.message));
+await p.addInitScript(() => { const n = Date.now; Date.now = () => n() + 2 * 86400e3; });   // pretend the data is 2 days old
 await p.goto('http://localhost:8765/#fl=550&mg=auto&r=KJFK-KLAX&ac=overture&o=time');
 await p.waitForFunction(() => /psf/.test(document.getElementById('routeKpis')?.innerText || ''), null, { timeout: 60000 });
 const sum = async () => p.evaluate(() => { const e = window.MCPLAN.evidence(); return { txt: document.getElementById('routeSummary').innerText.slice(0, 400), sum: e.summary, checks: e.checks.map(c => c.id + ':' + c.pass), leg: e.legs[40] }; });

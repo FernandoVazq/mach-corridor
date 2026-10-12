@@ -46,8 +46,14 @@ window.BOOM = (() => {
   const freePsf = (ac, M, fl) => psf(ac, M, fl, 1500) / K_R;
   // caustic height above ground that gives 0.11 psf on the ground, from the same (conservative) form as shadowPsf
   const S = [1.308, 0.5662, -3.5556, 0.1023, -0.3039], S_SAFETY = 1.25;
+  const qCache = new Map();                    // the router asks for every leg: memoise per aircraft and level
   function quietHeight(ac, fl, M = 1.15) {
     if (!ac.boom) return 1000;
+    const key = `${ac.boom.length}|${ac.boom.ks}|${ac.weight || ""}|${fl}|${M}`;
+    if (qCache.has(key)) return qCache.get(key);
+    const v = quietHeightRaw(ac, fl, M); qCache.set(key, v); return v;
+  }
+  function quietHeightRaw(ac, fl, M) {
     const hs = safeHeight(ac, fl, M);
     let lo = 0.6 * hs, hi = 4 * hs;
     if (shadowPsf(ac, M, fl, lo) <= LIMIT) return lo;
