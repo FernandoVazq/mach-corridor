@@ -121,7 +121,14 @@ def fetch_orog(run, F0):
     try:
         q = fetch(run, 0, {("HGT", "surface")}, res="0p25")[("HGT", "surface")]
         TERRAIN["z"] = q
-        return footprint_max(q, radius_cells=2), "GFS 0.25 deg orography, max over +/-0.5 deg"
+        fp, note = footprint_max(q, radius_cells=2), "GFS 0.25 deg orography, max over +/-0.5 deg"
+        # real peaks stand above the smoothed GFS orography (engine/dem_floor.py, issue #42): use the higher
+        dem = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "dem_footprint_max.npy")
+        if os.path.exists(dem):
+            d = np.load(dem).astype(np.float32)
+            if d.shape == fp.shape:
+                fp = np.maximum(fp, d); note += "; raised to the DEM maximum (Terrarium z8, 3x3 median) where higher"
+        return fp, note
     except Exception as e:  # fall back to 1-deg max over neighbours
         print("0.25 orography failed, using 1-deg:", e, file=sys.stderr)
         z = F0[("HGT", "surface")]

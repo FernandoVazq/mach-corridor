@@ -26,7 +26,7 @@ and whether a leg's **secondary booms** would land on regulated land (§4.1; the
 | Input | Source | Resolution | Version control |
 |---|---|---|---|
 | Temperature, humidity, wind, height on 23 pressure levels (1000–50 hPa) | NOAA GFS, AWS Open Data (`noaa-gfs-bdp-pds`) | 1°, 0–48 h every 6 h | run id in `manifest.json` |
-| Terrain under the boom footprint | GFS 0.25° orography, max over ±0.5° | 0.25° → 1° | same run |
+| Terrain under the boom footprint | GFS 0.25° orography, max over ±0.5°, raised to a DEM maximum where higher (Terrarium z8 ≈ 600 m, 3×3 median; `engine/dem_floor.py`) | 0.25° / 600 m → 1° | run id; `engine/data/dem_footprint_max.npy` |
 | Ensemble spread (evaluation) | NOAA GEFS v12, 31 members, `noaa-gefs-pds` | 0.5° → 1° | `study-data-gefs` branch |
 | Territory | Natural Earth 10 m land, minor islands, lakes | 0.1° raster | `site/geo/zone.png` |
 | Aircraft | length, weight, shape factor, fuel curve | per type | `site/aircraft.js`, `engine/boom.py` |
@@ -61,6 +61,12 @@ the exact limit the caustic is below ΔZ_S in 33% of land columns, with a 0.05 m
 1 km, provides the clearance; see review finding 3). The router subtracts the aircraft's extra cushion,
 (quiet height − 1 km) × 1.3×10⁻⁵ Mach/m, where the quiet height is the turning-point height that gives 0.11 psf on the
 ground (§3.4, about 1.05–1.08 ΔZ_S for airliners and bizjets); it never adds speed for short signals (`site/boom.js`, `bufferPenalty`).
+**Terrain (issue #42).** GFS orography is smoothed, so the highest real terrain under the footprint sits higher.
+Against a DEM maximum over the same ±0.5° (Terrarium z8 tiles, 13,196 nodes above 300 m, `study/results/dem_floor.json`):
+higher at 93% of nodes; median +149 m where GFS shows 0.3–1 km, +415 m at 1–2 km, +574 m at 2–3.5 km, +813 m
+above 3.5 km (p90 +1.6 km), i.e. the map over-stated the boomless Mach by about 0.002–0.010 there. The floor
+now uses the higher of the two.
+
 An earlier version of this check used a 60 m signal and found 3%; that signal length was too short for an airliner.
 
 ### 3.3 Forecast-error margin
@@ -68,7 +74,8 @@ The flown Mach is the forecast boomless Mach minus a margin.
 - **Auto, ensemble (default source):** k·√(s² + 0.012²) per point and direction. s is the member spread of
   the boomless Mach in the GEFS (daily 00Z run, 0–54 h, at least 20 of 31 members, published on a 2° grid in
   0.001 steps, `engine/gefs_live.py`); 0.012 is the
-  real-world error no model run sees (validation against radiosondes: 0.015 total).
+  real-world error no model run sees (validation against radiosondes: 0.015 total), raised to 0.015 over mountains
+  (ramp from 0.5 to 1.5 km of terrain; mountain balloon stations show ~20% more unsafe-side error, §6.2).
 - **Auto, fallback:** k·σ(x), with σ² = σ_ana(x)² + 0.012², from 53 weekly hindcasts.
 - k per level: ensemble FL350 4.0, FL450 4.25, FL550 3.75 (the larger of two half-year fits, see below);
   fallback FL350 3.79, FL450 4.10, FL550 3.74 (2-fold cross-validated over dates). Other levels use the
@@ -219,6 +226,7 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 | Day-ahead forecast error of boomless Mach | 1,044 GFS forecasts vs radiosondes, 6 US stations, Sep–Oct 2026 | σ ≈ 0.015 |
 | How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
 | Error by forecast age | 2,006 launches, same stations and year, every 2nd day, GFS 1° (`study/results/validation_leads.json`) | RMS 0.0104 analysis, 0.0113 at 6 h, 0.0119 at 12 h, 0.0132 at 24 h; bias −0.003 at every age. **Unsafe side** (model allows more than the balloon; semi-RMS √(2·mean(max(e,0)²))): 0.0079, 0.0088, 0.0095, 0.0108. 99th percentile of the error 0.021, 0.024, 0.025, 0.029 (`unsafe_semi_rms`, `p99`) |
+| Mountain, Alaska and Europe | 1,494 launches at Albuquerque, Grand Junction, Salt Lake City, Anchorage, Lindenberg, Camborne, every 2nd day, Oct 2025 – Sep 2026 (`study/results/validation_stations.json`) | 24 h RMS: mountain 0.0138–0.0141, Anchorage 0.0127, Europe 0.0109–0.0110. Unsafe side at 6 h: mountain 0.0108–0.0114, Anchorage 0.0105, Europe 0.0070–0.0076. Mountains about 20% worse → real-world term 0.015 there (§3.3); Denver has no IGRA2 launches in the period |
 | Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
 
 **Phase 1 error gate (0.010).** The RMS gate is not met at any forecast age, including the analysis
@@ -295,7 +303,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 | 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |
 | 5 | major | 0.012 real-world term rests on 2 months at 6 stations | full-year balloon validation (§6.2) |
 | 6 | major | Hindcast truth is the same model; interpolation across no-corridor columns | router no longer interpolates across them; #41 for independent truth |
-| 7 | major | Terrain smoothing and ray reach beyond ±0.5° | #42 |
+| 7 | major | Terrain smoothing and ray reach beyond ±0.5° | DEM floor shipped: real terrain is above the GFS footprint max at 93% of nodes (median +258 m; +813 m over 3.5 km terrain = 0.010 Mach); reach beyond ±0.5° open (#42) |
 | 8 | major | Hindcast flies great circles, the router chases high forecasts; wrong-hour spread fallback | fallback fixed; #40 |
 | 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | approach reach (90 km) and turn focusing (0.004 Mach) in the router (§5); manoeuvre-rate limits for the flight crew open (#44) |
 | 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | stale data, forecast coverage and evidence file done (§5.1); air-data allowance and monitoring open (#43) |

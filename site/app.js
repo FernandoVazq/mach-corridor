@@ -247,20 +247,26 @@
   const nearest = (obj, fl) => { const ks = Object.keys(obj).map(Number); const lo = Math.max(...ks.filter(x => x <= fl), Math.min(...ks)), hi = Math.min(...ks.filter(x => x >= fl), Math.max(...ks)); return (obj[lo] + obj[hi]) / 2; };
   const kAt = fl => sigma ? nearest(sigma.k, fl) : 0;
   const kEns = fl => gefs.meta ? nearest(gefs.meta.k, fl) : 0;
-  const S_EXTRA = 0.012;
-  const ensMargin = (fl, sd) => kEns(fl) * Math.sqrt(sd * sd + S_EXTRA * S_EXTRA);
+  // real-world error no model run sees: 0.012 over low terrain, 0.015 over mountains (balloon validation at
+  // Albuquerque, Grand Junction and Salt Lake City: unsafe-side error ~20% above the low-terrain stations),
+  // ramped from 0.5 to 1.5 km of terrain; 0.015 everywhere until the terrain grid has loaded (fail-safe)
+  const S_EXTRA = 0.012, S_EXTRA_MTN = 0.015;
+  const sExtra = (lon, lat) => { if (!terrain || lon == null) return S_EXTRA_MTN; const t = Math.max(0, Math.min(1, (elevAt(lon, lat) - 500) / 1000)); return S_EXTRA + (S_EXTRA_MTN - S_EXTRA) * t; };
+  const ensMargin = (fl, sd, lon, lat) => { const e = sExtra(lon, lat); return kEns(fl) * Math.sqrt(sd * sd + e * e); };
+  // static error map (built with 0.012): add the mountain excess in quadrature
+  const staticMtn = (v, kk, lon, lat) => { const e = sExtra(lon, lat); return kk * Math.sqrt(v * v + e * e - S_EXTRA * S_EXTRA); };
   const mgCache = {};
   // per 1-degree node, for a level, the current mode and the map's direction tile
   function marginGrid(fl = S.fl) {
     const ga = S.auto ? gefsNow(fl) : null, tile = curTile();
-    const k = !S.auto ? "f" + S.margin : ga ? `e${gefsFh()}_${tile}` : sigma ? "a" : "f" + S.margin;
+    const k = (!S.auto ? "f" + S.margin : ga ? `e${gefsFh()}_${tile}` : sigma ? "a" : "f" + S.margin) + (terrain ? "t" : "n");
     if (mgCache[fl] && mgCache[fl].k === k) return mgCache[fl].g;
     let g;
     if (ga) {
       g = new Float32Array(NY * NX);
       const mx = tile >= 36 ? sdMax(ga, `${gefsFh()}_${fl}`) : null;
-      for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = ensMargin(fl, mx ? mx[j * NX + i] : sdAt(ga, tile, lo, la)); }
-    } else if (S.auto && sigma) { const kk = kAt(fl); g = sigmaGrid(fl).map(v => kk * v); }
+      for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = ensMargin(fl, mx ? mx[j * NX + i] : sdAt(ga, tile, lo, la), lo, la); }
+    } else if (S.auto && sigma) { const kk = kAt(fl), sg = sigmaGrid(fl); g = new Float32Array(NY * NX); for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = staticMtn(sg[j * NX + i], kk, lo, la); } }
     else g = new Float32Array(NY * NX).fill(S.margin);
     mgCache[fl] = { k, g }; return g;
   }
@@ -276,10 +282,10 @@
     const ga = gefsNow(fl, S.fi, validMs);       // no spread for that hour -> static map below, never another hour's spread
     if (ga && brg != null) {
       const h = ((brg % 360) + 360) % 360 / 10, t0 = Math.floor(h) % 36, t1 = (t0 + 1) % 36;
-      return ensMargin(fl, Math.max(sdAt(ga, t0, lon, lat), sdAt(ga, t1, lon, lat)));
+      return ensMargin(fl, Math.max(sdAt(ga, t0, lon, lat), sdAt(ga, t1, lon, lat)), lon, lat);
     }
     if (!ga && !sigma) return Math.max(S.margin, 0.05);
-    if (!ga && validMs != null) { const kk = kAt(fl), sg = sigmaGrid(fl); return kk * bil((i, j) => sg[j * NX + i], lon, lat); }
+    if (!ga && validMs != null) { const kk = kAt(fl), sg = sigmaGrid(fl); return staticMtn(bil((i, j) => sg[j * NX + i], lon, lat), kk, lon, lat); }
     const g = marginGrid(fl);
     return bil((i, j) => g[j * NX + i], lon, lat);
   }
