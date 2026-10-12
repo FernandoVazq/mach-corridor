@@ -60,7 +60,7 @@ Evidence (`study/buffer_check.py`, one GFS run, SST signal 150 m): ΔZ_S median 
 the exact limit the caustic is below ΔZ_S in 33% of land columns, with a 0.05 margin in none (the margin, not the
 1 km, provides the clearance; see review finding 3). The router subtracts the aircraft's extra cushion,
 (quiet height − 1 km) × 1.3×10⁻⁵ Mach/m, where the quiet height is the turning-point height that gives 0.11 psf on the
-ground (§3.4, about 1.05–1.16 ΔZ_S); it never adds speed for short signals (`site/boom.js`, `bufferPenalty`).
+ground (§3.4, about 1.05–1.08 ΔZ_S for airliners and bizjets); it never adds speed for short signals (`site/boom.js`, `bufferPenalty`).
 An earlier version of this check used a 60 m signal and found 3%; that signal length was too short for an airliner.
 
 ### 3.3 Forecast-error margin
@@ -87,7 +87,7 @@ sensitivity). Exposure = share of flights with any boom on the ground; 95% inter
 
 Reading: at FL550 the 0.5% target holds out of sample with every policy, and the ensemble saves 1.6–1.8 min
 more. At FL350–450 a margin fitted on winter fails in summer (1–3%); the ensemble generalises best, and its k was
-raised to the larger fit. The 95% upper bounds (0.7–1.9%) show that one year of weekly dates cannot yet
+raised to the larger fit. The 95% upper bounds (0.9–1.9% for the ensemble margin by level; up to 3.7% for one margin at FL450) show that one year of weekly dates cannot yet
 demonstrate the 0.5% target with confidence.
 
 Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
@@ -106,8 +106,9 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
     0.01–0.12 psf vs measured 0.03–0.09; above 2 ΔZ_S model ≤ 0.011 vs measured 0.01–0.10 (noise floor).
     Within 1 ΔZ_S the model over-predicts (0.1–1.9 vs 0.03–0.33): linear theory without nonlinear focusing
     limits, conservative.
-  - **Quiet height** (caustic height giving 0.11 psf): 1.05–1.16 ΔZ_S for airliners and bizjets, about
-    1.3 km for a 61 m airliner at FL550, 0.8 km for a bizjet, 0.45 km for XB-1 (`study/results/caustic.json`).
+  - **Quiet height** (caustic height giving 0.11 psf): 1.05–1.08 ΔZ_S for airliners and bizjets, about 1.0 for
+    small aircraft: about 1.3 km for a 61 m airliner at FL550, 0.8 km for a bizjet, 0.43 km for XB-1, all at M1.15
+    (`study/results/caustic.json`).
   - **Site:** closed forms fitted to the model (quiet height within 0.04 ΔZ_S; psf −19%/+26% near the limit,
     scaled ×1.25 so never below the model). The router's cushion is the quiet height; each boomless leg reports
     its psf at caustic height 1 km + (map limit − flown Mach)/0.0128 per km.
@@ -187,7 +188,7 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 |---|---|---|
 | Day-ahead forecast error of boomless Mach | 1,044 GFS forecasts vs radiosondes, 6 US stations, Sep–Oct 2026 | σ ≈ 0.015 |
 | How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
-| Error by forecast age | 2,006 launches, same stations and year, every 2nd day, GFS 1° (`study/results/validation_leads.json`) | RMS 0.0104 analysis, 0.0113 at 6 h, 0.0119 at 12 h, 0.0132 at 24 h; bias −0.003 at every age. **Unsafe side** (model allows more than the balloon; semi-RMS): 0.0079, 0.0088, 0.0095, 0.0108. 99th percentile of unsafe error 0.021, 0.024, 0.025, 0.029 |
+| Error by forecast age | 2,006 launches, same stations and year, every 2nd day, GFS 1° (`study/results/validation_leads.json`) | RMS 0.0104 analysis, 0.0113 at 6 h, 0.0119 at 12 h, 0.0132 at 24 h; bias −0.003 at every age. **Unsafe side** (model allows more than the balloon; semi-RMS √(2·mean(max(e,0)²))): 0.0079, 0.0088, 0.0095, 0.0108. 99th percentile of the error 0.021, 0.024, 0.025, 0.029 (`unsafe_semi_rms`, `p99`) |
 | Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
 
 **Phase 1 error gate (0.010).** The RMS gate is not met at any forecast age, including the analysis

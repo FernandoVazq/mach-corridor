@@ -14,10 +14,10 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 
 | KPI | Start | Today | Phase gate | Target |
 |---|---|---|---|---|
-| Flights with a boom on the ground | 1.2 % | 0.48 % | 0.5 % | 0.1 % |
-| Minutes saved per overland flight | 28.2 min | 27.7 min | — | 30 min |
+| Flights with a boom on the ground | 1.2 % | 0.44 % (held out) | 0.5 % | 0.1 % |
+| Minutes saved per overland flight | 28.2 min | 27.6 min | — | 30 min |
 | Share of perfect-knowledge saving | 77 % | 76 % | — | 90 % |
-| Day-ahead boomless-Mach error | 0.015 Mach | 0.015 Mach | 0.01 Mach | 0.008 Mach |
+| Day-ahead boomless-Mach error | 0.015 Mach | 0.0131 Mach (0.0113 re-planned at 6 h) | 0.01 Mach | 0.008 Mach |
 | Legs with loudness in psf | 0 % | 100 % | — | 100 % |
 | New GFS data to updated map | 5 h | 1 h | — | 1 h |
 | 3D playback, mid-range laptop | — | — | — | 60 fps |
@@ -130,7 +130,7 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 |---|---|
 | Error by forecast age | 0 / 6 / 12 / 24 h: RMS 0.0104 / 0.0113 / 0.0119 / 0.0132 (2,006 launches). Re-planning 6 h out cuts it 14%. RMS gate 0.010 not met even by the analysis (1° column vs one balloon). Unsafe-side error 0.0088 at 6 h, 0.0108 at 24 h: **metric change proposed, owner's decision** |
 | #43 Fail-closed + evidence | Old forecast (> 18 h), past forecast end or no margin → subsonic over land, reason recorded; study switch; per-flight evidence file (JSON + CSV, build commit, six checks) |
-| #39 Loudness below the turning point | Linear Airy caustic model, checked against FaINT (1–2 ΔZ_S: model 0.01–0.12 vs measured 0.03–0.09 psf). Quiet height for 0.11 psf ≈ 1.05–1.16 ΔZ_S (≈ 1.3 km for a 61 m airliner); router cushion and per-leg psf use it |
+| #39 Loudness below the turning point | Linear Airy caustic model, checked against FaINT (1–2 ΔZ_S: model 0.01–0.12 vs measured 0.03–0.09 psf). Quiet height for 0.11 psf ≈ 1.05–1.08 ΔZ_S (≈ 1.3 km for a 61 m airliner); router cushion and per-leg psf use it |
 | #38/#16 Secondary booms | Year study: on regulated land for 12% of headings flown 70–150 km offshore, 2.5% at 250–400 km. Live stratosphere tables every 12 h; router slows any over-water leg whose secondaries would land on land; map dots; fallback 125–420 km |
 | Fix | 3D playback NaN (first frame stepped backwards); CI smoke test failing after #39 (quiet height recomputed on every leg) → memoised |
 

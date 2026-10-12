@@ -36,9 +36,13 @@ for r in rows:
 
 
 def stat(e):
+    """RMS, bias, 95th percentile of |error|; and the unsafe side (model allows more than the balloon, e > 0):
+    semi-RMS sqrt(2 mean(max(e,0)^2)) (equals the RMS for a symmetric error) and its 99th percentile."""
     e = np.array(e)
     return dict(n=int(len(e)), rmse=round(float(np.sqrt((e ** 2).mean())), 4), bias=round(float(e.mean()), 4),
-                p95_abs=round(float(np.quantile(np.abs(e), 0.95)), 4)) if len(e) else None
+                p95_abs=round(float(np.quantile(np.abs(e), 0.95)), 4),
+                unsafe_semi_rms=round(float(np.sqrt(2 * (np.clip(e, 0, None) ** 2).mean())), 4),
+                unsafe_share=round(float((e > 0).mean()), 3), p99=round(float(np.quantile(e, 0.99)), 4)) if len(e) else None
 
 
 out = defaultdict(dict)
