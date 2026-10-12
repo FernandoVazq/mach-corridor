@@ -3,7 +3,8 @@ Validation of the boomless Mach against weather balloons (issues #10 winter, #11
 
 For each radiosonde launch (00Z / 12Z) at the listed stations in [start, end]:
   observed  boomless Mach from the sounding itself (NOAA IGRA2, interpolated to the map's 23 pressure levels)
-  GFS 1 deg   analysis (f000 at launch time) and day-ahead forecast (f024 from the run 24 h earlier)
+  GFS 1 deg   analysis (f000 at launch time) and forecasts from earlier runs (--leads, default 0,24 h;
+              f06 / f12 = the run 6 / 12 h before launch, i.e. re-planning shortly before departure)
   GFS 0.25 deg  the same two, to measure what resolution buys
 Every column uses the same physics as the map (physics.mmax_grid, 36 directions, lateral rays, virtual
 temperature) and the same floor (GFS 0.25 deg orography, max over the footprint, + 1 km), so differences come
@@ -29,6 +30,7 @@ STATIONS = {   # IGRA2 id: (name, lat, lon)
 }
 IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/{}-data.txt.zip"
 FLS = [350, 450, 550]
+LEADS = [0, 24]
 PLEV = np.array(build.PLEV, float)
 
 
@@ -131,7 +133,10 @@ def main():
     ap.add_argument("--res", default="1p00,0p25"); ap.add_argument("--out", default="val_out")
     ap.add_argument("--soundings", default="", help="JSON from --fetch-soundings (download IGRA once)")
     ap.add_argument("--fetch-soundings", action="store_true")
+    ap.add_argument("--leads", default="0,24", help="forecast lead times, hours (0 = analysis)")
     a = ap.parse_args()
+    global LEADS
+    LEADS = [int(x) for x in a.leads.split(",")]
     os.makedirs(a.out, exist_ok=True)
     t0 = dt.datetime.fromisoformat(a.start).replace(tzinfo=dt.timezone.utc)
     t1 = dt.datetime.fromisoformat(a.end).replace(hour=12, tzinfo=dt.timezone.utc)
@@ -167,7 +172,8 @@ def main():
         tt = time.time()
         src = {}
         for res in a.res.split(","):
-            for kind, run, fh in (("ana", t, 0), ("f24", t - dt.timedelta(hours=24), 24)):
+            for fh in LEADS:
+                kind, run = ("ana" if fh == 0 else f"f{fh:02d}"), t - dt.timedelta(hours=fh)
                 try:
                     src[(res, kind)] = build.fetch(run.strftime("%Y%m%d%H"), fh, build.WANT - {("HGT", "surface"), ("LAND", "surface")}, res=res)
                 except Exception as e:

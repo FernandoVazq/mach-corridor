@@ -2,7 +2,7 @@
 Error of the boomless Mach against weather balloons (engine/validate.py output).
 
 Errors are model minus balloon, per launch, flight level and direction of travel (36), where both are finite.
-Reports RMSE and bias for the GFS analysis and 24 h forecast at 1 deg and 0.25 deg: overall, by level, by
+Reports RMSE and bias for the GFS analysis and the 6, 12 and 24 h forecasts (when present) at 1 deg and 0.25 deg: overall, by level, by
 month, by station, winter (Dec-Feb) vs the rest, and for the "any direction" value (min over 36 directions).
 Usage: python validation_eval.py <rows.jsonl> [out.json]
 """
@@ -12,7 +12,7 @@ import numpy as np
 
 ROWS = sys.argv[1]
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "validation.json")
-SRC = ["ana_1p00", "f24_1p00", "ana_0p25", "f24_0p25"]
+SRC = ["ana_1p00", "f06_1p00", "f12_1p00", "f24_1p00", "ana_0p25", "f24_0p25"]
 FLS = ["350", "450", "550"]
 
 rows = [json.loads(l) for l in open(ROWS)]
