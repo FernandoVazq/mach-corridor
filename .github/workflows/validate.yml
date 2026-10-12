@@ -8,6 +8,8 @@ on:
       every: { description: "Use every n-th day", default: "2" }
       res: { description: "GFS resolutions", default: "1p00,0p25" }
       leads: { description: "Forecast leads, hours", default: "0,24" }
+      stations: { description: "base | extra | all | IGRA2 ids", default: "base" }
+      tag: { description: "Suffix for the data branch (empty = none)", default: "" }
   schedule:
     - cron: "17 9 3 * *"       # monthly: the previous month (issue #11)
 
@@ -35,7 +37,8 @@ jobs:
       - working-directory: engine
         run: |
           set -o pipefail
-          python validate.py --fetch-soundings --start ${{ steps.w.outputs.start }} --end ${{ steps.w.outputs.end }} --out ../val 2>&1 | tee ../val_log.txt
+          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=base
+          python validate.py --stations $ST --fetch-soundings --start ${{ steps.w.outputs.start }} --end ${{ steps.w.outputs.end }} --out ../val 2>&1 | tee ../val_log.txt
       - uses: actions/upload-artifact@v4
         with: { name: soundings, path: val/soundings.json, retention-days: 7 }
       - name: Publish the log
@@ -66,7 +69,8 @@ jobs:
           EV="${{ inputs.every }}"; [ -z "$EV" ] && EV=1
           RS="${{ inputs.res }}"; [ -z "$RS" ] && RS=1p00,0p25
           LD="${{ inputs.leads }}"; [ -z "$LD" ] && LD=0,24
-          python validate.py --soundings ../val/soundings.json --start ${{ needs.soundings.outputs.start }} --end ${{ needs.soundings.outputs.end }} \
+          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=base
+          python validate.py --stations $ST --soundings ../val/soundings.json --start ${{ needs.soundings.outputs.start }} --end ${{ needs.soundings.outputs.end }} \
             --every $EV --res $RS --leads $LD --shard ${{ matrix.shard }} --nshards 10 --out ../val_out 2>&1 | tee ../val_log.txt
       - uses: actions/upload-artifact@v4
         if: always()
@@ -87,6 +91,6 @@ jobs:
         with: { pattern: "val-shard-*", merge-multiple: true, path: vd }
       - run: |
           cd vd && cat rows_*.jsonl > rows.jsonl && rm rows_*.jsonl && wc -l rows.jsonl
-          B="validation-data-${{ needs.soundings.outputs.start }}"; LD="${{ inputs.leads }}"; [ -n "$LD" ] && [ "$LD" != "0,24" ] && B="$B-leads"
+          B="validation-data-${{ needs.soundings.outputs.start }}"; LD="${{ inputs.leads }}"; [ -n "$LD" ] && [ "$LD" != "0,24" ] && B="$B-leads"; [ -n "${{ inputs.tag }}" ] && B="$B-${{ inputs.tag }}"
           git init -q -b "$B" && git -c user.name=bot -c user.email=actions@users.noreply.github.com add -A && git -c user.name=bot -c user.email=actions@users.noreply.github.com commit -qm "Validation ${{ needs.soundings.outputs.start }} to ${{ needs.soundings.outputs.end }}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" "$B"

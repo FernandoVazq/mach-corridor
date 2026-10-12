@@ -28,6 +28,14 @@ STATIONS = {   # IGRA2 id: (name, lat, lon)
     "USM00072501": ("Upton NY", 40.87, -72.86),
     "USM00072202": ("Miami FL", 25.75, -80.38),
 }
+EXTRA = {     # mountain, high-latitude and European stations (Sprint 5): --stations extra | all | ids
+    "USM00072365": ("Albuquerque NM", 35.04, -106.62),
+    "USM00072469": ("Denver CO", 39.77, -104.87),
+    "USM00072572": ("Salt Lake City UT", 40.77, -111.95),
+    "USM00070273": ("Anchorage AK", 61.16, -150.00),
+    "GMM00010393": ("Lindenberg DE", 52.21, 14.12),
+    "UKM00003808": ("Camborne UK", 50.22, -5.33),
+}
 IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/{}-data.txt.zip"
 FLS = [350, 450, 550]
 LEADS = [0, 24]
@@ -134,7 +142,11 @@ def main():
     ap.add_argument("--soundings", default="", help="JSON from --fetch-soundings (download IGRA once)")
     ap.add_argument("--fetch-soundings", action="store_true")
     ap.add_argument("--leads", default="0,24", help="forecast lead times, hours (0 = analysis)")
+    ap.add_argument("--stations", default="base", help="base | extra | all | comma-separated IGRA2 ids")
     a = ap.parse_args()
+    global STATIONS
+    pool = {**STATIONS, **EXTRA}
+    STATIONS = {"base": STATIONS, "extra": EXTRA, "all": pool}.get(a.stations) or {k: pool[k] for k in a.stations.split(",")}
     global LEADS
     LEADS = [int(x) for x in a.leads.split(",")]
     os.makedirs(a.out, exist_ok=True)
