@@ -155,6 +155,7 @@
             <span><i class="sw" style="background:var(--route-boomless)"></i>Boomless over land</span>
             <span><i class="sw" style="background:var(--route-super)"></i>Supersonic over water</span>
             <span><i class="sw" style="background:var(--route-sub)"></i>Subsonic</span>
+            <span><i class="sw" style="background:#ff5c5c;border-radius:50%;width:8px;height:8px"></i>Secondary boom would land on land (map)</span>
           </div>
           <h3>Every altitude, same route</h3>
           <div class="tblwrap" tabindex="0" role="region" aria-label="Every altitude, same route"><table class="tbl" id="flTable"></table></div>
@@ -308,7 +309,7 @@
       <h2>Limits</h2>
       <ul>
         <li>Research prototype, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>
-        <li>Loudness is v0: the primary boom from Carlson's simplified method (NASA TP-1122, within about 15% of flight data), cutoff legs from a linear caustic (Airy) model checked against FaINT; nonlinear focusing at the turning point itself is not modelled. No secondary booms yet. Not a 14 CFR 91.817 compliance determination.</li>
+        <li>Loudness is v0: the primary boom from Carlson's simplified method (NASA TP-1122, within about 15% of flight data), cutoff legs from a linear caustic (Airy) model checked against FaINT; nonlinear focusing at the turning point itself is not modelled. Secondary booms: where the stratosphere would bring them down is checked on every supersonic leg over water, and legs that would put one on land are slowed to the cutoff Mach; their loudness is not computed. Not a compliance determination under the proposed rule.</li>
         <li>The cushion under the turning point is checked against FaINT's F-18 measurements, not yet against an airliner-size boom (XB-1 data requested, #21).</li>
         <li>Climb or descent angle is not modelled (a −3° descent costs about 0.03 Mach), and horizontal gradients along the ~40 km ray path are ignored.</li>
         <li>Regulated zone: under 14 CFR 91.817(b) a sonic boom may not reach the surface within the United States, which includes the 12 nm territorial sea and the Great Lakes. Routes treat every country's territory (Natural Earth 10 m land, islands and lakes) plus 12 nm of territorial sea plus a 24 nm boom-carpet half-width, measured as great-circle distance on a 0.1° grid, as a zone where the aircraft must be boomless or subsonic. Full supersonic speed is used only beyond that line.</li>

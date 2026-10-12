@@ -61,7 +61,7 @@
    "phase": 2,
    "source": "Route planner",
    "start": 0,
-   "note": "Primary boom (Carlson, ±15%); cutoff legs from the Airy caustic model checked against FaINT; secondary booms in study",
+   "note": "Primary boom (Carlson, ±15%); cutoff legs from the Airy caustic model checked against FaINT; secondary booms checked on every over-water leg (landing on land not allowed)",
    "status": [
     "v0 shipped",
     "gate"

@@ -221,3 +221,62 @@ def summarise(rows, out_path):
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------- live tables (built with every forecast)
+SSB_FH = [0, 12, 24, 36, 48]
+Z_LOW = 9100.0                                   # FL300: the lowest cruise level on the map
+V0, V_STEP, R_STEP = 250.0, 0.75, 2.0            # encoding: V = V0 + byte*V_STEP (m/s); R = byte*R_STEP (km), 0 = none
+
+
+def ranges_vec(c, u, v, ka, e_deg, Vt):
+    """Vectorised type I and II landing distance along e (km) for columns (Z, N) with trace velocities Vt (N,).
+    NaN where no secondary lands. Same physics as ray_ranges (checked in test_secondary.py)."""
+    e = math.radians(e_deg); we = u * math.sin(e) + v * math.cos(e); cc = c
+    with np.errstate(invalid="ignore", divide="ignore"):
+        cos = cc / (Vt[None] - we); q = 1 - cos ** 2
+        s = np.sqrt(np.maximum(q, 1e-12)); f = np.where(q > 0, (cc * cos + we) / (cc * s), 0.0)
+    F = np.concatenate([np.zeros((1, f.shape[1])), np.cumsum(DZ * (f[1:] + f[:-1]) / 2, axis=0)])   # F[k] = integral 0..k
+    turn = q[ka:] <= 0; has = turn.any(0); kt = ka + np.argmax(turn, 0)
+    below_ok = (q[:ka + 1] > 0).all(0)
+    ok = has & below_ok & (kt > ka + 1)
+    k = np.clip(kt - 1, 0, len(ZG) - 2); n = np.arange(f.shape[1])
+    qk = np.maximum(q[k, n], 1e-9); q1 = q[k + 1, n]
+    h = DZ * qk / np.maximum(qk - q1, 1e-9)
+    end = 2 * h / np.sqrt(qk) * f[k, n] * np.sqrt(qk)        # f carries 1/s; 2h/sqrt(qk) * (c cos + we)/c
+    up = F[k, n] - F[ka] + end; dn = F[k, n] + end; pr = F[ka]
+    R1 = np.where(ok, (up + dn) / 1000, np.nan); R2 = np.where(ok, (pr + 2 * dn) / 1000, np.nan)
+    return R1, R2
+
+
+def ssb_table(Z, T, U, V, z_a=550 * 100 * 0.3048):
+    """Columns (L, N) -> (36, 6, N): V_lo, V_hi (m/s), type I range at V_lo / V_hi, type II at V_lo / V_hi (km).
+    V_lo = max c_eff from the ground to FL300 (conservative: rays slower than that may still be trapped lower),
+    V_hi = max c_eff from FL300 to 70 km."""
+    c, u, v = column_grid(Z, T, U, V)
+    ka = int(round(z_a / DZ)); klow = int(round(Z_LOW / DZ))
+    out = np.full((36, 6, c.shape[1]), np.nan)
+    for i, e in enumerate(range(0, 360, 10)):
+        er = math.radians(e); ce = c + u * math.sin(er) + v * math.cos(er)
+        vlo, vhi = ce[:klow + 1].max(0), ce[klow:].max(0)
+        out[i, 0], out[i, 1] = vlo, vhi
+        win = vhi > vlo + 1.0
+        R1a, R2a = ranges_vec(c, u, v, ka, e, vlo + 0.5)
+        R1b, R2b = ranges_vec(c, u, v, ka, e, vhi - 0.5)
+        out[i, 2] = np.where(win, R1a, np.nan); out[i, 3] = np.where(win, R1b, np.nan)
+        out[i, 4] = np.where(win, R2a, np.nan); out[i, 5] = np.where(win, R2b, np.nan)
+    return out
+
+
+def ssb_encode(tab, ny, nx):
+    """(36, 6, ny*nx) -> two RGB atlases of 6x6 tiles (no alpha: browsers premultiply it):
+    A = (V_lo, V_hi, type I range at V_lo), B = (type I range at V_hi, type II at V_lo, type II at V_hi)."""
+    def byte(x, off, step):
+        return np.clip(np.round((np.nan_to_num(x, nan=off) - off) / step), 0, 255).astype(np.uint8)
+    A = np.zeros((6 * ny, 6 * nx, 3), np.uint8); B = np.zeros_like(A)
+    for i in range(36):
+        r, cc = divmod(i, 6); sl = (slice(r * ny, (r + 1) * ny), slice(cc * nx, (cc + 1) * nx))
+        g = lambda k: tab[i, k].reshape(ny, nx)
+        A[sl] = np.stack([byte(g(0), V0, V_STEP), byte(g(1), V0, V_STEP), byte(g(2), 0, R_STEP)], -1)
+        B[sl] = np.stack([byte(g(3), 0, R_STEP), byte(g(4), 0, R_STEP), byte(g(5), 0, R_STEP)], -1)
+    return A, B

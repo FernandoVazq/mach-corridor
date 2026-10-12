@@ -114,6 +114,30 @@ Inside national territory, plus 12 nm of territorial sea, plus a 24 nm boom-carp
 distance on a 0.1° grid), flight must be boomless or subsonic. Beyond it, design Mach is allowed. Every
 country is treated as restricted unless its rule says otherwise (`docs/RULES.md`).
 
+### 4.1 Secondary booms (`engine/secondary.py`)
+The proposed rule's 0.11 psf applies to primary, secondary direct and secondary indirect booms. Rays of the upper
+half of the Mach cone travel along e = heading + α with trace velocity V_t = M c_a cos α + w·e; the stratosphere
+(20–60 km) bends them back when V_lo < V_t < V_hi (V_lo: highest c + w·e from the ground to FL300, V_hi: highest
+above FL300, to 70 km), and they land R₁ (direct) or R₂ (after a sea bounce) away. A Mach-cutoff leg cannot
+make one: its rays are trapped by the same V_lo. Concorde's secondaries were 1–10 Pa (0.02–0.2 psf) at
+120–160 km (Rogers & Maglieri 2015), so a secondary landing on regulated land (territory + 12 nm) is treated as
+a violation; loudness is not computed. Atmosphere: GFS to 1 hPa (about 48 km), US Standard Atmosphere 1976 shape
+above, winds tapered to zero at 70 km. Thermospheric returns (0.1–0.3 Pa) are ignored.
+
+- **Year study** (24 GFS analyses, Oct 2025 – Sep 2026, 2,408 coastal ocean columns, 12 headings, FL550):
+  a secondary lands somewhere for about a quarter of column-headings; range 125 / 173 / 312 km (5th / 50th /
+  99th percentile, direct), 179 / 246 / 423 km after a sea bounce; turning height about 41 km. It lands on
+  regulated land for 12% of headings flown 70–150 km off the coast, 7.5% at 150–250 km, 2.5% at 250–400 km,
+  0.1% beyond 400 km; most often in Dec–Jan and Jul. Overture (M1.7) and Concorde (M2.0) are alike. A fixed
+  standoff keeping 99% off land would be about 335 km.
+- **Live:** the forecast build tabulates V_lo, V_hi, R₁ and R₂ per 2° cell and 36 ray directions every 12 h
+  (`ssb_f{fh}_{a,b}.png`). The router checks every supersonic leg over water within about 560 km of regulated
+  land: rays every 8° across the cone, landing band ±25 km. If any lands on regulated land the leg is flown at
+  the cutoff Mach (or subsonic). Without tables it assumes 125–420 km in every direction (fail-closed). The
+  route map shows the landing points (red on land).
+- **Check:** the vectorised tables match the ray-by-ray integration to 2% (`test_secondary.py`); synthetic
+  stratospheric jets land at 150–270 km, inside the Concorde observations' order of magnitude.
+
 ## 5. Routing
 - Time-dependent shortest path on a 1° grid (16 directions), then continuous refinement.
 - The aircraft meets the forecast valid when it arrives. Ground speed comes from the wind triangle.
@@ -192,6 +216,7 @@ Primary boom: the published cases in §6.1. Below the caustic: FaINT (§3.4). **
 | Single-column atmosphere (no horizontal gradients along the ~40 km ray) | unknown sign | 3D ray tracing (#17) |
 | 1° GFS | analysis-time error 0.009–0.016 | GFS 0.25° (#6) |
 | Level flight | a −3° descent costs about 0.03 Mach | descent subsonic in the route model |
+| Secondary-boom loudness not computed; footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |
 | Manoeuvre focusing | superbooms in turns and acceleration | flagged later (#18) |
 | Turbulence | spikier or rounder booms | psf distribution (#19) |
 | Buffer not calibrated on flight data | the caustic may be closer than safe | margin keeps it above ΔZ_S in the hindcast; XB-1 data (#21) |
@@ -231,7 +256,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 | # | Severity | Finding | Status |
 |---|---|---|---|
 | 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | #37; any-boom rate now reported (§3.3) |
-| 2 | blocker | Secondary booms from over-water legs can land inland | #38 (with #16) |
+| 2 | blocker | Secondary booms from over-water legs can land inland | year study and live router check in place (§4.1); loudness of secondaries not computed, landing on land treated as a violation (#38) |
 | 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | model in place (§3.4): physics-based, FaINT-checked loudness below the caustic for any aircraft; open until checked on an airliner-size boom (#21) |
 | 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |
 | 5 | major | 0.012 real-world term rests on 2 months at 6 stations | full-year balloon validation (§6.2) |

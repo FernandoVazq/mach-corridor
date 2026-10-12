@@ -27,6 +27,14 @@
       }
       ctx.setLineDash([]);
     };
+    // secondary booms: where the stratosphere would bring each supersonic leg's boom back down (dots; red on land)
+    if (R.opt && R.ac.supersonic && MC.S.showSsb !== false) {
+      for (const sg of R.opt.segs) if (sg.ssb && sg.ssb.pts.length) for (const [lo, la, on] of sg.ssb.pts) {
+        const [x, y] = toScreen(MC.normLon(lo), la);
+        ctx.beginPath(); ctx.arc(x, y, on ? 2.6 : 1.6, 0, 2 * Math.PI);
+        ctx.fillStyle = on ? "rgba(255,92,92,.9)" : "rgba(226,235,252,.35)"; ctx.fill();
+      }
+    }
     if (R.gc) line(R.gc.segs, 1.4, [5, 5], "rgba(226,235,252,.75)");
     if (R.opt) line(R.opt.segs, 3);
     // direction: chevrons every ~90 px along the flown route
@@ -151,13 +159,15 @@
   const HOLD = { stale: "the forecast is too old", beyond: "the flight runs past the end of the forecast", nomargin: "no forecast-error margin was available" };
   function holdNote(o) {
     const h = Object.entries(o.dHold || {}).filter(([, d]) => d > 1);
+    let ssbTxt = "";
+    if (o.dSsb > 1) ssbTxt = `<p class="fine">Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.</p>`;
     const age = RT.dataAgeH();
     let out = "";
     if (age > RT.STALE_H) out += `<div class="verdict neg">Forecast run is ${Math.round(age)} h old (limit ${RT.STALE_H} h). ${MC.S.allowStale
       ? "Corridors are shown anyway because you chose a <b>study with old data</b>; not for flight."
       : "Corridors are switched off (fail-closed)."} <button class="btn" id="staleBtn">${MC.S.allowStale ? "Back to fail-closed" : "Use it anyway (study only)"}</button></div>`;
     for (const [k, d] of h) if (k !== "stale") out += `<p class="fine warn">Fail-closed: ${Math.round(d).toLocaleString()} nm over land flown subsonic because ${HOLD[k]}.</p>`;
-    return out;
+    return out + ssbTxt;
   }
 
   // ---- evidence file: everything behind the plan, leg by leg (operational assurance, issue #43) ----
@@ -170,7 +180,8 @@
       const row = { i, from_nm: Math.round(s.x0 * 10) / 10, to_nm: Math.round(s.x1 * 10) / 10, lat: Math.round(s.lat * 1e3) / 1e3, lon: Math.round(s.lon * 1e3) / 1e3,
         heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
         mach: r4(s.M), boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
-        wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null };
+        wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null,
+        secondary: s.ssb ? (s.ssb.hit ? "would land on regulated land: leg slowed to cutoff" : s.ssb.pts.length ? "lands at sea" : "none") + (s.ssb.nodata ? " (no stratosphere data)" : "") : null };
       t += s.t; return row;
     });
     const bm = BOOM.route(o, r.fl), age = RT.dataAgeH();
@@ -178,7 +189,8 @@
       ["forecast_fresh", age <= RT.STALE_H, `run ${man.run_time}, ${age.toFixed(1)} h old at export (limit ${RT.STALE_H} h)`],
       ["inside_forecast", !(o.dHold && o.dHold.beyond), `flight ends ${iso(dep + o.air * 3.6e6)}, forecast ends ${man.valid_times[man.valid_times.length - 1]}`],
       ["margin_available", !(o.dHold && o.dHold.nomargin), MC.S.auto ? (gm ? `ensemble spread, GEFS ${gm.run_time}` : "static error map (ensemble unavailable)") : `fixed ${MC.S.margin}`],
-      ["boom_on_land_within_limit", bm.land <= BOOM.LIMIT, `${bm.land.toFixed(3)} psf vs ${BOOM.LIMIT} psf`],
+      ["boom_on_land_within_limit", bm.land <= BOOM.LIMIT, `${bm.land.toFixed(3)} psf vs ${BOOM.LIMIT} psf (primary)`],
+      ["secondary_booms_off_land", !o.segs.some(s => s.type === "super" && s.ssb && s.ssb.hit), o.ssbNoData ? "checked with the 125–420 km fallback (no stratosphere data)" : `stratosphere tables for GFS ${man.run_time}`],
       ["no_supersonic_over_land_above_limit", !o.segs.some(s => s.landish && s.M > 1 && s.type !== "boomless"), "every supersonic land leg is a cutoff leg"],
       ["study_mode_off", !MC.S.allowStale, MC.S.allowStale ? "old data used on purpose: not for flight" : "fail-closed rules active"],
     ].map(([id, pass, note]) => ({ id, pass, note }));
@@ -190,7 +202,7 @@
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
       summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
-        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), fuel_kg: Math.round(o.fuel) },
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), fuel_kg: Math.round(o.fuel) },
       checks, all_checks_pass: checks.every(c => c.pass), legs,
     };
   }

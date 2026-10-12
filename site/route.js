@@ -31,6 +31,7 @@
     const ks = H.map((h, k) => k).filter(k => H[k] >= t0 - 6 && H[k] <= t0 + spanH + 6);
     const frames = await Promise.all(ks.map(async k => ({ h: H[k], a: await MC().loadAtlas(H[k], fl) })));
     if (MC().S.auto && MC().prepareGefs) await Promise.all(ks.map(k => MC().prepareGefs(fl, k)));   // ensemble spread at each leg's time
+    if (MC().prepareSsb) await MC().prepareSsb();                                                    // secondary-boom tables
     return {
       fl, t0, frames,
       at(tHr) {
@@ -53,7 +54,7 @@
     const rz = m.restrictedAt ? m.restrictedAt(lon, lat) : null;
     const landish = rz == null ? m.landAt(a0, lon, lat) > COAST : rz;
     const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD), along = u * s + v * co, cross = u * co - v * s;
-    let M, type, mcut = null, skipped = false, mg = null, hold = null;
+    let M, type, mcut = null, skipped = false, mg = null, hold = null, sb = null;
     const leadH = field.t0 + tHr;                       // hours after the forecast run when the aircraft is here
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
     else if (landish) {
@@ -71,8 +72,56 @@
       }
       if (use) { M = Math.min(mcut, ac.design); type = "boomless"; }
       else { M = ac.sub; type = "sub"; }
+    } else if (mode === "corr" && !window.__noSsb) {          // __noSsb: benchmark switch (tests/bench.mjs)
+      // over open water: design Mach, unless its secondary booms (bent back by the stratosphere) would land on
+      // regulated land; then fly that leg at the cutoff Mach, which also traps the secondaries (engine/secondary.py)
+      sb = secondaries(field, tHr, ac.design, c, u, v, lon, lat, brg);
+      if (sb.hit) {
+        mg = typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + leadH * 3.6e6) : margin;
+        mcut = (window.BOOM ? BOOM.bufferPenalty(ac, field.fl) : 0) + L(a => m.mHeadingSafe(a, brg, lon, lat)) - mg;
+        hold = failClosed(field, tHr, mg);
+        if (!hold && mcut >= m.FLOOR) { M = Math.min(mcut, ac.design); type = "boomless"; } else { M = ac.sub; type = "sub"; }
+      } else { M = ac.design; type = "super"; }
     } else { M = ac.design; type = "super"; }
-    return { M, type, c, along, cross, landish, mcut, brg, skipped, margin: mg, hold, leadH, lon, lat };
+    return { M, type, c, along, cross, landish, mcut, brg, skipped, margin: mg, hold, leadH, lon, lat, ssb: sb };
+  }
+
+  // Secondary-boom landing check for a supersonic leg over water. Rays of the Mach cone at azimuth a travel along
+  // e = brg + a with trace velocity Vt = M c cos(a) + w.e; the stratosphere returns them when V_lo < Vt < V_hi and
+  // they land R1 (direct) or R2 (after a sea bounce) km away, +/- 25 km. Without tables: every direction, 125-420 km.
+  function dest(lon, lat, brgDeg, km) {
+    const d = km / 6371, b = brgDeg * RAD, p1 = lat * RAD, l1 = lon * RAD;
+    const p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(b));
+    const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(p1), Math.cos(d) - Math.sin(p1) * Math.sin(p2));
+    return [((l2 / RAD + 540) % 360) - 180, p2 / RAD];
+  }
+  function secondaries(field, tHr, M, c, u, v, lon, lat, brg) {
+    const m = MC(), validMs = Date.parse(m.S.man.run_time) + (field.t0 + tHr) * 3.6e6;
+    // numeric key: 0.5° cell, 5° heading, 12 h bucket (M is fixed per aircraft)
+    const key = ((((Math.round(lon * 2) + 720) * 400 + Math.round(lat * 2) + 200) * 73 + Math.round((((brg % 360) + 360) % 360) / 5)) * 64 + (Math.round(validMs / 4.32e7) & 63)) * 8 + Math.round(M * 4);
+    field.ssbCache = field.ssbCache || new Map();
+    if (field.ssbCache.has(key)) return field.ssbCache.get(key);
+    if (m.landDistKm && m.landDistKm(lon, lat) > 450 + 111) { const o = { hit: false, nodata: !m.ssbReady, pts: [] }; field.ssbCache.set(key, o); return o; }
+    const nodata = !m.ssbReady, amax = Math.acos(1 / M) / RAD, pts = [];
+    let hit = false;
+    for (let a = -amax + 1; a < amax && !hit; a += 8) {
+      const e = brg + a, er = e * RAD, Vt = M * c * Math.cos(a * RAD) + u * Math.sin(er) + v * Math.cos(er);
+      let bands = [];
+      if (nodata) bands = [[125, 420]];
+      else {
+        const t = m.ssbAt(validMs, lon, lat, e);
+        if (!t || !(Vt > t.vlo && Vt < t.vhi)) continue;
+        const f = (Vt - t.vlo) / (t.vhi - t.vlo), at = r => r[0] && r[1] ? r[0] + (r[1] - r[0]) * f : (r[0] || r[1]);
+        for (const R of [at(t.r1), at(t.r2)]) if (R) bands.push([Math.max(0, R - 25), R + 25]);
+        if (!bands.length) bands = [[125, 420]];
+      }
+      for (const [r0, r1] of bands) for (let r = r0; r <= r1 + 1 && !hit; r += Math.max(25, (r1 - r0) / 6)) {
+        const p = dest(lon, lat, e, r), on = !!m.regulatedLand(p[0], p[1]);
+        hit = hit || on; pts.push([p[0], p[1], on]);
+      }
+    }
+    const out = { hit, nodata, pts };
+    field.ssbCache.set(key, out); return out;
   }
   // Fail-closed rules (docs/METHOD.md §6): a corridor is flown only when the weather behind it is current and
   // covers the time the aircraft is there. Anything else falls back to subsonic over land.
@@ -132,7 +181,7 @@
       let t = 0;
       times = segs.map(s => { const t0 = t; s.t = s.d / groundSpeed(s.M, s).gs; t += s.t; return t0; });
     }
-    const dHold = {};
+    const dHold = {}; let dSsb = 0, ssbNoData = false;
     let t = 0, fuel = 0, dLand = 0, dBoomless = 0, dSuper = 0, dSkip = 0, tAcc = 0, windSum = 0, worstHead = 0;
     for (const s of segs) {
       const { tas, gs } = groundSpeed(s.M, s);
@@ -142,6 +191,8 @@
       if (s.type === "boomless") dBoomless += s.d;
       if (s.skipped && s.type !== "climb") dSkip += s.d;
       if (s.hold && s.type !== "climb") dHold[s.hold] = (dHold[s.hold] || 0) + s.d;
+      if (s.ssb && s.ssb.hit && s.type !== "climb") dSsb += s.d;
+      if (s.ssb && s.ssb.nodata) ssbNoData = true;
       if (s.M > 1) dSuper += s.d;
       if (s.accel || s.decel) tAcc += s.t;
     }
@@ -152,7 +203,7 @@
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,
              fuelPerSeat: fuel / pax, co2PerSeat: fuel * CO2_PER_KG / pax, gen: op + E.vot * pax * block,
-             dLand, dBoomless, dSuper, dSkip, dHold, tAcc, windAvg: windSum / total, worstHead,
+             dLand, dBoomless, dSuper, dSkip, dHold, dSsb, ssbNoData, tAcc, windAvg: windSum / total, worstHead,
              inRange: total <= ac.rangeNm, mode, ac };
   }
 

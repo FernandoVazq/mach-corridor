@@ -24,6 +24,7 @@ import pygrib
 from PIL import Image
 
 from physics import mmax_grid, footprint_max, virtual_temperature, sound_speed, H_BUF_DEFAULT
+import secondary
 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
@@ -160,6 +161,7 @@ def build(run, out_dir):
     thresholds = [round(1.0 + 0.01 * i, 2) for i in range(41)]
     stats, orog_note, have_rh = {}, None, True
     zground = None
+    ssb_done, ssb_top = [], None
     for fh in FHOURS:
         t0 = time.time()
         F = fetch_fields(run, fh)
@@ -183,6 +185,22 @@ def build(run, out_dir):
         prof = np.concatenate([np.round(sub(c) * 10), np.round(sub(U) * 10), np.round(sub(V) * 10),
                                np.round(sub(Z)), np.round(sub(zground))[None]]).astype("<i2")
         prof.tofile(os.path.join(out_dir, f"prof_f{fh:03d}.bin"))
+
+        # secondary booms (engine/secondary.py): stratosphere to 1 hPa, every 12 h; failure leaves the router fail-closed
+        if fh in secondary.SSB_FH:
+            try:
+                ups = [p for p in secondary.UPPER if p not in PLEV]
+                Fu = fetch(run, fh, {(v, f"{p} mb") for v in ("TMP", "UGRD", "VGRD", "HGT") for p in ups})
+                lv = PLEV + [p for p in ups if ("TMP", f"{p} mb") in Fu]
+                G = lambda v: np.stack([(F if p in PLEV else Fu)[(v, f"{p} mb")] for p in lv])
+                s2 = lambda X: np.roll(X[:, ::2, ::2], 90, axis=-1).reshape(X.shape[0], -1)
+                tab = secondary.ssb_table(s2(G("HGT")), s2(G("TMP")), s2(G("UGRD")), s2(G("VGRD")))
+                A_, B_ = secondary.ssb_encode(tab, 91, 180)
+                Image.fromarray(A_, "RGB").save(os.path.join(out_dir, f"ssb_f{fh:03d}_a.png"), optimize=True)
+                Image.fromarray(B_, "RGB").save(os.path.join(out_dir, f"ssb_f{fh:03d}_b.png"), optimize=True)
+                ssb_done.append(fh); ssb_top = min(lv)
+            except Exception as ex:
+                print(f"secondary booms f{fh:03d} failed: {ex}", flush=True)
 
         for fl in FLS:
             r = mmax_grid(np.array(PLEV, float), T, U, V, Z, zground, fl, HEADINGS, RH=RH)
@@ -242,6 +260,10 @@ def build(run, out_dir):
         "profiles": {"pattern": "prof_f{fh:03d}.bin", "nx": 180, "ny": 91, "lon0": -180, "lat0": 90, "d": 2,
                      "fields": ["c*10", "u*10", "v*10", "z"], "levels": len(PLEV), "extra": "ground_m"},
         "terrain": terrain_meta,
+        "ssb": {"fhs": ssb_done, "pattern": "ssb_f{fh:03d}_{ab}.png", "nx": 180, "ny": 91, "lon0": -180, "lat0": 90, "d": 2,
+                "tiles": "6x6, direction of travel of the ray 0..350 step 10", "V0": secondary.V0, "V_step": secondary.V_STEP,
+                "R_step_km": secondary.R_STEP, "a": ["V_lo", "V_hi", "R1_lo"], "b": ["R1_hi", "R2_lo", "R2_hi"],
+                "z_aircraft_m": round(550 * 30.48), "z_low_m": secondary.Z_LOW, "top_hpa": ssb_top} if ssb_done else None,
         "stats_thresholds": thresholds,
         "file_pattern": "f{fh:03d}_FL{fl}.png",
         "stats": stats,

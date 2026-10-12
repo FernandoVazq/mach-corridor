@@ -1,0 +1,161 @@
+{
+ "note": "Secondary booms from GFS analyses, coastal ocean columns, FL550; see engine/secondary.py",
+ "aircraft": {
+  "Concorde M2.0": {
+   "column_headings": 693504,
+   "I": {
+    "arrivals": 257908,
+    "range_km": {
+     "p5": 125,
+     "p50": 173,
+     "p95": 256,
+     "p99": 312,
+     "max": 4601
+    },
+    "turn_km_median": 41.4
+   },
+   "II": {
+    "arrivals": 257908,
+    "range_km": {
+     "p5": 179,
+     "p50": 246,
+     "p95": 354,
+     "p99": 422,
+     "max": 4678
+    },
+    "turn_km_median": 41.4
+   },
+   "by_distance_from_land_km": [
+    {
+     "band": "0-70",
+     "column_headings": 0,
+     "with_secondary": 0,
+     "with_secondary_on_land": 0,
+     "pct_on_land": 0.0
+    },
+    {
+     "band": "70-150",
+     "column_headings": 207072,
+     "with_secondary": 46830,
+     "with_secondary_on_land": 22464,
+     "pct_on_land": 10.85
+    },
+    {
+     "band": "150-250",
+     "column_headings": 110592,
+     "with_secondary": 25928,
+     "with_secondary_on_land": 7079,
+     "pct_on_land": 6.4
+    },
+    {
+     "band": "250-400",
+     "column_headings": 162432,
+     "with_secondary": 39613,
+     "with_secondary_on_land": 2964,
+     "pct_on_land": 1.82
+    },
+    {
+     "band": "400-600",
+     "column_headings": 213408,
+     "with_secondary": 56478,
+     "with_secondary_on_land": 199,
+     "pct_on_land": 0.09
+    }
+   ],
+   "on_land_by_month": {
+    "1": 12188,
+    "2": 8160,
+    "3": 4519,
+    "4": 2928,
+    "5": 3341,
+    "6": 6441,
+    "7": 8551,
+    "8": 5350,
+    "9": 2281,
+    "10": 2953,
+    "11": 7422,
+    "12": 10179
+   },
+   "standoff_km_keeping_99pct_off_land": 334,
+   "standoff_km_keeping_all_off_land": 584
+  },
+  "Overture M1.7": {
+   "column_headings": 693504,
+   "I": {
+    "arrivals": 347375,
+    "range_km": {
+     "p5": 125,
+     "p50": 173,
+     "p95": 256,
+     "p99": 312,
+     "max": 1785
+    },
+    "turn_km_median": 41.5
+   },
+   "II": {
+    "arrivals": 347375,
+    "range_km": {
+     "p5": 179,
+     "p50": 246,
+     "p95": 355,
+     "p99": 423,
+     "max": 2873
+    },
+    "turn_km_median": 41.5
+   },
+   "by_distance_from_land_km": [
+    {
+     "band": "0-70",
+     "column_headings": 0,
+     "with_secondary": 0,
+     "with_secondary_on_land": 0,
+     "pct_on_land": 0.0
+    },
+    {
+     "band": "70-150",
+     "column_headings": 207072,
+     "with_secondary": 50518,
+     "with_secondary_on_land": 25404,
+     "pct_on_land": 12.27
+    },
+    {
+     "band": "150-250",
+     "column_headings": 110592,
+     "with_secondary": 27983,
+     "with_secondary_on_land": 8290,
+     "pct_on_land": 7.5
+    },
+    {
+     "band": "250-400",
+     "column_headings": 162432,
+     "with_secondary": 42578,
+     "with_secondary_on_land": 4080,
+     "pct_on_land": 2.51
+    },
+    {
+     "band": "400-600",
+     "column_headings": 213408,
+     "with_secondary": 60571,
+     "with_secondary_on_land": 301,
+     "pct_on_land": 0.14
+    }
+   ],
+   "on_land_by_month": {
+    "1": 16687,
+    "2": 10713,
+    "3": 6137,
+    "4": 3720,
+    "5": 4804,
+    "6": 8843,
+    "7": 11487,
+    "8": 7148,
+    "9": 3022,
+    "10": 4004,
+    "11": 9726,
+    "12": 13709
+   },
+   "standoff_km_keeping_99pct_off_land": 335,
+   "standoff_km_keeping_all_off_land": 594
+  }
+ }
+}

@@ -510,6 +510,76 @@
     return restricted[j * RNX + i] === 1;
   }
 
+  // land (and its 12 nm territorial sea) where a secondary boom must not land; the boom-carpet buffer does not apply
+  function regulatedLand(lon, lat) {
+    const v = zoneNm(lon, lat);
+    if (v != null) return v <= 12;
+    return restrictedAt(lon, lat);
+  }
+
+  // distance (km) from each 1° cell to the nearest regulated land, two-pass chamfer; lets the secondary-boom check
+  // skip legs that are far out to sea. Rebuilt lazily once the zone data are in.
+  let landDist = null;
+  function landDistKm(lon, lat) {
+    if (!landDist) {
+      if (!zone && !restricted) return 0;
+      const W = 360, H = 181, D = new Float32Array(W * H);
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) D[j * W + i] = regulatedLand(i - 180 + 0.5, 90 - j) ? 0 : 1e9;
+      const step = j => 111.2 * Math.max(0.05, Math.cos((90 - j) * Math.PI / 180));
+      for (let pass = 0; pass < 2; pass++) for (let jj = 0; jj < H; jj++) {
+        const j = pass ? H - 1 - jj : jj, dx = step(j), dd = Math.hypot(dx, 111.2);
+        for (let ii = 0; ii < W; ii++) {
+          const i = pass ? W - 1 - ii : ii, k = j * W + i; let v = D[k];
+          const nb = pass ? [[1, 0, dx], [0, 1, 111.2], [1, 1, dd], [-1, 1, dd]] : [[-1, 0, dx], [0, -1, 111.2], [-1, -1, dd], [1, -1, dd]];
+          for (const [di, dj, w] of nb) { const j2 = j + dj; if (j2 < 0 || j2 >= H) continue; const i2 = (i + di + W) % W; v = Math.min(v, D[j2 * W + i2] + w); }
+          D[k] = v;
+        }
+      }
+      landDist = D;
+    }
+    const i = ((Math.floor(lon + 180) % 360) + 360) % 360, j = Math.min(180, Math.max(0, Math.round(90 - lat)));
+    return landDist[j * 360 + i];
+  }
+
+  // ---------- secondary booms: per 2° cell and ray direction, the band of trace velocities the stratosphere sends
+  // back to the ground and how far they land (engine/secondary.py, built every 12 h) ----------
+  const ssb = { ready: new Map(), pending: null };
+  function rgbBytes(src) {
+    return new Promise((res, rej) => {
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, img.width, img.height).data, a = new Uint8Array(img.width * img.height * 3);
+        for (let i = 0, n = img.width * img.height; i < n; i++) { a[3 * i] = d[4 * i]; a[3 * i + 1] = d[4 * i + 1]; a[3 * i + 2] = d[4 * i + 2]; }
+        res(a);
+      };
+      img.onerror = rej; img.src = src;
+    });
+  }
+  function prepareSsb() {
+    const m = S.man.ssb;
+    if (!m || !m.fhs.length) return Promise.resolve(false);
+    if (ssb.pending && ssb.run === S.man.run) return ssb.pending;
+    ssb.run = S.man.run; ssb.ready.clear();
+    ssb.pending = Promise.all(m.fhs.map(async fh => {
+      const k = String(fh).padStart(3, "0");
+      const [a, b] = await Promise.all(["a", "b"].map(x => rgbBytes(DATA + `ssb_f${k}_${x}.png?r=${S.man.run}`)));
+      ssb.ready.set(fh, { a, b });
+    })).then(() => true).catch(() => { ssb.ready.clear(); return false; });
+    return ssb.pending;
+  }
+  function ssbAt(validMs, lon, lat, eDeg) {
+    const m = S.man.ssb; if (!m || !ssb.ready.size) return null;
+    const h = (validMs - Date.parse(S.man.run_time)) / 3.6e6;
+    const fh = [...ssb.ready.keys()].reduce((b, f) => Math.abs(f - h) < Math.abs(b - h) ? f : b);
+    const t = ssb.ready.get(fh), tile = ((Math.round(eDeg / 10) % 36) + 36) % 36, tr = Math.floor(tile / 6), tc = tile % 6;
+    const i = ((Math.round((lon + 180) / m.d) % m.nx) + m.nx) % m.nx, j = Math.min(m.ny - 1, Math.max(0, Math.round((90 - lat) / m.d)));
+    const px = (tr * m.ny + j) * (6 * m.nx) + tc * m.nx + i, A = t.a, B = t.b, R = m.R_step_km;
+    const V = x => m.V0 + x * m.V_step, Rk = x => x ? x * R : null;
+    return { vlo: V(A[3 * px]), vhi: V(A[3 * px + 1]), r1: [Rk(A[3 * px + 2]), Rk(B[3 * px])], r2: [Rk(B[3 * px + 1]), Rk(B[3 * px + 2])] };
+  }
+
   // ---------- terrain / hillshade ----------
   let terrain = null, shade = null;
   async function loadTerrain() {
@@ -783,7 +853,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
-    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 
