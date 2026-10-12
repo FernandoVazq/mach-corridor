@@ -4,7 +4,8 @@ Terrain under the boom footprint from a real DEM (issue #42).
 The map's floor is the highest GFS 0.25-degree terrain within +/-0.5 degree of each 1-degree node, plus 1 km. GFS
 orography is smoothed (~28 km cells), so real peaks stand higher. This job takes, for every node whose GFS
 footprint max exceeds 300 m, the highest elevation in a Terrarium DEM (AWS Open Data elevation-tiles-prod,
-SRTM/GMTED/ETOPO blend; zoom 8, about 600 m pixels at the equator) over the same +/-0.5 degree footprint.
+SRTM/GMTED/ETOPO blend; zoom 8, about 600 m pixels at the equator) over the same +/-0.5 degree footprint,
+after a 3x3 median (the tiles hold isolated corrupt spikes) and a cap at 8.9 km.
 
 Outputs
   engine/data/dem_footprint_max.npy   int16 (181, 360), lat 90..-90, lon 0..359 (GFS order); 0 where not computed
@@ -17,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import requests
 from PIL import Image
+from scipy.ndimage import median_filter
 
 import build
 from physics import footprint_max
@@ -41,7 +43,10 @@ def fetch_tile(z, x, y, S):
                 return None
             r.raise_for_status()
             a = np.asarray(Image.open(io.BytesIO(r.content)).convert("RGB"), np.float32)
-            return (a[..., 0] * 256 + a[..., 1] + a[..., 2] / 256 - 32768).astype(np.float32)
+            e = a[..., 0] * 256 + a[..., 1] + a[..., 2] / 256 - 32768
+            # corrupt pixels exist (single spikes to 16-22 km): a 3x3 median removes isolated spikes, and nothing on
+            # Earth is above 8.9 km
+            return np.clip(median_filter(e, size=3, mode="nearest"), -500, 8900).astype(np.float32)
         except Exception:
             time.sleep(2 * (k + 1))
     return None
