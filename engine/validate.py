@@ -30,7 +30,7 @@ STATIONS = {   # IGRA2 id: (name, lat, lon)
 }
 EXTRA = {     # mountain, high-latitude and European stations (Sprint 5): --stations extra | all | ids
     "USM00072365": ("Albuquerque NM", 35.04, -106.62),
-    "USM00072469": ("Denver CO", 39.77, -104.87),
+    "USM00072476": ("Grand Junction CO", 39.12, -108.53),   # Denver (72469) has no launches in IGRA2 for 2025-26
     "USM00072572": ("Salt Lake City UT", 40.77, -111.95),
     "USM00070273": ("Anchorage AK", 61.16, -150.00),
     "GMM00010393": ("Lindenberg DE", 52.21, 14.12),
@@ -77,6 +77,8 @@ def to_levels(s, z_sfc):
     """Sounding -> (T K, U, V, Z, RH) on PLEV; None if it does not reach 70 hPa."""
     s = {k: [np.nan if x is None else x for x in v] for k, v in s.items()}
     p = np.array(s["p"], float); o = np.argsort(-p); p = p[o]
+    if len(p) < 4:
+        return None
     if p.min() > 70 or p.max() < 500:
         return None
     lp = np.log(p)
