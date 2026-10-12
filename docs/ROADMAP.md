@@ -125,6 +125,15 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | UI | Physics tab, keyboard map control, 'When to leave' table |
 | #21 | Data requests sent to Boom and NASA (11 Oct) |
 
+### Sprint 4 · 12 Oct 2026
+| Item | Result |
+|---|---|
+| Error by forecast age | 0 / 6 / 12 / 24 h: RMS 0.0104 / 0.0113 / 0.0119 / 0.0132 (2,006 launches). Re-planning 6 h out cuts it 14%. RMS gate 0.010 not met even by the analysis (1° column vs one balloon). Unsafe-side error 0.0088 at 6 h, 0.0108 at 24 h: **metric change proposed, owner's decision** |
+| #43 Fail-closed + evidence | Old forecast (> 18 h), past forecast end or no margin → subsonic over land, reason recorded; study switch; per-flight evidence file (JSON + CSV, build commit, six checks) |
+| #39 Loudness below the turning point | Linear Airy caustic model, checked against FaINT (1–2 ΔZ_S: model 0.01–0.12 vs measured 0.03–0.09 psf). Quiet height for 0.11 psf ≈ 1.05–1.16 ΔZ_S (≈ 1.3 km for a 61 m airliner); router cushion and per-leg psf use it |
+| #38/#16 Secondary booms | Year study: on regulated land for 12% of headings flown 70–150 km offshore, 2.5% at 250–400 km. Live stratosphere tables every 12 h; router slows any over-water leg whose secondaries would land on land; map dots; fallback 125–420 km |
+| Fix | 3D playback NaN (first frame stepped backwards); CI smoke test failing after #39 (quiet height recomputed on every leg) → memoised |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.
