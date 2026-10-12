@@ -3,7 +3,7 @@
  "kpis": [
   {
    "id": "exposure",
-   "name": "Flights with a boom on the ground",
+   "name": "Flights with > 0.11 psf on the ground",
    "unit": "%",
    "today": 0.44,
    "target": 0.1,
@@ -12,7 +12,7 @@
    "gate": 0.5,
    "source": "study/robust_eval.py",
    "start": 1.2,
-   "note": "Held out (fit on one half-year, tested on the other): 0.39–0.48% at FL550 with the ensemble margin; 95% upper bound 0.9%"
+   "note": "Held out, scored in psf with the caustic model (study/psf_eval.py): 0.39–0.48% at FL550 as the router flies (margin + cushion); 95% upper 0.88%. Without the per-aircraft cushion 1.3–1.4%"
   },
   {
    "id": "saved",

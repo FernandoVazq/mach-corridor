@@ -90,6 +90,22 @@ more. At FL350–450 a margin fitted on winter fails in summer (1–3%); the ens
 raised to the larger fit. The 95% upper bounds (0.9–1.9% for the ensemble margin by level; up to 3.7% for one margin at FL450) show that one year of weekly dates cannot yet
 demonstrate the 0.5% target with confidence.
 
+**Scored in psf (`study/psf_eval.py`, issue #37).** The same held-out runs, with each flight scored by its
+highest ground overpressure: on every regulated sample the true turning point is 1 km + (true limit − flown
+Mach)/1.28×10⁻⁵ per m above the terrain, and its ground psf comes from the caustic model (§3.4; full primary
+boom ×2 below 0.6 ΔZ_S). Boom Overture class.
+
+| Level | Policy (as the router flies it: margin + quiet-height cushion) | Flights > 0.11 psf | 95% upper | Minutes saved |
+|---|---|---|---|---|
+| FL550 | ensemble (k 3.75) | 0.39 / 0.48% | 0.88% | 28.3 / 25.2 |
+| FL550 | ensemble, **without** the cushion | 1.39 / 1.28% | 2.32% | 29.1 / 26.1 |
+| FL550 | one margin 0.06 | 0.39 / 0.40% | 0.72% | 26.6 / 23.4 |
+| FL450 | ensemble | 1.0 / 0.08% | 1.85% | 23.7 / 21.2 |
+| FL350 | ensemble | 0.69 / 0% | 1.39% | 17.8 / 18.0 |
+
+Reading: in the rule's unit the FL550 point estimates meet 0.5%, and the per-aircraft cushion is what does it
+(it cuts violations about three times for under a minute). With the site's ×1.25 psf factor FL550 is 0.56–0.69%.
+
 Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
 0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean
 is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
@@ -259,7 +275,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 
 | # | Severity | Finding | Status |
 |---|---|---|---|
-| 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | #37; any-boom rate now reported (§3.3) |
+| 1 | blocker | The calibrated event (> 20 nm of boom) is not the rule's quantity (any surface psf > 0.11) | hindcast scored in psf (§3.3): FL550 0.39–0.48% of flights > 0.11 psf, 95% upper 0.88%; k still fitted on any-boom (#37) |
 | 2 | blocker | Secondary booms from over-water legs can land inland | year study and live router check in place (§4.1); loudness of secondaries not computed, landing on land treated as a violation (#38) |
 | 3 | blocker | FaINT bound (F-18) and buffer used outside tested conditions; 1.35 km cap non-conservative | model in place (§3.4): physics-based, FaINT-checked loudness below the caustic for any aircraft; open until checked on an airliner-size boom (#21) |
 | 4 | major | In-sample calibration; independent noise for overlapping routes | fixed: time hold-out, shared field, bootstrap (§3.3) |

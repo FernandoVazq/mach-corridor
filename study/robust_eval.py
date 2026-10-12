@@ -135,37 +135,44 @@ def boot_ci(per, dates_, col, B=1000, seed=3):
     return float(np.quantile(v, 0.025)), float(np.quantile(v, 0.975))
 
 
-POL = {
-    "uniform": (np.round(np.arange(0.04, 0.10, 0.005), 3), lambda par, fit: (lambda r, d: par)),
-    "static": (np.round(np.arange(3.0, 7.01, 0.25), 2), lambda par, fit: (lambda r, d: par * SIG[fit][(r["name"], FL_[0])])),
-    "ensemble": (np.round(np.arange(3.0, 7.01, 0.25), 2), lambda par, fit: (lambda r, d: par * np.sqrt(SD[(r["name"], d, FL_[0])] ** 2 + S_EXTRA ** 2))),
-}
 FL_ = [550]
-results = {}
-for L in (300, 100, 1000):
-    E = fields(L, seed=11)
-    for fl in (FLE if L == 300 else (550,)):
-        FL_[0] = fl
-        for event, col in (("any", 0), (">20nm", 1)):
-            for pol, (pars, mk) in POL.items():
-                res = []
-                for fit, test in (("H1", "H2"), ("H2", "H1")):
-                    fd, td = (H1, H2) if fit == "H1" else (H2, H1)
-                    curve = []
-                    for par in pars:
-                        per_fit = run(fl, mk(par, fit), fd, E)
-                        s3 = summ(per_fit, fd); ev, sv = s3[col], s3[2]
-                        curve.append((par, ev, sv))
-                        if ev <= GATE: break                       # pars increase -> exposure falls; first that meets the gate
-                    par = curve[-1][0]
-                    per_test = run(fl, mk(par, fit), td, E)
-                    a_any, a_20, sv = summ(per_test, td)
-                    lo, hi = boot_ci(per_test, td, col)
-                    res.append(dict(fit=fit, par=float(par), test_any=round(a_any, 2), test_gt20=round(a_20, 2), test_saved=round(sv, 2),
-                                    ci95=[round(lo, 2), round(hi, 2)], fit_event=round(curve[-1][1], 2)))
-                key = f"L{L}_FL{fl}_{event}_{pol}"
-                results[key] = res
-                print(key, res, flush=True)
-json.dump(dict(dates=len(D), halves=[[H1[0], H1[-1]], [H2[0], H2[-1]]], gate=GATE, results=results),
-          open(os.path.join(OUT, "robust_eval.json"), "w"), indent=1)
-print("done")
+
+
+def main():
+    POL = {
+        "uniform": (np.round(np.arange(0.04, 0.10, 0.005), 3), lambda par, fit: (lambda r, d: par)),
+        "static": (np.round(np.arange(3.0, 7.01, 0.25), 2), lambda par, fit: (lambda r, d: par * SIG[fit][(r["name"], FL_[0])])),
+        "ensemble": (np.round(np.arange(3.0, 7.01, 0.25), 2), lambda par, fit: (lambda r, d: par * np.sqrt(SD[(r["name"], d, FL_[0])] ** 2 + S_EXTRA ** 2))),
+    }
+    results = {}
+    for L in (300, 100, 1000):
+        E = fields(L, seed=11)
+        for fl in (FLE if L == 300 else (550,)):
+            FL_[0] = fl
+            for event, col in (("any", 0), (">20nm", 1)):
+                for pol, (pars, mk) in POL.items():
+                    res = []
+                    for fit, test in (("H1", "H2"), ("H2", "H1")):
+                        fd, td = (H1, H2) if fit == "H1" else (H2, H1)
+                        curve = []
+                        for par in pars:
+                            per_fit = run(fl, mk(par, fit), fd, E)
+                            s3 = summ(per_fit, fd); ev, sv = s3[col], s3[2]
+                            curve.append((par, ev, sv))
+                            if ev <= GATE: break                       # pars increase -> exposure falls; first that meets the gate
+                        par = curve[-1][0]
+                        per_test = run(fl, mk(par, fit), td, E)
+                        a_any, a_20, sv = summ(per_test, td)
+                        lo, hi = boot_ci(per_test, td, col)
+                        res.append(dict(fit=fit, par=float(par), test_any=round(a_any, 2), test_gt20=round(a_20, 2), test_saved=round(sv, 2),
+                                        ci95=[round(lo, 2), round(hi, 2)], fit_event=round(curve[-1][1], 2)))
+                    key = f"L{L}_FL{fl}_{event}_{pol}"
+                    results[key] = res
+                    print(key, res, flush=True)
+    json.dump(dict(dates=len(D), halves=[[H1[0], H1[-1]], [H2[0], H2[-1]]], gate=GATE, results=results),
+              open(os.path.join(OUT, "robust_eval.json"), "w"), indent=1)
+    print("done")
+
+
+if __name__ == "__main__":
+    main()
