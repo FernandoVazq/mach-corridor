@@ -1,7 +1,7 @@
 /* Mach Corridor — UI. Chart-room aesthetic: light instrument chrome around a night-blue map. */
 :root {
   --paper: #f4f6f9; --surface: #ffffff; --surface-2: #eef1f5; --ink: #0f1b2d; --ink-2: #46546a; --ink-3: #5f6b81;
-  --rule: #e2e7ee; --accent: #1f4fd8; --good: #0f7553; --bad: #c42b3a; --warn: #965a00; --mach: #17408f;
+  --rule: #e2e7ee; --accent: #1f4fd8; --good: #0f7553; --bad: #c42b3a; --warn: #965a00; --mach: #17408f; --dis: #a21caf;
   --low-soft: rgba(10, 31, 92, .07); --float: rgba(255, 255, 255, .95);
   --stage: #061029; --coast: rgba(226, 235, 252, .62); --border-c: rgba(226, 235, 252, .2); --grat: rgba(226, 235, 252, .06); --casing: #061029;
   --route-boomless: #e0218a; --route-super: #13a89e; --route-sub: #f08a24;
@@ -12,7 +12,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #0a0f18; --surface: #111824; --surface-2: #182131; --ink: #e8eef7; --ink-2: #a6b2c4; --ink-3: #8492a8;
-    --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0;
+    --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0; --dis: #f0abfc;
     --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 24, 36, .94);
     --route-boomless: #ff4fa8; --route-super: #2fd3c4; --route-sub: #ffa040;
     color-scheme: dark;
@@ -20,7 +20,7 @@
 }
 :root[data-theme="dark"] {
   --paper: #0a0f18; --surface: #111824; --surface-2: #182131; --ink: #e8eef7; --ink-2: #a6b2c4; --ink-3: #8492a8;
-  --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0;
+  --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0; --dis: #f0abfc;
   --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 24, 36, .94);
   --route-boomless: #ff4fa8; --route-super: #2fd3c4; --route-sub: #ffa040;
   color-scheme: dark;

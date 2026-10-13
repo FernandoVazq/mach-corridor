@@ -149,6 +149,24 @@ def combine(Mg, Mi):
     return 0.5 * (Mg + Mi)                      # NaN in either -> NaN
 
 
+DIS_STEP = 0.0005
+
+
+def encode_disagreement(Mg, Mi):
+    """Where the two models disagree (issue #9), one 360x181 tile per hour and level, lon -180..179: the largest
+    |IFS - GFS| over the 36 directions. byte 0 = no corridor in either model, 1-253 = 1 + |d| / 0.0005 (cap 0.126),
+    254 = corridor in one model only (the mean then has none). In the validation year columns whose worst-direction
+    disagreement reached 0.02 had an unsafe-side error 40-55% above the rest (Method 6.2); the map hatches them."""
+    fg, fi = np.isfinite(Mg), np.isfinite(Mi)
+    d = np.where(fg & fi, np.abs(Mi - Mg), np.nan)
+    with np.errstate(all="ignore"):
+        dmax = np.nanmax(np.where(np.isnan(d), -1.0, d), axis=0)
+    one = (fg ^ fi).any(axis=0)
+    out = np.where(dmax >= 0, 1 + np.minimum(np.round(dmax / DIS_STEP), 252), 0)
+    out = np.where(one, 254, out)
+    return to_display(out.astype(np.uint8))
+
+
 def load_ifs(run):
     """Prefetch ECMWF IFS for every forecast hour, thinned to 1 degree. All or nothing: any failure -> GFS only, so
     every hour of a build uses the same models. Returns (dict fh -> (F, levels), ifs_run, lag_h, note)."""
@@ -259,6 +277,7 @@ def build(run, out_dir):
                 ifs_diff.setdefault(str(fl), []).append({"fh": fh, "mean_ifs_minus_gfs": round(float(d.mean()), 4) if d.size else None,
                                                         "sd": round(float(d.std()), 4) if d.size else None,
                                                         "gfs_corridor_removed_share": round(float(1 - both.sum() / max(lm.sum(), 1)), 4)})
+                Image.fromarray(encode_disagreement(M, Mi), "L").save(os.path.join(out_dir, f"dis_f{fh:03d}_FL{fl}.png"), optimize=True)
                 M = combine(M, Mi)
             Mmin = np.nanmin(np.where(np.isnan(M), 0.0, M), axis=0)
             Mmax = np.nanmax(np.where(np.isnan(M), 0.0, M), axis=0)
@@ -305,7 +324,9 @@ def build(run, out_dir):
                   + (f"; mean with ECMWF IFS open data {ifs_run} (CC-BY-4.0, AWS ecmwf-forecasts), thinned to 1 deg" if IFS else ""),
         "models": {"gfs": run, "ifs": ifs_run, "ifs_lag_h": ifs_lag, "ifs_note": ifs_note,
                    "combine": "boomless Mach = mean of GFS and IFS per node and direction; no corridor if either has none" if IFS else "GFS only",
-                   "ifs_vs_gfs": ifs_diff or None},
+                   "ifs_vs_gfs": ifs_diff or None,
+                   "disagreement": {"pattern": "dis_f{fh:03d}_FL{fl}.png", "nx": NX, "ny": NY, "lon0": -180, "lat0": 90, "step": DIS_STEP,
+                                    "encoding": "0 no corridor in either; 1 + |IFS - GFS| / step, worst direction; 254 corridor in one model only"} if IFS else None},
         "physics": {"h_buf_m": H_BUF_DEFAULT, "terrain": orog_note, "lateral_rays": True,
                     "virtual_temperature": have_rh, "surface_layer_used": False},
         "forecast_hours": FHOURS,

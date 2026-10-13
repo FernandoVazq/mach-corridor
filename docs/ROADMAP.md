@@ -143,6 +143,22 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | New balloon stations | 1,494 launches at 3 mountain, Alaska and 2 European stations: mountains ~20% worse → margin's real-world term 0.015 over mountains; Europe best (0.011 at 24 h) |
 | Docs | Paper draft and Method updated; outreach and product plan written |
 
+### Sprint 6 · 13 Oct 2026
+| Item | Result |
+|---|---|
+| #9 Second model | ECMWF IFS, full year, 3,500 launches at 12 stations: RMS at 24 h GFS 0.0130, IFS 0.0123, **mean 0.0117**; unsafe side 0.0110 / 0.0098 / **0.0095** (6 h: 0.0080). **Model 2.9:** the live map is the GFS + IFS mean (IFS at most 12 h older, GFS only otherwise). On the unsafe-side metric the 0.010 gate now passes at every evaluated age; RMS still does not at 24 h |
+| #40 Route choice | Picking the fastest of 7 paths on the forecast raised > 0.11 psf flights 0.43% → 0.59% at FL550 → **model 2.8: k 4.0**, chosen paths 0.28% (95% upper 0.47%) for 0.7 min less saving |
+| #20 Flight chance | Chance of > 0.11 psf per leg and per flight (held-out σ inflation 1.17–1.30 by level, 300 nm blocks); FL550 predicted 0.34–0.54% vs 0.39–0.48% observed |
+| #19 Envelope | Boomless legs reported at the larger of the caustic model and FaINT's measured 0.10 psf |
+| #43 Air data | 0.005 Mach air-data / Mach-hold allowance in the margin (model 2.7) |
+| #17 3D rays | 600 cases through the 2° forecast: 3D − column mean −0.0002, sd 0.0022, 95% within 0.0045: single column is good enough at this grid |
+| #30 Climatology | Share of the year with a usable corridor at FL550: US 65%, Europe 43%, all land 40%; on the Physics tab |
+| #23, #22 Export and API | Route as GeoJSON / KML per constant-Mach stretch; documented static data API and Python client (parity tested) |
+| #26 Monitor | Every 3 h: opens a "monitor" issue if the live forecast is > 18 h old or the site serves an old model; closes it on recovery |
+| Cockpit view | Next 300 nm: Mach to hold, margin, change points |
+| Evidence | Model version, chance of exceedance, psf upper bound, secondary estimate; SHA-256 of its own content checked in CI |
+| Docs | Model changelog 1.0–2.9; Method draft 0.5; site method text updated; paper and outreach plan updated |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.

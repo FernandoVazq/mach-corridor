@@ -102,6 +102,12 @@ def test_two_model_mean():
     a, b = np.array([1.10, np.nan, 1.20]), np.array([1.12, 1.15, np.nan])
     m = build.combine(a, b)
     assert abs(m[0] - 1.11) < 1e-9 and np.isnan(m[1]) and np.isnan(m[2]), m
+    Mg = np.full((2, 181, 360), 1.10); Mi = Mg + 0.004
+    Mg[:, 0, 0] = np.nan; Mi[:, 0, 0] = np.nan          # neither
+    Mi[1, 1, 0] = np.nan                                # one model only, one direction
+    Mi[0, 2, 0] = 1.30                                  # beyond the cap
+    D = np.roll(build.encode_disagreement(Mg, Mi), -180, axis=-1)
+    assert D[0, 0] == 0 and D[1, 0] == 254 and D[2, 0] == 253 and D[5, 5] == 9, (D[0, 0], D[1, 0], D[2, 0], D[5, 5])
     got, r, lag, note = build.load_ifs("2026101200")
     assert got is None and r is None and "MC_NO_IFS" in note, note
     del os.environ["MC_NO_IFS"]

@@ -142,5 +142,239 @@
     "unsafe_semi_rms": 0.0084
    }
   }
+ },
+ "disagreement_vs_error": {
+  "note": "|IFS - GFS| at the same lead vs the error of their mean; bins = quantiles of |IFS - GFS| (0, 25, 50, 75, 90, 100%)",
+  "ana": {
+   "corr_absdiff_abserr": 0.169,
+   "median_absdiff": 0.004,
+   "bins": [
+    {
+     "spread_lo": 0.0,
+     "spread_hi": 0.0019,
+     "n": 90099,
+     "rmse_mean": 0.0083,
+     "unsafe_mean": 0.0063
+    },
+    {
+     "spread_lo": 0.0019,
+     "spread_hi": 0.004,
+     "n": 87188,
+     "rmse_mean": 0.0085,
+     "unsafe_mean": 0.0065
+    },
+    {
+     "spread_lo": 0.004,
+     "spread_hi": 0.0072,
+     "n": 90414,
+     "rmse_mean": 0.0091,
+     "unsafe_mean": 0.0068
+    },
+    {
+     "spread_lo": 0.0072,
+     "spread_hi": 0.011,
+     "n": 52806,
+     "rmse_mean": 0.0098,
+     "unsafe_mean": 0.0074
+    },
+    {
+     "spread_lo": 0.011,
+     "spread_hi": 0.0601,
+     "n": 34765,
+     "rmse_mean": 0.0122,
+     "unsafe_mean": 0.0094
+    }
+   ]
+  },
+  "f06": {
+   "corr_absdiff_abserr": 0.129,
+   "median_absdiff": 0.0045,
+   "bins": [
+    {
+     "spread_lo": 0.0,
+     "spread_hi": 0.0021,
+     "n": 93771,
+     "rmse_mean": 0.0096,
+     "unsafe_mean": 0.0074
+    },
+    {
+     "spread_lo": 0.0021,
+     "spread_hi": 0.0045,
+     "n": 92766,
+     "rmse_mean": 0.0098,
+     "unsafe_mean": 0.0075
+    },
+    {
+     "spread_lo": 0.0045,
+     "spread_hi": 0.0081,
+     "n": 93815,
+     "rmse_mean": 0.0103,
+     "unsafe_mean": 0.0079
+    },
+    {
+     "spread_lo": 0.0081,
+     "spread_hi": 0.0124,
+     "n": 55326,
+     "rmse_mean": 0.0111,
+     "unsafe_mean": 0.0085
+    },
+    {
+     "spread_lo": 0.0124,
+     "spread_hi": 0.0646,
+     "n": 36780,
+     "rmse_mean": 0.0132,
+     "unsafe_mean": 0.0104
+    }
+   ]
+  },
+  "f24": {
+   "corr_absdiff_abserr": 0.148,
+   "median_absdiff": 0.0056,
+   "bins": [
+    {
+     "spread_lo": 0.0,
+     "spread_hi": 0.0026,
+     "n": 89940,
+     "rmse_mean": 0.0108,
+     "unsafe_mean": 0.0085
+    },
+    {
+     "spread_lo": 0.0026,
+     "spread_hi": 0.0056,
+     "n": 90101,
+     "rmse_mean": 0.0108,
+     "unsafe_mean": 0.0086
+    },
+    {
+     "spread_lo": 0.0056,
+     "spread_hi": 0.01,
+     "n": 90794,
+     "rmse_mean": 0.0114,
+     "unsafe_mean": 0.0091
+    },
+    {
+     "spread_lo": 0.01,
+     "spread_hi": 0.0154,
+     "n": 54295,
+     "rmse_mean": 0.0125,
+     "unsafe_mean": 0.0101
+    },
+    {
+     "spread_lo": 0.0154,
+     "spread_hi": 0.0824,
+     "n": 35777,
+     "rmse_mean": 0.0152,
+     "unsafe_mean": 0.013
+    }
+   ]
+  }
+ },
+ "hatch_threshold_worst_direction": {
+  "note": "Per balloon column (launch x level): largest |IFS - GFS| over the 36 directions vs the unsafe-side semi-RMS error of the mean in that column; the map hatches >= 0.02",
+  "ana": {
+   "columns": 9615,
+   "worst_direction_quantiles": {
+    "p25": 0.0064,
+    "p50": 0.0093,
+    "p75": 0.0131,
+    "p90": 0.0175
+   },
+   "thresholds": [
+    {
+     "threshold": 0.011,
+     "share": 0.369,
+     "unsafe_hatched": 0.0081,
+     "unsafe_rest": 0.0063
+    },
+    {
+     "threshold": 0.015,
+     "share": 0.169,
+     "unsafe_hatched": 0.009,
+     "unsafe_rest": 0.0065
+    },
+    {
+     "threshold": 0.02,
+     "share": 0.06,
+     "unsafe_hatched": 0.0103,
+     "unsafe_rest": 0.0067
+    },
+    {
+     "threshold": 0.025,
+     "share": 0.022,
+     "unsafe_hatched": 0.0116,
+     "unsafe_rest": 0.0069
+    }
+   ]
+  },
+  "f06": {
+   "columns": 10098,
+   "worst_direction_quantiles": {
+    "p25": 0.007,
+    "p50": 0.0103,
+    "p75": 0.0146,
+    "p90": 0.0196
+   },
+   "thresholds": [
+    {
+     "threshold": 0.011,
+     "share": 0.449,
+     "unsafe_hatched": 0.0091,
+     "unsafe_rest": 0.007
+    },
+    {
+     "threshold": 0.015,
+     "share": 0.234,
+     "unsafe_hatched": 0.0099,
+     "unsafe_rest": 0.0074
+    },
+    {
+     "threshold": 0.02,
+     "share": 0.094,
+     "unsafe_hatched": 0.0114,
+     "unsafe_rest": 0.0076
+    },
+    {
+     "threshold": 0.025,
+     "share": 0.037,
+     "unsafe_hatched": 0.0127,
+     "unsafe_rest": 0.0078
+    }
+   ]
+  },
+  "f24": {
+   "columns": 9855,
+   "worst_direction_quantiles": {
+    "p25": 0.0086,
+    "p50": 0.0126,
+    "p75": 0.0178,
+    "p90": 0.0241
+   },
+   "thresholds": [
+    {
+     "threshold": 0.011,
+     "share": 0.591,
+     "unsafe_hatched": 0.0103,
+     "unsafe_rest": 0.0081
+    },
+    {
+     "threshold": 0.015,
+     "share": 0.367,
+     "unsafe_hatched": 0.0112,
+     "unsafe_rest": 0.0083
+    },
+    {
+     "threshold": 0.02,
+     "share": 0.186,
+     "unsafe_hatched": 0.0122,
+     "unsafe_rest": 0.0087
+    },
+    {
+     "threshold": 0.025,
+     "share": 0.087,
+     "unsafe_hatched": 0.0137,
+     "unsafe_rest": 0.009
+    }
+   ]
+  }
  }
 }

@@ -269,6 +269,16 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 | Second model (ECMWF IFS) and two-model mean (#9) | 3,500 launches, all 12 stations, every 2nd day, Oct 2025 – Sep 2026; IFS open data 0.25°, its 13 levels; GFS 1° and GFS on the same 13 levels; statistics on the launches and levels both models cover (`study/results/validation_ifs.json`, `validation_ifs_mean.json`) | RMS GFS / IFS / mean: analysis 0.0104 / 0.0093 / 0.0092; 6 h 0.0113 / 0.0109 / 0.0104; 24 h 0.0130 / 0.0123 / 0.0117. Unsafe side: analysis 0.0083 / 0.0069 / 0.0070; 6 h 0.0092 / 0.0082 / 0.0080; 24 h 0.0111 / 0.0098 / 0.0095. GFS on IFS's 13 levels is slightly worse than GFS on 23 (24 h 0.0135), so the gain is the model, not the levels. With IFS lagging (the live case, open data are published later): GFS analysis + IFS 6 h 0.0101 (unsafe 0.0077); GFS 6 h + IFS 24 h 0.0110 (0.0086), both better than GFS alone; GFS analysis + IFS 24 h 0.0106 (0.0083) is not (GFS alone 0.0105, 0.0084), hence the 12 h lag cap. Equal weights; 60/40 for IFS changes the figures by at most 0.0002 |
 | Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
 
+**Where the models disagree** (`models.disagreement`, `dis_f*_FL*.png`, a hatch layer and an inspector line on the
+map, and `models_disagree` per boomless leg in the evidence file). On the validation year the 10% of samples with
+the largest |IFS − GFS| (above about 0.011–0.015) had a 24 h RMS error of 0.0152 against 0.0108 for the quarter
+with the smallest; correlation of |IFS − GFS| with the absolute error of the mean 0.13–0.17 by forecast age.
+The map hatches columns whose **worst-direction** disagreement is 0.02 or more: 6% of balloon columns at the
+analysis and 19% at 24 h, where the unsafe-side error of the mean was 0.0103 and 0.0122 against 0.0067 and 0.0087
+elsewhere (a 0.011 threshold, the per-direction top decile, would hatch 37–59%). Disagreement is a signal of where
+to trust the map less, like the ensemble spread; it does **not** yet enter the
+margin, because adding it needs a hindcast with both the GEFS spread and IFS on the same dates (**Open**).
+
 **Phase 1 error gate (0.010).** With GFS alone the RMS gate is not met at any forecast age, including the
 analysis (0.0104): what is left is mostly the difference between a 1° grid column and one balloon, not forecast
 skill. Since model 2.9 the map is the **mean of GFS and ECMWF IFS**, which lowers every figure: RMS 0.0092
@@ -307,6 +317,7 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 |---|---|---|
 | Single-column atmosphere (no horizontal gradients along the ~40 km ray) | 3D ray tracing through the 2° forecast (600 cases, FL550, `engine/rays3d.py`): 3D minus column mean −0.0002, sd 0.0022, 95% of cases within ±0.0045 Mach, no sign bias | small next to the margin (~0.055); finer grids (0.25°) would resolve sharper gradients (#17) |
 | 1° grid (GFS, and IFS thinned from 0.25°) | analysis RMS 0.0092 for the two-model mean, 0.009–0.016 by station | GFS 0.25° gave no gain (§6.2, #6) |
+| Second model at FL600 and FL300 not validated | balloons were compared at FL350, 450 and 550 only. In the first live two-model build IFS − GFS had sd 0.008–0.011 at FL350–550 but 0.014 at FL600, where IFS's 13 levels jump from 100 to 50 hPa around the aircraft; IFS ran 0.001–0.002 lower, so the mean is the more cautious there | balloon validation at FL600 (#9) |
 | Second model may be missing | when IFS is unpublished, incomplete or more than 12 h older than GFS, the build is GFS only (`manifest.json` → `models.ifs_note`, shown on the map's run line) | margins were fitted on GFS alone, so they hold either way |
 | Level flight | a −3° descent costs about 0.03 Mach | descent subsonic in the route model |
 | Secondary-boom loudness only estimated (Concorde's 1–10 Pa scaled per aircraft); footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |

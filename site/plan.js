@@ -184,6 +184,7 @@
         heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
         mach: r4(s.M), psf_ground_upper: s.type === "boomless" ? Math.max(r4(BOOM.legPsf(s, r.ac, r.fl)), BOOM.SHADOW_ENVELOPE) : null, boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
         wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null,
+        models_disagree: s.type === "boomless" ? (q => q == null ? null : q.one ? "one model only" : q.none ? null : r4(q.d))(MC.disagreementSync(s.lon, s.lat, s.leadH, r.fl)) : null,
         approach_limited: !!s.approach, p_exceed_011: s.pExceed ? Math.round(s.pExceed * 1e6) / 1e6 : 0,
         secondary: s.ssb ? (s.ssb.hit ? "would land on regulated land: leg slowed to cutoff" : s.ssb.pts.length ? "lands at sea" : "none") + (s.ssb.nodata ? " (no stratosphere data)" : "") : null };
       t += s.t; return row;
@@ -225,6 +226,7 @@
   }
   async function exportEvidence() {
     if (!R) return;
+    await MC.preloadDis(R.fl);                           // per-leg GFS vs ECMWF disagreement (model 2.9)
     const ev = await withIntegrity(evidence(R)), base = `mach-corridor_${R.names.join("-")}_${ev.route.departure_utc.slice(0, 13).replace(/[-:T]/g, "")}Z_FL${R.fl}`;
     download(base + ".json", JSON.stringify(ev, null, 1), "application/json");
     const cols = Object.keys(ev.legs[0]);
@@ -444,5 +446,5 @@
       if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
     }
   });
-  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: () => R && withIntegrity(evidence(R)), stretches: () => R && stretches(R) };
+  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R) };
 })();

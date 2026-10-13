@@ -28,7 +28,7 @@
   ];
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
-  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.05, auto: true, fade: false, view: "2d", thresh: 0, relief: true,
+  const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.05, auto: true, fade: false, view: "2d", thresh: 0, relief: true, dis: false,
               t: d3.zoomIdentity, sel: null, playing: null };
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -213,7 +213,7 @@
     if (!S.man) return;
     [current] = await Promise.all([loadAtlas(fhs()[S.fi], S.fl), S.auto ? prepareGefs(S.fl) : null]);
     colorKey = "";
-    updateKpis(); updateInspector(); schedule(); writeHash();
+    updateKpis(); updateInspector(); disCanvasFor(); schedule(); writeHash();
     emit("refresh");
   }
 
@@ -388,6 +388,11 @@
           ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.95;
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(shade, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
+        }
+        if (S.dis && disCanvas && disCanvas.key === `${fhs()[S.fi]}_${S.fl}`) {
+          ctx.save(); ctx.imageSmoothingEnabled = false;
+          const [tx, ty] = toScreen(-180.5, 90.5), [ux, uy] = toScreen(179.5, -90.5);
+          ctx.drawImage(disCanvas, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
         }
       }
     }
@@ -634,6 +639,67 @@
   // ---------- inspector ----------
   const fmtLat = lat => `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? "N" : "S"}`;
   const fmtLon = lon => `${Math.abs(lon).toFixed(1)}°${lon >= 0 ? "E" : "W"}`;
+  // where GFS and ECMWF disagree (model 2.9, manifest.models.disagreement): largest |IFS - GFS| over directions
+  const disCache = new Map(), disReady = new Map();
+  function loadDis(fh, fl) {
+    const D = S.man.models && S.man.models.disagreement;
+    if (!D) return Promise.resolve(null);
+    const k = `${fh}_${fl}`;
+    if (!disCache.has(k)) disCache.set(k, new Promise(res => {
+      const done = a => { if (a) disReady.set(k, a); res(a); };
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, img.width, img.height).data, a = new Uint8Array(img.width * img.height);
+        for (let i = 0; i < a.length; i++) a[i] = d[i * 4];
+        done(a);
+      };
+      img.onerror = () => done(null);
+      img.src = DATA + D.pattern.replace("{fh:03d}", String(fh).padStart(3, "0")).replace("{fl}", fl) + `?r=${S.man.run}`;
+    }));
+    return disCache.get(k);
+  }
+  // nearest node (no interpolation: 254 = one model only is a category); null without a second model
+  async function disagreementAt(lon, lat, fh = fhs()[S.fi], fl = S.fl) {
+    const a = await loadDis(fh, fl); return a ? disDecode(a, lon, lat) : null;
+  }
+  const disDecode = (a, lon, lat) => {
+    const i = ((Math.round(lon) + 180) % 360 + 360) % 360, j = Math.min(180, Math.max(0, Math.round(90 - lat))), b = a[j * NX + i];
+    return b === 0 ? { none: true } : b === 254 ? { one: true } : { d: (b - 1) * S.man.models.disagreement.step };
+  };
+  // synchronous, for plans and evidence: the forecast hour nearest the leg time, if already loaded (preloadDis)
+  function disagreementSync(lon, lat, leadH, fl) {
+    const fh = fhs().reduce((b, h) => Math.abs(h - leadH) < Math.abs(b - leadH) ? h : b, fhs()[0]), a = disReady.get(`${fh}_${fl}`);
+    return a ? disDecode(a, lon, lat) : null;
+  }
+  const preloadDis = fl => Promise.all(fhs().map(fh => loadDis(fh, fl)));
+  // worst-direction |IFS - GFS| >= 0.02: 6% of balloon columns at the analysis, 19% at 24 h, where the unsafe-side error
+  // of the mean was 0.0103 / 0.0122 against 0.0067 / 0.0087 elsewhere (study/results/validation_ifs_mean.json)
+  const DIS_HIGH = 0.02;
+  // map layer: diagonal hatch on nodes where the models disagree by >= DIS_HIGH or only one has a corridor
+  let disCanvas = null;
+  async function disCanvasFor() {
+    if (!S.dis) return;
+    const fh = fhs()[S.fi], fl = S.fl, key = `${fh}_${fl}`;
+    if (disCanvas && disCanvas.key === key) return;
+    const a = await loadDis(fh, fl); if (!a || key !== `${fhs()[S.fi]}_${S.fl}`) return;
+    const Z = 6, c = document.createElement("canvas"); c.width = NX * Z; c.height = NY * Z;
+    const g = c.getContext("2d"), hi = Math.round(DIS_HIGH / S.man.models.disagreement.step) + 1;
+    g.strokeStyle = css("--dis") || "#c026d3"; g.lineWidth = 1.4; g.beginPath();
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+      const b = a[j * NX + i]; if (!(b === 254 || (b >= hi && b < 254))) continue;
+      g.moveTo(i * Z, (j + 1) * Z); g.lineTo((i + 1) * Z, j * Z);
+    }
+    g.stroke(); c.key = key; disCanvas = c; schedule();
+  }   // top 10% of disagreement in the validation year: 24 h error ~40% above the rest
+  function disText(r) {
+    if (!r) return null;
+    if (r.none) return "neither has a corridor";
+    if (r.one) return "only one model has a corridor (map shows none)";
+    return r.d < 0.002 ? "agree within 0.002" : `differ by up to ${r.d.toFixed(3)}${r.d >= DIS_HIGH ? " · high: trust less" : ""}`;
+  }
+
   function updateInspector() {
     if (!S.sel || !current) return;
     const [lon, lat] = S.sel;
@@ -654,6 +720,10 @@
       <dt>Best (${String(S.man.headings[iMax]).padStart(3, "0")}°)</dt><dd>${fmtM(ms[iMax])}</dd>
       <dt>Wind FL${S.fl}</dt><dd>${String(Math.round(wdir)).padStart(3, "0")}° / ${Math.round(wspd * KT)} kt</dd>
       <dt>Sound speed</dt><dd>${Math.round(c * KT)} kt</dd>`;
+    disagreementAt(lon, lat).then(r => {
+      const t = disText(r); if (!t || !S.sel || S.sel[0] !== lon || S.sel[1] !== lat) return;
+      $("inspFacts").insertAdjacentHTML("beforeend", `<dt title="Largest difference over the 36 directions between NOAA GFS and ECMWF IFS; the map shows their mean">GFS vs ECMWF</dt><dd id="inspDis">${t}</dd>`);
+    });
     drawPolar(ms, selI);
     drawTimeSeries(lon, lat);
   }
@@ -721,7 +791,8 @@
     $("hdLbl").textContent = S.hd === "hd" ? `${String(S.hdDeg).padStart(3, "0")}°` : "";
     $("hdRow").hidden = S.hd !== "hd";
     $("layersSummary").textContent = `FL${S.fl}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
-    $("legendNote").textContent = S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.";
+    $("legendNote").textContent = (S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.")
+      + (S.dis && S.man.models && S.man.models.disagreement ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "");
     $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
     $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");
     $("marginSlider").disabled = !!(S.auto && sigma);
@@ -797,6 +868,9 @@
     $("marginAuto").onclick = () => { S.auto = !S.auto; refresh(); };
     $("fadeOcean").checked = S.fade;
     $("fadeOcean").onchange = e => { S.fade = e.target.checked; schedule(); };
+    $("disWrap").hidden = !(S.man.models && S.man.models.disagreement);
+    $("disShow").checked = S.dis;
+    $("disShow").onchange = e => { S.dis = e.target.checked; disCanvasFor(); updateKpis(); schedule(); };
     $("relief").checked = S.relief;
     $("relief").onchange = e => { S.relief = e.target.checked; schedule(); emit("texture"); };
     $("threshSel").value = [...$("threshSel").options].find(o => +o.value === (S.thresh || 0))?.value ?? "0";
@@ -863,6 +937,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
+    disagreementAt, disagreementSync, preloadDis, disText, DIS_HIGH,
     get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, AIR_DATA_SD, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
