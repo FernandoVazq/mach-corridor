@@ -983,6 +983,15 @@
       const ifs = man.models && man.models.ifs, f = d3.utcFormat("%d %b %Y %HZ");
       $("runInfo").innerHTML = `GFS ${f(rt)} run${ifs ? ` + ECMWF ${f(d3.utcParse("%Y%m%d%H")(ifs))}` : ""} · updated ${d3.utcFormat("%d %b %H:%MZ")(gen)}`;
       $("runInfo").title = ifs ? "Boomless Mach is the mean of the two models (Method §6.2)" : (man.models ? "GFS only: " + (man.models.ifs_note || "ECMWF not available") : "GFS only");
+      // data age (EFB practice, FAA AC 120-76E 11.15.2): amber from 12 h, red from 18 h when the router fails closed
+      const age = () => {
+        const h = (Date.now() - rt.getTime()) / 3.6e6, el = $("runAge");
+        if (!el) return;
+        el.textContent = `${h < 1 ? "<1" : Math.floor(h)} h old · model ${man.model_version || "?"}`;
+        el.className = "age " + (h >= 18 ? "bad" : h >= 12 ? "warn" : "ok");
+        el.title = h >= 18 ? "Older than 18 h: the router flies subsonic over land (fail-closed)" : h >= 12 ? "Getting old: plans need a run at most 12 h old at departure" : "Fresh forecast";
+      };
+      $("runInfo").insertAdjacentHTML("beforeend", ` · <span id="runAge"></span>`); age(); setInterval(age, 60000);
       await refresh();
       loadTerrain().catch(e => console.warn("terrain", e));
       if (S.view === "3d") setView();

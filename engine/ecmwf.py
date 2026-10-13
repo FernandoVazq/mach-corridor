@@ -89,21 +89,28 @@ def available(run, step):
     return False
 
 
-def pick_run(gfs_run, last_step, max_lag_h=12):
-    """Latest IFS run at most max_lag_h older than the GFS run 'YYYYMMDDHH' whose step last_step + lag is
-    published. Returns (run, lag_h) or (None, reason). Validation (study/results/validation_ifs.json, METHOD 6.2):
-    the two-model mean beats GFS alone when IFS lags by 6 h at the analysis and by 18 h at 6 h, but not by 24 h at the
-    analysis, hence the 12 h cap."""
+def pick_run(gfs_run, steps, max_lag_h=12, skip=()):
+    """Latest IFS run at most max_lag_h older than the GFS run 'YYYYMMDDHH' with EVERY step (s + lag for s in steps)
+    published. Returns (run, lag_h) or (None, reason). Validation (study/results/validation_ifs_mean.json, METHOD 6.2):
+    the two-model mean beats GFS alone when IFS lags by 6 h at the analysis and by 18 h at 6 h, but not by 24 h at
+    the analysis, hence the 12 h cap. skip: runs already tried and failed."""
     import datetime as dt
+    if isinstance(steps, int):
+        steps = [steps]
     t = dt.datetime.strptime(gfs_run, "%Y%m%d%H")
+    why = []
     for lag in range(0, max_lag_h + 1, 6):
         r = (t - dt.timedelta(hours=lag)).strftime("%Y%m%d%H")
-        top = 144 if r[8:10] in ("00", "12") else 90
-        if last_step + lag > top:
+        if r in skip:
             continue
-        if available(r, last_step + lag) and available(r, lag):
+        top = 144 if r[8:10] in ("00", "12") else 90
+        if max(steps) + lag > top:
+            why.append(f"{r}: steps beyond +{top} h"); continue
+        missing = [s + lag for s in steps if not available(r, s + lag)]
+        if not missing:
             return r, lag
-    return None, f"no IFS run within {max_lag_h} h of GFS {gfs_run} published to +{last_step} h"
+        why.append(f"{r}: +{missing[0]} h missing")
+    return None, f"no complete IFS run within {max_lag_h} h of GFS {gfs_run} ({'; '.join(why)})"
 
 
 def fetch_1deg(run, step, params=("t", "u", "v", "gh", "r")):

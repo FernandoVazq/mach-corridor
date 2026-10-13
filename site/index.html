@@ -147,7 +147,12 @@
         <div id="routeOut" hidden>
           <div id="routeSummary" class="rsum"></div>
           <div id="routeKpis" class="kgrid"></div>
-          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button><button class="btn" id="efbBtn" title="Tablet view for the flight deck: the next 300 nm of boomless Mach from any point of the route">Cockpit view</button><button class="btn" id="routeExportBtn" title="The route as GeoJSON and KML (Google Earth), one line per constant-Mach stretch">Export route</button><button class="btn" id="evidenceBtn" title="Every leg with the data, model version, margin and checks behind it (JSON + CSV)">Download evidence</button></div>
+          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button><button class="btn" id="efbBtn" title="Tablet view for the flight deck: the next 300 nm of boomless Mach from any point of the route">Cockpit view</button><button class="btn" id="routeExportBtn" title="The route as GeoJSON and KML (Google Earth), one line per constant-Mach stretch">Export route</button><button class="btn" id="evidenceBtn" title="Every leg with the data, model version, margin and checks behind it (JSON + CSV)">Download evidence</button><button class="btn" id="navlogBtn" title="One line per change of leg or Mach: time, Mach to hold, limit, margin, psf, PLdB, chance over 0.11 psf (CSV)">Navlog CSV</button></div>
+          <details class="navwrap"><summary>Boom navlog <span class="muted">one line per change of leg or Mach</span></summary>
+            <div class="tblwrap" tabindex="0" role="region" aria-label="Boom navlog"><table class="tbl navlog" id="navlog"></table></div>
+            <p class="fine">ICAO flight plan Item 15 (speed and level changes at each change point; not for filing): <button class="btn sm" id="item15Copy">Copy</button></p>
+            <pre class="item15" id="item15"></pre>
+          </details>
           <h3>Block time</h3>
           <svg id="rLadder" viewBox="0 0 340 130" role="img" aria-label="Block time comparison"></svg>
           <h3>Mach and wind along the route <span>Click a point to see it in 3D</span></h3>

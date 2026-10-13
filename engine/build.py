@@ -173,22 +173,30 @@ def load_ifs(run):
     if os.environ.get("MC_NO_IFS"):
         return None, None, None, "disabled (MC_NO_IFS)"
     t0 = time.time()
-    try:
-        r, lag = ecmwf.pick_run(run, FHOURS[-1])
-        if r is None:
-            return None, None, None, lag
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(3) as ex:
-            got = dict(zip(FHOURS, ex.map(lambda fh: ecmwf.fetch_1deg(r, fh + lag), FHOURS)))
-        for fh, (F, lv) in got.items():
-            need = {(v, f"{p} mb") for v in ("TMP", "UGRD", "VGRD", "HGT") for p in lv}
-            if len(lv) < 10 or need - set(F) or min(lv) > 70:
-                return None, None, None, f"IFS {r} +{fh + lag} h incomplete ({len(lv)} levels)"
-        print(f"IFS {r} (lag {lag} h) fetched in {time.time() - t0:.0f}s", flush=True)
-        return got, r, lag, None
-    except Exception as e:
-        print("IFS unavailable, GFS only:", e, flush=True)
-        return None, None, None, f"fetch failed: {str(e)[:160]}"
+    tried, notes = [], []
+    from concurrent.futures import ThreadPoolExecutor
+    for _ in range(3):                          # a run that fails mid-download is skipped for the next older one
+        try:
+            r, lag = ecmwf.pick_run(run, FHOURS, skip=tried)
+            if r is None:
+                notes.append(lag); break
+            tried.append(r)
+            with ThreadPoolExecutor(3) as ex:
+                got = dict(zip(FHOURS, ex.map(lambda fh: ecmwf.fetch_1deg(r, fh + lag), FHOURS)))
+            bad = None
+            for fh, (F, lv) in got.items():
+                need = {(v, f"{p} mb") for v in ("TMP", "UGRD", "VGRD", "HGT") for p in lv}
+                if len(lv) < 10 or need - set(F) or min(lv) > 70:
+                    bad = f"IFS {r} +{fh + lag} h incomplete ({len(lv)} levels)"; break
+            if bad:
+                notes.append(bad); continue
+            print(f"IFS {r} (lag {lag} h) fetched in {time.time() - t0:.0f}s", flush=True)
+            return got, r, lag, ("; ".join(notes) or None)
+        except Exception as e:
+            print("IFS run failed:", e, flush=True)
+            notes.append(f"fetch failed: {str(e)[:160]}")
+    print("IFS unavailable, GFS only:", notes, flush=True)
+    return None, None, None, "; ".join(notes)[:400]
 
 
 def to_display(a):

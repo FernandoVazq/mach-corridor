@@ -152,7 +152,7 @@
       sup ? k(bm.land ? `${bm.land <= BOOM.SHADOW_ENVELOPE + 1e-9 && bm.landModel < BOOM.SHADOW_ENVELOPE ? "≤ " : ""}${bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}${o.pFlight > 0 ? ` · ${o.pFlight < 0.001 ? "< 0.1" : (100 * o.pFlight).toFixed(1)}% chance over` : ""}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
           : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
-    drawLadder(r); drawProfile(o);
+    drawLadder(r); drawProfile(o); navlog();
     $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>";
     const inf = o.path.info;
     $("optNote").textContent = sup && inf ? `Route search: time-dependent grid search, then continuous refinement from two starting routes${inf.startsAgree < 0.002 ? ", which agree" : ` (they differ by ${(100 * inf.startsAgree).toFixed(1)}%; the better is shown)`}. Best for this forecast and cost model; not a proof of the global optimum. Weather is taken at the time the aircraft reaches each point.` : "";
@@ -242,11 +242,74 @@
     let t = 0, cur = null;
     for (const s of o.segs) {
       const key = `${s.type}|${s.M.toFixed(3)}`;
-      if (!cur || cur.key !== key) { cur = { key, type: s.type, mach: +s.M.toFixed(3), from_nm: Math.round(s.x0), coords: [[+s.p[0].toFixed(4), +s.p[1].toFixed(4)]], eto: new Date(dep + t * 3.6e6).toISOString().slice(0, 16) + "Z" }; out.push(cur); }
+      if (!cur || cur.key !== key) { cur = { key, type: s.type, mach: +s.M.toFixed(3), from_nm: Math.round(s.x0), coords: [[+s.p[0].toFixed(4), +s.p[1].toFixed(4)]], eto: new Date(dep + t * 3.6e6).toISOString().slice(0, 16) + "Z" }; out.push(cur);
+        Object.defineProperty(cur, "agg", { value: { lim: Infinity, margin: 0, psf: 0, pl: 0, p: 0, land: false, flags: new Set() }, enumerable: false }); }
+      const g = cur.agg;
+      if (s.mcut != null && Number.isFinite(s.margin)) { g.lim = Math.min(g.lim, s.mcut + s.margin); g.margin = Math.max(g.margin, s.margin); }
+      if (s.M > 1) { g.psf = Math.max(g.psf, s.type === "boomless" ? Math.max(BOOM.legPsf(s, r.ac, r.fl), BOOM.SHADOW_ENVELOPE) : BOOM.legPsf(s, r.ac, r.fl)); g.pl = Math.max(g.pl, BOOM.legPldb(s, r.ac, r.fl)); }
+      g.p = Math.max(g.p, s.pExceed || 0); g.land = g.land || !!s.landish;
+      if (s.approach) g.flags.add("coast ahead"); if (s.turn) g.flags.add("turn"); if (s.ssb && s.ssb.hit) g.flags.add("secondary boom"); if (s.hold) g.flags.add("fail-closed: " + s.hold);
       cur.coords.push([+s.q[0].toFixed(4), +s.q[1].toFixed(4)]); cur.to_nm = Math.round(s.x1); t += s.t;
     }
     return out;
   }
+  // ---------- boom navlog and ICAO Item 15 (deep-study feature scan: ForeFlight Navlog, SkyDemon plan, filing) ----------
+  const LEG = { boomless: "Boomless", super: "Supersonic", sub: "Subsonic", climb: "Climb / descent" };
+  // acceleration and deceleration ramps come out as many short stretches: merge runs of the same leg type shorter
+  // than 20 nm each into one line "M a -> b"
+  function mergeRamps(st) {
+    const out = [];
+    for (const x of st) {
+      const p = out[out.length - 1], short = x.to_nm - x.from_nm < 20;
+      if (p && p.type === x.type && short && (p.ramp || p.to_nm - p.from_nm < 20)) {
+        p.ramp = p.ramp || [p.mach]; p.ramp.push(x.mach); p.to_nm = x.to_nm; p.coords = p.coords.concat(x.coords.slice(1));
+        const a = p.agg, b = x.agg; a.lim = Math.min(a.lim, b.lim); a.margin = Math.max(a.margin, b.margin); a.psf = Math.max(a.psf, b.psf); a.pl = Math.max(a.pl, b.pl);
+        a.p = Math.max(a.p, b.p); a.land = a.land || b.land; b.flags.forEach(f => a.flags.add(f));
+      } else {
+        const c = { ...x, coords: x.coords.slice() }; Object.defineProperty(c, "agg", { value: { ...x.agg, flags: new Set(x.agg.flags) }, enumerable: false }); out.push(c);
+      }
+    }
+    return out;
+  }
+  function navRows(r) {
+    return mergeRamps(stretches(r)).map(x => { const g = x.agg; return { from_nm: x.from_nm, to_nm: x.to_nm, eto_utc: x.eto, leg: LEG[x.type] || x.type, over_land: g.land ? "yes" : "no",
+      mach: x.ramp ? `${x.ramp[0].toFixed(2)}->${x.ramp[x.ramp.length - 1].toFixed(2)}` : x.mach, boomless_limit: Number.isFinite(g.lim) && x.type === "boomless" ? +g.lim.toFixed(3) : "", margin: x.type === "boomless" && g.margin ? +g.margin.toFixed(3) : "",
+      psf_ground: g.psf ? +g.psf.toFixed(2) : 0, pldb: g.pl ? (x.type === "boomless" && g.pl <= 45.05 ? "<=45" : Math.round(g.pl)) : "", p_exceed_011: g.p ? +g.p.toExponential(1) : 0,
+      notes: [...g.flags].join("; "), lat: x.coords[0][1], lon: x.coords[0][0] }; });
+  }
+  function navlog() {
+    if (!R) return;
+    const rows = navRows(R);
+    $("navlog").innerHTML = `<tr><th>nm</th><th>ETO UTC</th><th>Leg</th><th>Mach</th><th>Limit</th><th>Margin</th><th>psf</th><th>PLdB</th><th>P(&gt;0.11)</th><th>Notes</th></tr>` +
+      rows.map(x => `<tr class="${x.leg === "Boomless" ? "bl" : ""}"><td>${x.from_nm.toLocaleString()}–${x.to_nm.toLocaleString()}</td><td>${x.eto_utc.slice(11, 16)}</td><td>${x.leg}${x.over_land === "yes" && x.leg !== "Boomless" ? " (land)" : ""}</td>
+        <td>${typeof x.mach === "string" ? x.mach.replace("->", "→") : x.mach.toFixed(2)}</td><td>${x.boomless_limit === "" ? "–" : x.boomless_limit.toFixed(3)}</td><td>${x.margin === "" ? "–" : x.margin.toFixed(3)}</td><td>${x.psf_ground ? x.psf_ground.toFixed(2) : "–"}</td>
+        <td>${x.pldb === "" ? "–" : x.pldb}</td><td>${x.p_exceed_011 ? (x.p_exceed_011 < 1e-4 ? "<0.01%" : (100 * x.p_exceed_011).toFixed(2) + "%") : "–"}</td><td>${x.notes || ""}</td></tr>`).join("");
+    $("item15").textContent = item15(R);
+  }
+  const dm = (v, pos, neg, w) => { const a = Math.abs(v), d = Math.floor(a), m = Math.round((a - d) * 60), dd = m === 60 ? d + 1 : d, mm = m === 60 ? 0 : m;
+    return String(dd).padStart(w, "0") + String(mm).padStart(2, "0") + (v >= 0 ? pos : neg); };
+  const spd = M => M >= 1 || M >= 0.8 ? "M" + String(Math.round(M * 100)).padStart(3, "0") : "N" + String(Math.round(M * 573)).padStart(4, "0");
+  // Item 15 route: initial speed/level, then a coordinate with the new speed/level at every change point (DCT
+  // between). Mach to the hundredth, as ICAO Doc 4444 allows: a nearer value is flown with ATC agreement.
+  function item15(r) {
+    const st = stretches(r).filter(x => x.type !== "climb"), lvl = "F" + String(r.fl).padStart(3, "0");
+    if (!st.length) return "";
+    const parts = [spd(st[0].mach) + lvl];
+    let last = st[0].mach;
+    for (const x of st.slice(1)) {
+      if (Math.round(x.mach * 100) === Math.round(last * 100)) continue;
+      const [lon, lat] = x.coords[0];
+      parts.push("DCT", `${dm(lat, "N", "S", 2)}${dm(lon, "E", "W", 3)}/${spd(x.mach)}${lvl}`); last = x.mach;
+    }
+    return parts.join(" ") + " DCT";
+  }
+  function exportNavlog() {
+    if (!R) return;
+    const rows = navRows(R), cols = Object.keys(rows[0]), man = MC.S.man;
+    const head = `# Mach Corridor boom navlog, ${R.names.join("-")}, ${R.ac.name}, FL${R.fl}; GFS ${man.run_time}${man.models && man.models.ifs ? " + ECMWF " + man.models.ifs : ""}; model ${man.model_version}; research prototype, not for flight`;
+    download(`mach-corridor_${R.names.join("-")}_FL${R.fl}_navlog.csv`, [head, cols.join(","), ...rows.map(x => cols.map(c => /[,;]/.test(String(x[c])) ? `"${x[c]}"` : x[c]).join(","))].join("\n"), "text/csv");
+  }
+
   function exportRoute() {
     if (!R) return;
     const st = stretches(R), man = MC.S.man, base = `mach-corridor_${R.names.join("-")}_FL${R.fl}`;
@@ -438,6 +501,8 @@
     $("evidenceBtn").onclick = exportEvidence;
     $("efbBtn").onclick = efbOpen;
     $("routeExportBtn").onclick = exportRoute;
+    $("navlogBtn").onclick = exportNavlog;
+    $("item15Copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText($("item15").textContent).then(() => { $("item15Copy").textContent = "Copied"; setTimeout(() => $("item15Copy").textContent = "Copy", 1500); }).catch(() => {}); };
     $("routeSummary").addEventListener("click", ev => {
       if (ev.target.id !== "staleBtn" || !R) return;
       MC.S.allowStale = !MC.S.allowStale; planRoute(R.A, R.B, R.names);
@@ -483,5 +548,5 @@
       if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
     }
   });
-  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R) };
+  window.MCPLAN = { navRows: () => R && navRows(R), item15: () => R && item15(R), planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R) };
 })();

@@ -381,3 +381,14 @@ dialog.efb[open] { gap: 10px; }
 #efbChart { width: 100%; height: auto; max-height: 52vh; }
 .efbnext { margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.6; }
 @media (max-width: 760px) { .efbtiles { grid-template-columns: repeat(2, 1fr); } .efbtiles .v { font-size: 26px; } }
+
+/* boom navlog (route panel) */
+.navwrap { margin-top: 10px; }
+.navwrap summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 6px 0; }
+.navwrap summary .muted { font-weight: 400; margin-left: 6px; font-size: 12.5px; }
+.navlog td, .navlog th { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; padding: 3px 6px; }
+.navlog tr.bl td { background: color-mix(in srgb, var(--route-boomless, #4fb8e8) 10%, transparent); }
+.item15 { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--surface-2); padding: 8px 10px; border-radius: 6px; margin: 4px 0 0; }
+.btn.sm { padding: 2px 10px; font-size: 12px; min-height: 24px; }
+
+.age.ok { color: var(--good); } .age.warn { color: var(--warn); font-weight: 600; } .age.bad { color: var(--bad); font-weight: 600; }
