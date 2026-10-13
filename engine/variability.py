@@ -18,12 +18,19 @@ merge: concatenate shards in time order -> var_{year}.npz files (< 100 MB each) 
 import argparse, datetime as dt, glob, os, sys, time
 import numpy as np
 
-import build
-from physics import mmax_grid, virtual_temperature, sound_speed, isa_pressure_hpa, FT
-
 FLS = [350, 450, 550]
+
 H8 = list(range(0, 360, 45))
 EXTRA = {("TMP", "2 m above ground"), ("TMP", "surface"), ("TMP", "tropopause"), ("HGT", "tropopause")}
+build = None
+
+
+def _engine():
+    """GFS access and physics are only needed to collect (the merge job installs numpy alone)."""
+    global build, mmax_grid, virtual_temperature, sound_speed
+    import build as b
+    from physics import mmax_grid as m, virtual_temperature as v, sound_speed as s
+    build, mmax_grid, virtual_temperature, sound_speed = b, m, v, s
 
 
 def nodes_from(land):
@@ -80,6 +87,7 @@ def one(run, jj, ii, zf_nodes):
 
 
 def collect(a):
+    _engine()
     os.makedirs(a.out, exist_ok=True)
     d0, d1 = dt.date.fromisoformat(a.start), dt.date.fromisoformat(a.end)
     days = [d0 + dt.timedelta(days=i) for i in range(0, (d1 - d0).days + 1, a.step_days)]

@@ -54,7 +54,7 @@ jobs:
         run: |
           python engine/variability.py merge --inp shards --out pub
           cd pub
-          for u in https://psl.noaa.gov/data/correlation/oni.data https://psl.noaa.gov/data/correlation/qbo.data \
+          for u in https://psl.noaa.gov/data/correlation/oni.data https://psl.noaa.gov/data/correlation/qbo.data https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt \
                    https://www.cpc.ncep.noaa.gov/data/indices/qbo.u30.index https://www.cpc.ncep.noaa.gov/data/indices/qbo.u50.index \
                    https://psl.noaa.gov/data/correlation/nina34.anom.data https://psl.noaa.gov/data/correlation/ao.data; do
             curl -sfL --max-time 60 "$u" -o "idx_$(basename $u)" || echo "could not fetch $u"
