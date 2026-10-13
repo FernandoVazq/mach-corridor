@@ -1,0 +1,45 @@
+2025-10-03 00Z: 12 launches, 85s
+2025-10-13 00Z: 12 launches, 58s
+2025-10-23 00Z: 9 launches, 72s
+2025-11-02 00Z: 12 launches, 58s
+2025-11-12 00:00:00+00:00 ifs ana failed: IFS 2025111200 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251112/00z/ifs/0p25/scda/20251112000000-0h-scda-fc.index)
+2025-11-12 00:00:00+00:00 ifs f24 failed: IFS 2025111100 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251111/00z/ifs/0p25/scda/20251111000000-24h-scda-fc.index)
+2025-11-12 00Z: 11 launches, 61s
+2025-11-22 00Z: 12 launches, 50s
+2025-12-02 00Z: 12 launches, 53s
+2025-12-12 00:00:00+00:00 ifs f24 failed: IFS 2025121100 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251211/00z/ifs/0p25/scda/20251211000000-24h-scda-fc.index)
+2025-12-12 00Z: 12 launches, 65s
+2025-12-22 00Z: 11 launches, 63s
+2026-01-01 00Z: 12 launches, 73s
+2026-01-11 00Z: 12 launches, 68s
+2026-01-21 00Z: 12 launches, 45s
+2026-01-31 00Z: 12 launches, 63s
+2026-02-10 00Z: 12 launches, 48s
+2026-02-20 00Z: 12 launches, 83s
+2026-03-02 00Z: 12 launches, 47s
+2026-03-12 00Z: 12 launches, 48s
+2026-03-22 00Z: 12 launches, 67s
+2026-04-01 00:00:00+00:00 ifs ana failed: IFS 2026040100 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260401/00z/ifs/0p25/scda/20260401000000-0h-scda-fc.index)
+2026-04-01 00:00:00+00:00 ifs f24 failed: 503 Server Error: Slow Down for url: https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260331/00z/ifs/0p25/oper/20260331000000-24h-oper-fc.grib2
+2026-04-01 00Z: 11 launches, 112s
+2026-04-11 00Z: 12 launches, 75s
+2026-04-21 00Z: 12 launches, 49s
+2026-05-01 00Z: 12 launches, 77s
+2026-05-11 00Z: 12 launches, 53s
+2026-05-21 00Z: 11 launches, 52s
+2026-05-31 00Z: 12 launches, 48s
+2026-06-10 00Z: 12 launches, 94s
+2026-06-20 00Z: 12 launches, 88s
+2026-06-30 00Z: 12 launches, 63s
+2026-07-10 00Z: 11 launches, 61s
+2026-07-20 00Z: 12 launches, 48s
+2026-07-30 00:00:00+00:00 ifs f24 failed: IFS 2026072900 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260729/00z/ifs/0p25/scda/20260729000000-24h-scda-fc.index)
+2026-07-30 00Z: 12 launches, 58s
+2026-08-09 00Z: 12 launches, 66s
+2026-08-19 00:00:00+00:00 ifs f24 failed: IFS 2026081800 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260818/00z/ifs/0p25/scda/20260818000000-24h-scda-fc.index)
+2026-08-19 00Z: 12 launches, 53s
+2026-08-29 00Z: 12 launches, 70s
+2026-09-08 00Z: 12 launches, 57s
+2026-09-18 00Z: 12 launches, 54s
+2026-09-28 00:00:00+00:00 ifs f24 failed: IFS 2026092700 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260927/00z/ifs/0p25/scda/20260927000000-24h-scda-fc.index)
+2026-09-28 00Z: 12 launches, 62s
