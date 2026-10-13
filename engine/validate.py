@@ -18,6 +18,7 @@ import numpy as np
 import requests
 
 import build
+import ecmwf
 from physics import mmax_grid, footprint_max
 
 STATIONS = {   # IGRA2 id: (name, lat, lon)
@@ -39,6 +40,7 @@ EXTRA = {     # mountain, high-latitude and European stations (Sprint 5): --stat
 IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/data-por/{}-data.txt.zip"
 FLS = [350, 450, 550]
 LEADS = [0, 24]
+IFS_LEV = [None]       # pressure levels of the IFS open data, filled on first fetch
 PLEV = np.array(build.PLEV, float)
 
 
@@ -113,25 +115,27 @@ def to_levels(s, z_sfc):
     return T + 273.15, U, V, Z, RH
 
 
-def column_M(T, U, V, Z, RH, zg):
+def column_M(T, U, V, Z, RH, zg, plev=None):
+    plev = PLEV if plev is None else np.asarray(plev, float)
     sh = lambda a: np.asarray(a, np.float32)[:, None, None]
     out = {}
     for fl in FLS:
-        M = mmax_grid(PLEV, sh(T), sh(U), sh(V), sh(Z), np.full((1, 1), zg, np.float32), fl, build.HEADINGS,
+        M = mmax_grid(plev, sh(T), sh(U), sh(V), sh(Z), np.full((1, 1), zg, np.float32), fl, build.HEADINGS,
                       RH=None if RH is None else sh(RH))["M"][:, 0, 0]
         out[fl] = [None if not np.isfinite(m) else round(float(m), 4) for m in M]
     return out
 
 
-def grid_column(F, lat, lon, res):
+def grid_column(F, lat, lon, res, plev=None):
     """Bilinear column at (lat, lon) from global fields {(var, level): 2-D} (lat 90..-90, lon 0..)."""
+    plev = PLEV if plev is None else plev
     d = 1.0 if res == "1p00" else 0.25
     ny, nx = F[("TMP", "500 mb")].shape
     fi, fj = (lon % 360) / d, (90 - lat) / d
     i0, j0 = int(fi) % nx, int(fj); di, dj = fi - int(fi), fj - j0; i1 = (i0 + 1) % nx
     b = lambda A: (A[j0, i0] * (1 - di) + A[j0, i1] * di) * (1 - dj) + (A[j0 + 1, i0] * (1 - di) + A[j0 + 1, i1] * di) * dj
-    st = lambda v: np.array([b(F[(v, f"{int(p)} mb")]) for p in PLEV])
-    RH = st("RH") if all(("RH", f"{int(p)} mb") in F for p in PLEV) else None
+    st = lambda v: np.array([b(F[(v, f"{int(p)} mb")]) for p in plev])
+    RH = st("RH") if all(("RH", f"{int(p)} mb") in F for p in plev) else None
     return st("TMP"), st("UGRD"), st("VGRD"), st("HGT"), RH
 
 
@@ -189,7 +193,11 @@ def main():
             for fh in LEADS:
                 kind, run = ("ana" if fh == 0 else f"f{fh:02d}"), t - dt.timedelta(hours=fh)
                 try:
-                    src[(res, kind)] = build.fetch(run.strftime("%Y%m%d%H"), fh, build.WANT - {("HGT", "surface"), ("LAND", "surface")}, res=res)
+                    if res == "ifs":                         # ECMWF IFS open data, 0.25 deg, its own levels
+                        F, lv = ecmwf.fetch(run.strftime("%Y%m%d%H"), fh)
+                        src[(res, kind)] = F; IFS_LEV[0] = [p for p in lv if p >= 50]
+                    else:
+                        src[(res, kind)] = build.fetch(run.strftime("%Y%m%d%H"), fh, build.WANT - {("HGT", "surface"), ("LAND", "surface")}, res=res)
                 except Exception as e:
                     print(f"{t} {res} {kind} failed: {e}", file=sys.stderr, flush=True)
         for sid, s in launches.items():
@@ -200,7 +208,14 @@ def main():
             row = {"station": sid, "name": name, "time": t.isoformat()[:16], "obs": column_M(*lev, zfl[sid])}
             for (res, kind), F in src.items():
                 try:
-                    row[f"{kind}_{res}"] = column_M(*grid_column(F, la, lo, res), zfl[sid])
+                    if res == "ifs":
+                        lv = IFS_LEV[0]
+                        row[f"{kind}_ifs"] = column_M(*grid_column(F, la, lo, "0p25", lv), zfl[sid], lv)
+                    else:
+                        row[f"{kind}_{res}"] = column_M(*grid_column(F, la, lo, res), zfl[sid])
+                        if res == "1p00" and IFS_LEV[0]:     # GFS on the IFS levels: separates level count from model
+                            lv = [p for p in IFS_LEV[0] if ("TMP", f"{p} mb") in F]
+                            row[f"{kind}_gfs13"] = column_M(*grid_column(F, la, lo, res, lv), zfl[sid], lv)
                 except Exception as e:
                     print(f"{t} {sid} {res} {kind}: {e}", file=sys.stderr, flush=True)
             fout.write(json.dumps(row) + "\n"); fout.flush()

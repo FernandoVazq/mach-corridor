@@ -17,6 +17,13 @@ FLS = ["350", "450", "550"]
 
 rows = [json.loads(l) for l in open(ROWS)]
 print(len(rows), "launches")
+# two-model mean (GFS 1 deg + ECMWF IFS) per direction where both exist
+for r in rows:
+    for kind in ("ana", "f06", "f12", "f24"):
+        a, b = r.get(f"{kind}_1p00"), r.get(f"{kind}_ifs")
+        if a and b:
+            r[f"{kind}_mean"] = {fl: [None if (x is None or y is None) else round((x + y) / 2, 4) for x, y in zip(a[fl], b[fl])] for fl in a}
+SRC = [s for s in SRC if any(s in r for r in rows)] + sorted({k for r in rows for k in r if k not in ("station", "name", "time", "obs") and k not in SRC})
 E = defaultdict(list)          # (src, group) -> errors
 for r in rows:
     mon, st = r["time"][:7], r["name"]
