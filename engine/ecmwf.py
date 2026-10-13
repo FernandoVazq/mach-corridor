@@ -9,7 +9,7 @@ Source: AWS Open Data bucket `ecmwf-forecasts` (eu-central-1, no account), path
 fetch(run, step, params) -> ({(VAR, "<p> mb"): 2-D array lat 90..-90, lon 0..359.75}, levels hPa descending)
 with the GFS short names used elsewhere: t->TMP, u->UGRD, v->VGRD, gh->HGT, r->RH.
 """
-import json, os, tempfile
+import json, os, random, tempfile, time
 import numpy as np
 import requests
 import pygrib
@@ -34,7 +34,7 @@ def fetch(run, step, params=("t", "u", "v", "gh", "r")):
         for k in range(3):
             r = S.get(iu, timeout=60)
             if r.status_code != 503: break               # S3 "slow down": back off and retry
-            import time; time.sleep(3 * (k + 1))
+            time.sleep(3 * (k + 1))
         if r.status_code != 200:
             last = f"{r.status_code} {iu}"; continue
         rows = [json.loads(l) for l in r.text.splitlines() if l.strip()]
@@ -42,16 +42,21 @@ def fetch(run, step, params=("t", "u", "v", "gh", "r")):
         if not want:
             last = f"no pressure-level fields in {u}"; continue
         want.sort(key=lambda x: int(x["_offset"]))
-        # merge adjacent byte ranges
+        # merge byte ranges less than 8 MB apart: S3 throttles many small requests ("503 Slow Down"); the extra
+        # messages in the gaps are whole GRIB messages and are filtered out below
         blobs = []
         for x in want:
             s, e = int(x["_offset"]), int(x["_offset"]) + int(x["_length"]) - 1
-            if blobs and s == blobs[-1][1] + 1: blobs[-1][1] = e
+            if blobs and s - blobs[-1][1] <= 8_000_000: blobs[-1][1] = max(blobs[-1][1], e)
             else: blobs.append([s, e])
         fd, tmp = tempfile.mkstemp(suffix=".grb2")
         with os.fdopen(fd, "wb") as f:
             for s, e in blobs:
-                rr = S.get(u, headers={"Range": f"bytes={s}-{e}"}, timeout=300); rr.raise_for_status(); f.write(rr.content)
+                for k in range(6):
+                    rr = S.get(u, headers={"Range": f"bytes={s}-{e}"}, timeout=300)
+                    if rr.status_code != 503: break
+                    time.sleep(2 ** k + random.random())     # exponential back-off on throttling
+                rr.raise_for_status(); f.write(rr.content)
         out, levels = {}, set()
         for g in pygrib.open(tmp):
             name = NAMES.get(g.shortName)
