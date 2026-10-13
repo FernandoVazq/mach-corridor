@@ -76,6 +76,10 @@ The flown Mach is the forecast boomless Mach minus a margin.
   0.001 steps, `engine/gefs_live.py`); 0.012 is the
   real-world error no model run sees (validation against radiosondes: 0.015 total), raised to 0.015 over mountains
   (ramp from 0.5 to 1.5 km of terrain; mountain balloon stations show ~20% more unsafe-side error, §6.2).
+- **Air data and Mach hold (issue #43):** the aircraft does not fly the planned Mach exactly. An assumed 1σ of 0.005
+  (air-data computer accuracy plus autothrottle Mach-hold excursions) is added in quadrature:
+  k·√(s² + e² + 0.005²), about +0.004 Mach at a typical margin. **Assumption**, to be replaced by the operator's
+  certified figure for its aircraft.
 - **Auto, fallback:** k·σ(x), with σ² = σ_ana(x)² + 0.012², from 53 weekly hindcasts.
 - k per level: ensemble FL350 4.0, FL450 4.25, FL550 3.75 (the larger of two half-year fits, see below);
   fallback FL350 3.79, FL450 4.10, FL550 3.74 (2-fold cross-validated over dates). Other levels use the
@@ -327,7 +331,7 @@ A reviewer who had not seen the work (FAA noise-certification, propagation physi
 | 7 | major | Terrain smoothing and ray reach beyond ±0.5° | DEM floor shipped: real terrain is above the GFS footprint max at 93% of nodes (median +258 m; +813 m over 3.5 km terrain = 0.010 Mach); reach beyond ±0.5° open (#42) |
 | 8 | major | Hindcast flies great circles, the router chases high forecasts; wrong-hour spread fallback | fallback fixed; #40 |
 | 9 | major | Acceleration, turns, deceleration from M1.7 near the zone | approach reach (90 km) and turn focusing (0.004 Mach) in the router (§5); manoeuvre-rate limits for the flight crew open (#44) |
-| 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | stale data, forecast coverage and evidence file done (§5.1); air-data allowance and monitoring open (#43) |
+| 10 | major | Operational assurance items (air-data allowance, monitoring, stale data, integrity) | stale data, forecast coverage, evidence file with SHA-256, air-data allowance (assumed 0.005, §3.3) and freshness monitoring done; operator figures and in-flight update open (#43) |
 | 11 | minor | Lateral rays stopped at 45° | fixed: up to 60° within the Mach cone |
 | 12–14 | minor | Availability at 0.03 margin; k reconciliation; 00 UTC only | §6.2 note; §3.3 reconciled; balloon validation uses 00 and 12 UTC |
 

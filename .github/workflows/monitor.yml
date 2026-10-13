@@ -1,0 +1,51 @@
+name: Monitor
+
+# Issue #26: is the published forecast fresh? Every 3 hours, read the live site's manifest. If the GFS run is more
+# than 18 h old (the router's fail-closed limit) or the site does not answer, open (or update) an issue labelled
+# "monitor"; when it recovers, comment and close it. Also flags a model-version mismatch between the site and main.
+on:
+  schedule:
+    - cron: "41 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: engine/build.py, sparse-checkout-cone-mode: false }
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -u
+          URL="https://fernandovazq.github.io/mach-corridor/data/manifest.json"
+          now=$(date -u +%s); state=ok; msg=""
+          if ! curl -sf --max-time 30 "$URL" -o m.json; then
+            state=bad; msg="The live site's manifest did not load ($URL)."
+          else
+            run=$(python3 -c "import json;print(json.load(open('m.json'))['run_time'])")
+            mv=$(python3 -c "import json;print(json.load(open('m.json')).get('model_version',''))")
+            age=$(( (now - $(date -u -d "$run" +%s)) / 3600 ))
+            want=$(grep -oP 'MODEL_VERSION = "\K[^"]+' engine/build.py || true)
+            echo "run $run, age ${age} h, model $mv (main $want)"
+            if [ "$age" -gt 18 ]; then state=bad; msg="The published GFS run $run is ${age} h old (limit 18 h): the router is failing closed over land."; fi
+            if [ -n "$want" ] && [ "$mv" != "$want" ] && [ "$age" -gt 3 ]; then state=bad; msg="$msg The site serves model $mv but main is $want."; fi
+          fi
+          open=$(gh api "repos/$REPO/issues?state=open&labels=monitor" --jq '.[0].number // empty')
+          if [ "$state" = bad ]; then
+            if [ -z "$open" ]; then
+              gh api "repos/$REPO/issues" -X POST -f title="Monitor: forecast not fresh" -f body="$msg (checked $(date -u +%FT%TZ))" -f "labels[]=monitor" --jq .html_url
+            else
+              gh api "repos/$REPO/issues/$open/comments" -X POST -f body="Still failing: $msg (checked $(date -u +%FT%TZ))" --jq .html_url
+            fi
+            exit 1
+          elif [ -n "$open" ]; then
+            gh api "repos/$REPO/issues/$open/comments" -X POST -f body="Recovered: forecast fresh again (checked $(date -u +%FT%TZ))." --jq .html_url
+            gh api "repos/$REPO/issues/$open" -X PATCH -f state=closed --jq .state
+          fi

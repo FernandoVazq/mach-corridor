@@ -251,10 +251,14 @@
   // Albuquerque, Grand Junction and Salt Lake City: unsafe-side error ~20% above the low-terrain stations),
   // ramped from 0.5 to 1.5 km of terrain; 0.015 everywhere until the terrain grid has loaded (fail-safe)
   const S_EXTRA = 0.012, S_EXTRA_MTN = 0.015;
+  // air data and Mach hold (issue #43): the aircraft does not fly the planned Mach exactly. Assumed 1 sigma 0.005
+  // (air-data computer Mach accuracy plus autothrottle Mach-hold excursions), added in quadrature; an operator
+  // replaces it with its own aircraft's figure.
+  const AIR_DATA_SD = 0.005;
   const sExtra = (lon, lat) => { if (!terrain || lon == null) return S_EXTRA_MTN; const t = Math.max(0, Math.min(1, (elevAt(lon, lat) - 500) / 1000)); return S_EXTRA + (S_EXTRA_MTN - S_EXTRA) * t; };
-  const ensMargin = (fl, sd, lon, lat) => { const e = sExtra(lon, lat); return kEns(fl) * Math.sqrt(sd * sd + e * e); };
+  const ensMargin = (fl, sd, lon, lat) => { const e = sExtra(lon, lat); return kEns(fl) * Math.sqrt(sd * sd + e * e + AIR_DATA_SD * AIR_DATA_SD); };
   // static error map (built with 0.012): add the mountain excess in quadrature
-  const staticMtn = (v, kk, lon, lat) => { const e = sExtra(lon, lat); return kk * Math.sqrt(v * v + e * e - S_EXTRA * S_EXTRA); };
+  const staticMtn = (v, kk, lon, lat) => { const e = sExtra(lon, lat); return kk * Math.sqrt(v * v + e * e - S_EXTRA * S_EXTRA + AIR_DATA_SD * AIR_DATA_SD); };
   const mgCache = {};
   // per 1-degree node, for a level, the current mode and the map's direction tile
   function marginGrid(fl = S.fl) {
@@ -859,7 +863,7 @@
       d3.select(canvas).transition().duration(700).call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * (ax + bx) / 2, H / 2 - k * (ay + by) / 2).scale(k));
     }, overlays, schedule, refresh, pick, describe, showTip, normLon, fmtLat, fmtLon, hashExtra, writeHash,
     get current() { return current; }, get landGeo() { return landGeo; }, get landMesh() { return land; },
-    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
+    get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, AIR_DATA_SD, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
   };
 

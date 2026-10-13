@@ -7,6 +7,7 @@ commit) changes with every build. A compliance case should cite both. Issues ref
 
 | Model | Date | What changed in the answer | Issues |
 |---|---|---|---|
+| 2.7 | 2026-10-13 | Auto margin includes an air-data and Mach-hold allowance (1σ 0.005, in quadrature): about +0.004 Mach at a typical margin | #43 |
 | 2.6 | 2026-10-13 | Chance of > 0.11 psf per leg and per flight (Gaussian, held-out σ inflation 1.17–1.30, 300 nm blocks); secondary-boom loudness estimate in plans; climatology atlas | #20, #16, #30 |
 | 2.5 | 2026-10-12 | Floor = higher of GFS and a 600 m DEM over the footprint; margin's real-world term 0.015 over mountains; over-water legs with regulated ground within 90 km ahead fly at the cutoff Mach; boomless legs in a turn 0.004 Mach slower | #42, #44 |
 | 2.4 | 2026-10-12 | Loudness below the turning point (Airy caustic model) and per-aircraft quiet-height cushion; secondary-boom landing check on over-water legs; fail-closed rules (stale forecast, past forecast end, no margin) | #39, #38, #43 |
