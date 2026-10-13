@@ -174,6 +174,10 @@ above, winds tapered to zero at 70 km. Thermospheric returns (0.1–0.3 Pa) are 
   land: rays every 8° across the cone, landing band ±25 km. If any lands on regulated land the leg is flown at
   the cutoff Mach (or subsonic). Without tables it assumes 125–420 km in every direction (fail-closed). The
   route map shows the landing points (red on land).
+- **Loudness estimate:** Concorde's measured 1–10 Pa (typical ~3 Pa = 0.066 psf, upper 0.2 psf) scaled by the
+  aircraft's primary boom relative to Concorde at M2, FL550: Overture typical 0.06, upper 0.19 psf; AS2 0.08 / 0.26;
+  N+3 0.07 / 0.22; even an XB-1-size aircraft at FL360 reaches 0.19 upper. Every upper value is above 0.11 psf, so
+  the conservative rule (no secondary on regulated land) stays; the estimate is shown in the plan and evidence file.
 - **Check:** the vectorised tables match the ray-by-ray integration to 2% (`test_secondary.py`); synthetic
   stratospheric jets land at 150–270 km, inside the Concorde observations' order of magnitude.
 

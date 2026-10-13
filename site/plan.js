@@ -161,6 +161,8 @@
     const h = Object.entries(o.dHold || {}).filter(([, d]) => d > 1);
     let ssbTxt = "";
     if (o.dReach > 1) ssbTxt += `<p class="fine">Approach: ${Math.round(o.dReach).toLocaleString()} nm over water flown at the cutoff Mach because a boom just above it would land up to ${RT.REACH_KM} km ahead, on regulated ground.</p>`;
+    const sp = window.BOOM ? BOOM.secondaryPsf(o.ac, o.ac.design, MC.S.fl) : null;
+    if (o.dSsb > 1 && sp) ssbTxt += `<p class="fine">Each secondary boom would be about ${sp.typical.toFixed(2)} psf, up to ${sp.upper.toFixed(2)} psf (Concorde measurements scaled to this aircraft), so landing on land is avoided.</p>`;
     if (o.dSsb > 1) ssbTxt += `<p class="fine">Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.</p>`;
     const age = RT.dataAgeH();
     let out = "";
@@ -204,7 +206,7 @@
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
       summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
-        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), p_exceed_011_flight: r4(o.pFlight || 0), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), secondary_psf_estimate: (sp => ({ typical: r4(sp.typical), upper: r4(sp.upper) }))(BOOM.secondaryPsf(r.ac, r.ac.design, r.fl)), p_exceed_011_flight: r4(o.pFlight || 0), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
       checks, all_checks_pass: checks.every(c => c.pass), legs,
     };
   }

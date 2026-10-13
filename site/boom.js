@@ -75,6 +75,15 @@ window.BOOM = (() => {
     const mMap = s.mcut + s.margin - bufferPenalty(ac, fl);
     return 1000 + Math.max(0, mMap - s.M) / -DMDZ;
   }
+  // secondary booms (issue #16): Concorde's measured 1-10 Pa (0.02-0.2 psf, typical ~3 Pa = 0.066 psf; Rogers &
+  // Maglieri 2015) scaled by the aircraft's primary boom relative to Concorde at M2, FL550. Every type in the fleet
+  // has an upper value above 0.11 psf, so a secondary landing on regulated land stays a violation in the router.
+  const CONC = { boom: { length: 61.66, ks: 0.088 } };
+  function secondaryPsf(ac, M, fl) {
+    if (!ac.boom) return { typical: 0, upper: 0 };
+    const r = psf(ac, M, fl) / psf(CONC, 2.0, 550);
+    return { typical: 0.066 * r, upper: 0.2 * r };
+  }
   const legPsf = (s, ac, fl) => s.M <= 1 ? 0 : s.type === "boomless" ? shadowPsf(ac, s.M, fl, legCausticHeight(s, ac, fl)) : psf(ac, s.M, fl);
-  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, bufferPenalty, isa };
+  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, secondaryPsf, bufferPenalty, isa };
 })();
