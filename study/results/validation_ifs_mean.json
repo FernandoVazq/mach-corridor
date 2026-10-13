@@ -1,0 +1,146 @@
+{
+ "source": "validation-data-2025-10-01-leads-ifs (3,500 IGRA2 launches, 12 stations, Oct 2025 - Sep 2026)",
+ "note": "Every figure on the launches and levels where both GFS and IFS have a corridor; w = weight of IFS (0 = GFS only, 1 = IFS only). Lagged rows: GFS lead + IFS lead for the same valid time, as when the live build uses an older IFS run.",
+ "same_lead": {
+  "ana": {
+   "gfs_1p00": {
+    "n": 346140,
+    "rmse": 0.0104,
+    "bias": -0.0024,
+    "unsafe_semi_rms": 0.0083
+   },
+   "gfs_13_levels": {
+    "n": 346140,
+    "rmse": 0.0111,
+    "bias": -0.0032,
+    "unsafe_semi_rms": 0.0082
+   },
+   "ifs": {
+    "n": 346140,
+    "rmse": 0.0093,
+    "bias": -0.0025,
+    "unsafe_semi_rms": 0.0069
+   },
+   "mean": {
+    "n": 346140,
+    "rmse": 0.0092,
+    "bias": -0.0024,
+    "unsafe_semi_rms": 0.007
+   },
+   "w_ifs_0.6": {
+    "n": 346140,
+    "rmse": 0.0091,
+    "bias": -0.0024,
+    "unsafe_semi_rms": 0.0069
+   }
+  },
+  "f06": {
+   "gfs_1p00": {
+    "n": 363528,
+    "rmse": 0.0113,
+    "bias": -0.0024,
+    "unsafe_semi_rms": 0.0092
+   },
+   "gfs_13_levels": {
+    "n": 363528,
+    "rmse": 0.0119,
+    "bias": -0.0032,
+    "unsafe_semi_rms": 0.009
+   },
+   "ifs": {
+    "n": 363528,
+    "rmse": 0.0109,
+    "bias": -0.0029,
+    "unsafe_semi_rms": 0.0082
+   },
+   "mean": {
+    "n": 363528,
+    "rmse": 0.0104,
+    "bias": -0.0027,
+    "unsafe_semi_rms": 0.008
+   },
+   "w_ifs_0.6": {
+    "n": 363528,
+    "rmse": 0.0104,
+    "bias": -0.0027,
+    "unsafe_semi_rms": 0.008
+   }
+  },
+  "f24": {
+   "gfs_1p00": {
+    "n": 354780,
+    "rmse": 0.013,
+    "bias": -0.0022,
+    "unsafe_semi_rms": 0.0111
+   },
+   "gfs_13_levels": {
+    "n": 354780,
+    "rmse": 0.0135,
+    "bias": -0.003,
+    "unsafe_semi_rms": 0.0108
+   },
+   "ifs": {
+    "n": 354780,
+    "rmse": 0.0123,
+    "bias": -0.0028,
+    "unsafe_semi_rms": 0.0098
+   },
+   "mean": {
+    "n": 354780,
+    "rmse": 0.0117,
+    "bias": -0.0025,
+    "unsafe_semi_rms": 0.0095
+   },
+   "w_ifs_0.6": {
+    "n": 354780,
+    "rmse": 0.0117,
+    "bias": -0.0026,
+    "unsafe_semi_rms": 0.0094
+   }
+  }
+ },
+ "lagged": {
+  "gfs_ana+ifs_f06": {
+   "mean": {
+    "n": 363528,
+    "rmse": 0.0101,
+    "bias": -0.0026,
+    "unsafe_semi_rms": 0.0077
+   },
+   "gfs_alone": {
+    "n": 363528,
+    "rmse": 0.0105,
+    "bias": -0.0023,
+    "unsafe_semi_rms": 0.0084
+   }
+  },
+  "gfs_f06+ifs_f24": {
+   "mean": {
+    "n": 354780,
+    "rmse": 0.011,
+    "bias": -0.0026,
+    "unsafe_semi_rms": 0.0086
+   },
+   "gfs_alone": {
+    "n": 354780,
+    "rmse": 0.0113,
+    "bias": -0.0024,
+    "unsafe_semi_rms": 0.0092
+   }
+  },
+  "gfs_ana+ifs_f24": {
+   "mean": {
+    "n": 354780,
+    "rmse": 0.0106,
+    "bias": -0.0026,
+    "unsafe_semi_rms": 0.0083
+   },
+   "gfs_alone": {
+    "n": 354780,
+    "rmse": 0.0105,
+    "bias": -0.0023,
+    "unsafe_semi_rms": 0.0084
+   }
+  }
+ }
+}

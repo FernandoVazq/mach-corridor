@@ -905,7 +905,9 @@
       const p = readHash();
       buildControls();
       const rt = new Date(man.run_time), gen = new Date(man.generated);
-      $("runInfo").innerHTML = `GFS ${d3.utcFormat("%d %b %Y %HZ")(rt)} run · updated ${d3.utcFormat("%d %b %H:%MZ")(gen)}`;
+      const ifs = man.models && man.models.ifs, f = d3.utcFormat("%d %b %Y %HZ");
+      $("runInfo").innerHTML = `GFS ${f(rt)} run${ifs ? ` + ECMWF ${f(d3.utcParse("%Y%m%d%H")(ifs))}` : ""} · updated ${d3.utcFormat("%d %b %H:%MZ")(gen)}`;
+      $("runInfo").title = ifs ? "Boomless Mach is the mean of the two models (Method §6.2)" : (man.models ? "GFS only: " + (man.models.ifs_note || "ECMWF not available") : "GFS only");
       await refresh();
       loadTerrain().catch(e => console.warn("terrain", e));
       if (S.view === "3d") setView();

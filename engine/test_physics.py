@@ -86,6 +86,29 @@ def test_haglund_buffer():
     print(f"Haglund buffer ISA {hb:.0f} m (M {m_hag:.3f} vs {m_fix:.3f} with 1 km); sheared worst direction {hb2:.0f} m")
 
 
+def test_two_model_mean():
+    """Model 2.9: the IFS columns have 13 levels, not 23; a smooth column must give nearly the same limit, and the
+    mean must be 'no corridor' wherever either model has none."""
+    import os
+    os.environ["MC_NO_IFS"] = "1"
+    import build
+    IFS13 = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
+    k = [list(PLEV).index(p) for p in IFS13]
+    T, U, V, Z = column(u_of_z=lambda z: 20 * np.exp(-((z - 11000) / 4000) ** 2))
+    for fl in (350, 450, 550):
+        m23 = mmax_grid(PLEV, T, U, V, Z, np.zeros((1, 1)), fl, [90, 270], h_buf=1000)["M"][:, 0, 0]
+        m13 = mmax_grid(PLEV[k], T[k], U[k], V[k], Z[k], np.zeros((1, 1)), fl, [90, 270], h_buf=1000)["M"][:, 0, 0]
+        assert np.all(np.abs(m23 - m13) < 0.003), (fl, m23, m13)
+    a, b = np.array([1.10, np.nan, 1.20]), np.array([1.12, 1.15, np.nan])
+    m = build.combine(a, b)
+    assert abs(m[0] - 1.11) < 1e-9 and np.isnan(m[1]) and np.isnan(m[2]), m
+    got, r, lag, note = build.load_ifs("2026101200")
+    assert got is None and r is None and "MC_NO_IFS" in note, note
+    del os.environ["MC_NO_IFS"]
+    print("two-model mean: 13 vs 23 levels within 0.003; no corridor if either model has none; GFS-only switch works")
+
+
 if __name__ == "__main__":
     test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one(); test_haglund_buffer()
+    test_two_model_mean()
     print("all physics tests passed")

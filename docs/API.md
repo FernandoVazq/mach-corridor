@@ -14,7 +14,7 @@ python engine/client.py 39.5 -98 270 550        # lat lon heading flight-level [
 
 | Path | Content | Encoding |
 |---|---|---|
-| `data/manifest.json` | GFS run, build time, `model_version`, `code_version`, forecast hours, flight levels, headings, atlas layout, encodings, physics notes, land statistics | JSON |
+| `data/manifest.json` | GFS run, `models` (IFS run, lag, how they are combined, IFS − GFS per level and hour), build time, `model_version`, `code_version`, forecast hours, flight levels, headings, atlas layout, encodings, physics notes, land statistics | JSON |
 | `data/f{HHH}_FL{LLL}.png` | Boomless Mach limit per 1° node, 36 headings, one forecast hour and level | 8-bit grayscale atlas, 6 columns × 7 rows of 360×181 tiles (lon −180…179, lat 90…−90). Tile t = heading/10 for t < 36; 36 = worst heading, 37 = best, 38 = sound speed − 200 m/s, 39 = land × 255, 40/41 = u/v wind + 128 m/s. Mach = 1 + 0.0025 × byte; byte 0 = no corridor |
 | `data/prof_f{HHH}.bin` | Column profiles on a 2° grid (for 3D views and offline ray tracing) | little-endian int16, shape (4L + 1, 91, 180): c×10, u×10, v×10, height, then ground (m) |
 | `data/terrain.png` | Terrain used for relief | byte × 25 m |
@@ -27,6 +27,8 @@ python engine/client.py 39.5 -98 270 550        # lat lon heading flight-level [
 
 ## How the site combines them
 
+- **Limit** (model 2.9): the atlas already holds the mean of GFS and ECMWF IFS when `models.ifs` is set, GFS alone
+  when it is null.
 - **Limit** at a point and heading: bilinear in space, the lower of the two bracketing 10° headings; no corridor
   if any of the surrounding nodes has none.
 - **Margin** (Auto): k × √(spread² + e² + 0.005²), with e = 0.012 (0.015 over terrain above 1.5 km, ramped from
@@ -36,4 +38,5 @@ python engine/client.py 39.5 -98 270 550        # lat lon heading flight-level [
 - Primary-boom psf, the caustic and secondary-boom models, the approach and turn rules and the fail-closed rules
   are in `site/boom.js` and `site/route.js` and described in `docs/METHOD.md`.
 
-Data are public domain (NOAA GFS/GEFS) or Natural Earth; the code is in this repository.
+Data are public domain (NOAA GFS/GEFS), ECMWF IFS open data (CC BY 4.0, © ECMWF: credit it when you reuse the
+atlases) or Natural Earth; the code is in this repository.

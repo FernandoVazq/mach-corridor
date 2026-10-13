@@ -7,6 +7,7 @@ commit) changes with every build. A compliance case should cite both. Issues ref
 
 | Model | Date | What changed in the answer | Issues |
 |---|---|---|---|
+| 2.9 | 2026-10-13 | Boomless Mach = mean of GFS and ECMWF IFS per node and direction (IFS run at most 12 h older; GFS only when IFS is missing); no corridor where either model has none. Against 3,500 balloons the mean cuts the 24 h error 0.0130 → 0.0117 (unsafe side 0.0110 → 0.0095). Margins unchanged (calibrated on GFS alone, so now conservative) | #9 |
 | 2.8 | 2026-10-13 | FL550 margin k 3.75 → 4.0: choosing the fastest of several paths raised > 0.11 psf flights 0.43% → 0.59%; with k 4.0 the chosen paths give 0.28% (95% upper 0.47%) for 0.7 min. Boomless legs reported at the larger of the caustic model and FaINT's 0.10 psf envelope | #40, #19 |
 | 2.7 | 2026-10-13 | Auto margin includes an air-data and Mach-hold allowance (1σ 0.005, in quadrature): about +0.004 Mach at a typical margin | #43 |
 | 2.6 | 2026-10-13 | Chance of > 0.11 psf per leg and per flight (Gaussian, held-out σ inflation 1.17–1.30, 300 nm blocks); secondary-boom loudness estimate in plans; climatology atlas | #20, #16, #30 |

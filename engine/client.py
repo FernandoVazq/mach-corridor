@@ -115,5 +115,5 @@ if __name__ == "__main__":
     hrs = float(sys.argv[5]) if len(sys.argv) > 5 else 0
     base = sys.argv[6] if len(sys.argv) > 6 else LIVE
     mc = MachCorridor(base)
-    print(json.dumps(dict(run=mc.man["run_time"], model=mc.man.get("model_version"), lat=lat, lon=lon, heading=hd, fl=fl, hours=hrs,
+    print(json.dumps(dict(run=mc.man["run_time"], ifs_run=(mc.man.get("models") or {}).get("ifs"), model=mc.man.get("model_version"), lat=lat, lon=lon, heading=hd, fl=fl, hours=hrs,
                           limit=mc.limit(lat, lon, hd, fl, hrs), margin=mc.margin(lat, lon, hd, fl, hrs), flyable=mc.flyable(lat, lon, hd, fl, hrs)), indent=1))

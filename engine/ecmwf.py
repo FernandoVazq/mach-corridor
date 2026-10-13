@@ -8,6 +8,7 @@ Source: AWS Open Data bucket `ecmwf-forecasts` (eu-central-1, no account), path
 
 fetch(run, step, params) -> ({(VAR, "<p> mb"): 2-D array lat 90..-90, lon 0..359.75}, levels hPa descending)
 with the GFS short names used elsewhere: t->TMP, u->UGRD, v->VGRD, gh->HGT, r->RH.
+pick_run(gfs_run, last_step) chooses the IFS run the live build averages with GFS (model 2.9, engine/build.py).
 """
 import json, os, random, tempfile, time
 import numpy as np
@@ -74,3 +75,38 @@ def fetch(run, step, params=("t", "u", "v", "gh", "r")):
         os.remove(tmp)
         return out, sorted(levels, reverse=True)
     raise RuntimeError(f"IFS {run} +{step}h not found ({last})")
+
+
+def available(run, step):
+    """True if the index for run +step h is published (either stream)."""
+    for stream in ("oper", "scda"):
+        u = url(run, step, stream)
+        try:
+            if S.head(u[:-len("grib2")] + "index", timeout=30).status_code == 200:
+                return True
+        except requests.RequestException:
+            pass
+    return False
+
+
+def pick_run(gfs_run, last_step, max_lag_h=12):
+    """Latest IFS run at most max_lag_h older than the GFS run 'YYYYMMDDHH' whose step last_step + lag is
+    published. Returns (run, lag_h) or (None, reason). Validation (study/results/validation_ifs.json, METHOD 6.2):
+    the two-model mean beats GFS alone when IFS lags by 6 h at the analysis and by 18 h at 6 h, but not by 24 h at the
+    analysis, hence the 12 h cap."""
+    import datetime as dt
+    t = dt.datetime.strptime(gfs_run, "%Y%m%d%H")
+    for lag in range(0, max_lag_h + 1, 6):
+        r = (t - dt.timedelta(hours=lag)).strftime("%Y%m%d%H")
+        top = 144 if r[8:10] in ("00", "12") else 90
+        if last_step + lag > top:
+            continue
+        if available(r, last_step + lag) and available(r, lag):
+            return r, lag
+    return None, f"no IFS run within {max_lag_h} h of GFS {gfs_run} published to +{last_step} h"
+
+
+def fetch_1deg(run, step, params=("t", "u", "v", "gh", "r")):
+    """fetch() thinned to the GFS 1-degree grid (181 x 360, lat 90..-90, lon 0..359) to keep memory small."""
+    F, lv = fetch(run, step, params)
+    return {k: np.ascontiguousarray(a[::4, ::4]) for k, a in F.items()}, lv

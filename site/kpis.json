@@ -42,14 +42,14 @@
    "id": "error",
    "name": "Day-ahead boomless-Mach error",
    "unit": "Mach",
-   "today": 0.0131,
+   "today": 0.0117,
    "target": 0.008,
    "better": "lower",
    "phase": 1,
    "gate": 0.01,
-   "source": "4,004 IGRA2 launches vs GFS 24 h forecast, 6 US stations, Oct 2025 – Sep 2026 (engine/validate.py, monthly in CI)",
+   "source": "3,500 IGRA2 launches, 12 stations (US, mountain, Alaska, Europe), Oct 2025 – Sep 2026, 24 h forecasts (engine/validate.py, study/results/validation_ifs.json)",
    "start": 0.015,
-   "note": "RMS of all errors. 6 h before departure 0.0113, 12 h 0.0119, analysis 0.0104 (2,006 launches). Unsafe side only (model allows more than the balloon): 0.0108 at 24 h, 0.0088 at 6 h. Mountain stations ~20% worse (margin raised there), Europe 0.011. Gate metric under review: see Method 6.2"
+   "note": "Model 2.9: mean of GFS and ECMWF IFS. RMS 0.0117 at 24 h, 0.0104 at 6 h, 0.0092 analysis (GFS alone 0.0130, 0.0113, 0.0104 on the same launches). Unsafe side only (model allows more than the balloon): 0.0095 at 24 h and 0.0080 at 6 h, under the 0.010 gate if the gate is measured on the unsafe side (owner's decision, Method 6.2). Mountain stations ~20% worse (margin raised there)"
   },
   {
    "id": "psf",

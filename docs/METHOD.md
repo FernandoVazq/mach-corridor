@@ -1,4 +1,4 @@
-# Mach Corridor — Method Document (draft 0.4, 12 Oct 2026)
+# Mach Corridor — Method Document (draft 0.5, 13 Oct 2026)
 
 Written for a reviewer who must decide whether this method can be part of an operator's means of compliance
 under the proposed rule (FAA NPRM "Enabling Supersonic Overland Flight", docket FAA-2026-6935: sonic boom
@@ -10,7 +10,7 @@ claim below points to code, a test or a dataset in this repository; unvalidated 
 For a supersonic aircraft at a given flight level, position, time and direction of travel, the method gives
 the **highest Mach at which no primary-boom ray reaches the ground** (Mach cutoff), with a margin for forecast
 error, the **expected ground overpressure** of each leg (primary boom, and below the turning point on cutoff legs),
-and whether a leg's **secondary booms** would land on regulated land (§4.1; their loudness is not computed).
+and whether a leg's **secondary booms** would land on regulated land (§4.1; their loudness is only estimated).
 
 | Output | Where | Evidence |
 |---|---|---|
@@ -26,6 +26,7 @@ and whether a leg's **secondary booms** would land on regulated land (§4.1; the
 | Input | Source | Resolution | Version control |
 |---|---|---|---|
 | Temperature, humidity, wind, height on 23 pressure levels (1000–50 hPa) | NOAA GFS, AWS Open Data (`noaa-gfs-bdp-pds`) | 1°, 0–48 h every 6 h | run id in `manifest.json` |
+| Second model: temperature, humidity, wind, height on 13 pressure levels (1000–50 hPa) | ECMWF IFS open data, AWS (`ecmwf-forecasts`), CC BY 4.0; run at most 12 h older than the GFS run (`engine/ecmwf.py` `pick_run`) | 0.25° thinned to 1°, 0–60 h every 6 h | `manifest.json` → `models` |
 | Terrain under the boom footprint | GFS 0.25° orography, max over ±0.5°, raised to a DEM maximum where higher (Terrarium z8 ≈ 600 m, 3×3 median; `engine/dem_floor.py`) | 0.25° / 600 m → 1° | run id; `engine/data/dem_footprint_max.npy` |
 | Ensemble spread (evaluation) | NOAA GEFS v12, 31 members, `noaa-gefs-pds` | 0.5° → 1° | `study-data-gefs` branch |
 | Territory | Natural Earth 10 m land, minor islands, lakes | 0.1° raster | `site/geo/zone.png` |
@@ -265,14 +266,19 @@ limit after margin, margin, fail-closed reason, wind, ground psf), the GFS and G
 | How often is a corridor usable? | 4,283 soundings, Oct 2025 – Sep 2026 | FL350 38%, FL500 85%, FL550 93% at margin 0.03; lower at the shipped margins (about 0.05), to be re-reported |
 | Error by forecast age | 2,006 launches, same stations and year, every 2nd day, GFS 1° (`study/results/validation_leads.json`) | RMS 0.0104 analysis, 0.0113 at 6 h, 0.0119 at 12 h, 0.0132 at 24 h; bias −0.003 at every age. **Unsafe side** (model allows more than the balloon; semi-RMS √(2·mean(max(e,0)²))): 0.0079, 0.0088, 0.0095, 0.0108. 99th percentile of the error 0.021, 0.024, 0.025, 0.029 (`unsafe_semi_rms`, `p99`) |
 | Mountain, Alaska and Europe | 1,494 launches at Albuquerque, Grand Junction, Salt Lake City, Anchorage, Lindenberg, Camborne, every 2nd day, Oct 2025 – Sep 2026 (`study/results/validation_stations.json`) | 24 h RMS: mountain 0.0138–0.0141, Anchorage 0.0127, Europe 0.0109–0.0110. Unsafe side at 6 h: mountain 0.0108–0.0114, Anchorage 0.0105, Europe 0.0070–0.0076. Mountains about 20% worse → real-world term 0.015 there (§3.3); Denver has no IGRA2 launches in the period |
+| Second model (ECMWF IFS) and two-model mean (#9) | 3,500 launches, all 12 stations, every 2nd day, Oct 2025 – Sep 2026; IFS open data 0.25°, its 13 levels; GFS 1° and GFS on the same 13 levels; statistics on the launches and levels both models cover (`study/results/validation_ifs.json`, `validation_ifs_mean.json`) | RMS GFS / IFS / mean: analysis 0.0104 / 0.0093 / 0.0092; 6 h 0.0113 / 0.0109 / 0.0104; 24 h 0.0130 / 0.0123 / 0.0117. Unsafe side: analysis 0.0083 / 0.0069 / 0.0070; 6 h 0.0092 / 0.0082 / 0.0080; 24 h 0.0111 / 0.0098 / 0.0095. GFS on IFS's 13 levels is slightly worse than GFS on 23 (24 h 0.0135), so the gain is the model, not the levels. With IFS lagging (the live case, open data are published later): GFS analysis + IFS 6 h 0.0101 (unsafe 0.0077); GFS 6 h + IFS 24 h 0.0110 (0.0086), both better than GFS alone; GFS analysis + IFS 24 h 0.0106 (0.0083) is not (GFS alone 0.0105, 0.0084), hence the 12 h lag cap. Equal weights; 60/40 for IFS changes the figures by at most 0.0002 |
 | Day-ahead error, full year | 4,004 IGRA2 launches, 6 US stations, Oct 2025 – Sep 2026, 00/12 UTC (`engine/validate.py`, monthly in CI) | σ 0.0131 (FL350 0.0129, FL450 0.0141, FL550 0.0122); analysis 0.0103; winter 0.0130 vs 0.0131; 0.25° 0.0134 (no gain); bias −0.003 (forecast slower than allowed) |
 
-**Phase 1 error gate (0.010).** The RMS gate is not met at any forecast age, including the analysis
-(0.0104): what is left is the difference between a 1° grid column and one balloon, not forecast skill. Two
-findings matter for operations: (1) re-planning with the run issued about 6 h before departure cuts the error
-14% and the unsafe tail by 0.005 Mach; (2) the bias is on the safe side. **Proposed** (owner's decision, not yet
-adopted): measure the gate on the unsafe side only, where 6 h and 12 h re-planning pass (0.0088, 0.0095) and
-24 h does not (0.0108); and require plans to use a run at most 12 h old at departure.
+**Phase 1 error gate (0.010).** With GFS alone the RMS gate is not met at any forecast age, including the
+analysis (0.0104): what is left is mostly the difference between a 1° grid column and one balloon, not forecast
+skill. Since model 2.9 the map is the **mean of GFS and ECMWF IFS**, which lowers every figure: RMS 0.0092
+analysis, 0.0104 at 6 h, 0.0117 at 24 h; unsafe side 0.0070, 0.0080, 0.0095. Findings for operations: (1)
+re-planning with the run issued about 6 h before departure cuts the error 11–14%; (2) the bias is on the safe
+side (−0.002 to −0.003). **Proposed** (owner's decision, not yet adopted): measure the gate on the unsafe side
+only, where the two-model mean passes at every age evaluated, up to 24 h (0.0095); and require plans to use a run at most
+12 h old at departure. The margins (k, e) were fitted on GFS-only errors and are not reduced for the mean, so the
+hindcast exposure figures in §6.3 are expected to be conservative for model 2.9; re-fitting them on two-model hindcasts
+needs a year of archived IFS fields (**Open**).
 
 ### 6.3 Operational value and safety in hindcast
 53 weekly GFS analyses and 24 h forecasts, 48 directed routes, real-world error added (σ 0.012, 300 nm correlation).
@@ -300,16 +306,17 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 | Limitation | Effect | Bound or plan |
 |---|---|---|
 | Single-column atmosphere (no horizontal gradients along the ~40 km ray) | 3D ray tracing through the 2° forecast (600 cases, FL550, `engine/rays3d.py`): 3D minus column mean −0.0002, sd 0.0022, 95% of cases within ±0.0045 Mach, no sign bias | small next to the margin (~0.055); finer grids (0.25°) would resolve sharper gradients (#17) |
-| 1° GFS | analysis-time error 0.009–0.016 | GFS 0.25° (#6) |
+| 1° grid (GFS, and IFS thinned from 0.25°) | analysis RMS 0.0092 for the two-model mean, 0.009–0.016 by station | GFS 0.25° gave no gain (§6.2, #6) |
+| Second model may be missing | when IFS is unpublished, incomplete or more than 12 h older than GFS, the build is GFS only (`manifest.json` → `models.ifs_note`, shown on the map's run line) | margins were fitted on GFS alone, so they hold either way |
 | Level flight | a −3° descent costs about 0.03 Mach | descent subsonic in the route model |
-| Secondary-boom loudness not computed; footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |
+| Secondary-boom loudness only estimated (Concorde's 1–10 Pa scaled per aircraft); footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |
 | Manoeuvre focusing | superbooms in turns and acceleration | flagged later (#18) |
 | Turbulence | spikier or rounder booms | psf distribution (#19) |
 | Buffer not calibrated on flight data | the caustic may be closer than safe | margin keeps it above ΔZ_S in the hindcast; XB-1 data (#21) |
 
 ## 8. Change control and reproducibility
 - Physics and data changes go through the CI test suite (`.github/workflows/forecast.yml`) before a build ships.
-- Every map carries the GFS run id; hindcast data live on versioned branches (`study-data`,
+- Every map carries the GFS run id and, since model 2.9, the IFS run id and lag (`models`); hindcast data live on versioned branches (`study-data`,
   `study-data-gefs`, `study-data-haglund`).
 - Datasets are rebuilt from code (`study/datasets.py`).
 - Every evidence file carries the model version (`docs/CHANGELOG.md`), the code version (build commit), the data

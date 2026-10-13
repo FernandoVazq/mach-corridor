@@ -201,7 +201,8 @@
     return {
       kind: "Mach Corridor flight evidence", disclaimer: "Research prototype. Not certified for flight planning.",
       exported_utc: iso(Date.now()), site: location.origin + location.pathname, link: location.href,
-      code_version: man.code_version || null, model_version: man.model_version || null, method: "docs/METHOD.md", changelog: "docs/CHANGELOG.md", data: { gfs_run: man.run_time, built: man.generated, source: man.source, physics: man.physics,
+      code_version: man.code_version || null, model_version: man.model_version || null, method: "docs/METHOD.md", changelog: "docs/CHANGELOG.md", data: { gfs_run: man.run_time, ifs_run: (man.models && man.models.ifs) || null, ifs_lag_h: (man.models && man.models.ifs_lag_h) ?? null,
+        combine: (man.models && man.models.combine) || "GFS only", built: man.generated, source: man.source, physics: man.physics,
         gefs_run: gm ? gm.run_time : null },
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },

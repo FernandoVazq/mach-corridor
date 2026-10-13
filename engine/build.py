@@ -25,6 +25,7 @@ from PIL import Image
 
 from physics import mmax_grid, footprint_max, virtual_temperature, sound_speed, H_BUF_DEFAULT
 import secondary
+import ecmwf
 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
@@ -33,7 +34,7 @@ FLS = [300, 350, 400, 450, 500, 550, 600]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025
-MODEL_VERSION = "2.8"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
+MODEL_VERSION = "2.9"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
 COLS, ROWS = 6, 7
 NX, NY = 360, 181
 
@@ -142,6 +143,36 @@ def fetch_orog(run, F0):
         return m, "GFS 1 deg orography, max over neighbours (fallback)"
 
 
+def combine(Mg, Mi):
+    """Two-model boomless Mach (model 2.9): the mean of GFS and ECMWF IFS per node and direction; no corridor where
+    either model has none. Validated in METHOD 6.2 (study/results/validation_ifs.json)."""
+    return 0.5 * (Mg + Mi)                      # NaN in either -> NaN
+
+
+def load_ifs(run):
+    """Prefetch ECMWF IFS for every forecast hour, thinned to 1 degree. All or nothing: any failure -> GFS only, so
+    every hour of a build uses the same models. Returns (dict fh -> (F, levels), ifs_run, lag_h, note)."""
+    if os.environ.get("MC_NO_IFS"):
+        return None, None, None, "disabled (MC_NO_IFS)"
+    t0 = time.time()
+    try:
+        r, lag = ecmwf.pick_run(run, FHOURS[-1])
+        if r is None:
+            return None, None, None, lag
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(3) as ex:
+            got = dict(zip(FHOURS, ex.map(lambda fh: ecmwf.fetch_1deg(r, fh + lag), FHOURS)))
+        for fh, (F, lv) in got.items():
+            need = {(v, f"{p} mb") for v in ("TMP", "UGRD", "VGRD", "HGT") for p in lv}
+            if len(lv) < 10 or need - set(F) or min(lv) > 70:
+                return None, None, None, f"IFS {r} +{fh + lag} h incomplete ({len(lv)} levels)"
+        print(f"IFS {r} (lag {lag} h) fetched in {time.time() - t0:.0f}s", flush=True)
+        return got, r, lag, None
+    except Exception as e:
+        print("IFS unavailable, GFS only:", e, flush=True)
+        return None, None, None, f"fetch failed: {str(e)[:160]}"
+
+
 def to_display(a):
     return np.roll(a, 180, axis=-1)
 
@@ -170,6 +201,8 @@ def build(run, out_dir):
     stats, orog_note, have_rh = {}, None, True
     zground = None
     ssb_done, ssb_top = [], None
+    IFS, ifs_run, ifs_lag, ifs_note = load_ifs(run)
+    ifs_diff = {}
     for fh in FHOURS:
         t0 = time.time()
         F = fetch_fields(run, fh)
@@ -210,9 +243,23 @@ def build(run, out_dir):
             except Exception as ex:
                 print(f"secondary booms f{fh:03d} failed: {ex}", flush=True)
 
+        if IFS:
+            Fi, lvi = IFS[fh]
+            sti = lambda v: np.stack([Fi[(v, f"{p} mb")] for p in lvi])
+            RHi = sti("RH") if all(("RH", f"{p} mb") in Fi for p in lvi) else None
+            Xi = (np.array(lvi, float), sti("TMP"), sti("UGRD"), sti("VGRD"), sti("HGT"))
         for fl in FLS:
             r = mmax_grid(np.array(PLEV, float), T, U, V, Z, zground, fl, HEADINGS, RH=RH)
             M = r["M"]
+            if IFS:
+                Mi = mmax_grid(*Xi, zground, fl, HEADINGS, RH=RHi)["M"]
+                lm = stat_mask[None] & np.isfinite(M)
+                both = lm & np.isfinite(Mi)
+                d = (Mi - M)[both]
+                ifs_diff.setdefault(str(fl), []).append({"fh": fh, "mean_ifs_minus_gfs": round(float(d.mean()), 4) if d.size else None,
+                                                        "sd": round(float(d.std()), 4) if d.size else None,
+                                                        "gfs_corridor_removed_share": round(float(1 - both.sum() / max(lm.sum(), 1)), 4)})
+                M = combine(M, Mi)
             Mmin = np.nanmin(np.where(np.isnan(M), 0.0, M), axis=0)
             Mmax = np.nanmax(np.where(np.isnan(M), 0.0, M), axis=0)
             tiles = [encode_M(to_display(m)) for m in M]
@@ -254,7 +301,11 @@ def build(run, out_dir):
         "generated": iso(dt.datetime.now(dt.timezone.utc).replace(microsecond=0)),
         "code_version": os.environ.get("GITHUB_SHA", "local")[:7],
         "model_version": MODEL_VERSION,
-        "source": "NOAA GFS 1.0 deg pressure levels + 0.25 deg orography (AWS Open Data noaa-gfs-bdp-pds)",
+        "source": "NOAA GFS 1.0 deg pressure levels + 0.25 deg orography (AWS Open Data noaa-gfs-bdp-pds)"
+                  + (f"; mean with ECMWF IFS open data {ifs_run} (CC-BY-4.0, AWS ecmwf-forecasts), thinned to 1 deg" if IFS else ""),
+        "models": {"gfs": run, "ifs": ifs_run, "ifs_lag_h": ifs_lag, "ifs_note": ifs_note,
+                   "combine": "boomless Mach = mean of GFS and IFS per node and direction; no corridor if either has none" if IFS else "GFS only",
+                   "ifs_vs_gfs": ifs_diff or None},
         "physics": {"h_buf_m": H_BUF_DEFAULT, "terrain": orog_note, "lateral_rays": True,
                     "virtual_temperature": have_rh, "surface_layer_used": False},
         "forecast_hours": FHOURS,
