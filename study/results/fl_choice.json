@@ -1,0 +1,11 @@
+{
+ "routes": 48,
+ "dates": 53,
+ "flights": 2544,
+ "mean_boomless_mach_fixed550": 1.1656,
+ "gain_best_of_450_550": 0.0069,
+ "gain_best_of_three": 0.01,
+ "share_blocks_lower_level": 0.3246,
+ "share_flights_gain_over_0_01": 0.25,
+ "p95_gain": 0.0344
+}

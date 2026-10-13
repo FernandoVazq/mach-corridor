@@ -22,13 +22,14 @@ window.BOOM = (() => {
   }
   // per-route summary from evaluated segments
   function route(o, fl) {
-    let land = 0, landModel = 0, sea = 0;
+    let land = 0, landModel = 0, sea = 0, landPl = 0;
     for (const s of o.segs) {
       if (s.M <= 1) continue;
-      if (s.landish) { const v = legPsf(s, o.ac, fl); landModel = Math.max(landModel, v); land = Math.max(land, s.type === "boomless" ? Math.max(v, SHADOW_ENVELOPE) : v); }
+      if (s.landish) { const v = legPsf(s, o.ac, fl); landModel = Math.max(landModel, v); land = Math.max(land, s.type === "boomless" ? Math.max(v, SHADOW_ENVELOPE) : v); landPl = Math.max(landPl, legPldb(s, o.ac, fl)); }
       else sea = Math.max(sea, psf(o.ac, s.M, fl));
     }
-    return { land, landModel, sea, overland: psf(o.ac, o.ac.design, fl) };
+    const overland = psf(o.ac, o.ac.design, fl);
+    return { land, landModel, sea, overland, landPldb: landPl, overlandPldb: pldbPrimary(overland) };
   }
   // ---- aircraft-specific pieces (engine/aircraft_study.py) ----
   // shape factor from the lift parameter when only weight and length are known (custom aircraft):
@@ -88,5 +89,27 @@ window.BOOM = (() => {
     return { typical: 0.066 * r, upper: 0.2 * r };
   }
   const legPsf = (s, ac, fl) => s.M <= 1 ? 0 : s.type === "boomless" ? shadowPsf(ac, s.M, fl, legCausticHeight(s, ac, fl)) : psf(ac, s.M, fl);
-  return { psf, route, LIMIT, CUTOFF_MAX, SHADOW_ENVELOPE, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, secondaryPsf, bufferPenalty, isa };
+  // ---- perceived loudness, PLdB (Stevens Mark VII; deep study 2, study/boom_physics.py, engine/burgers.py) ----
+  // Primary boom: N-wave of the leg's psf with a turbulent rise time 2.5 ms x (1 psf / psf) (measured rise times are
+  // 2-5x the absorption-only value, ~2-3 ms at 30-100 Pa, inversely proportional to overpressure); 300 ms duration
+  // (100-300 ms changes it < 1 dB). Concorde's 2 psf gives 106 PLdB (NASA quotes 105-109).
+  const PL_PSF = [0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5], PL_DB = [69.5, 77.2, 86.3, 92.5, 96.6, 102.4, 106.4, 109.5];
+  // Boomless leg: Airy caustic model with the augmented-Burgers rise time, ground PLdB against the caustic's height in
+  // Haglund heights (largest of 4 cases: a 61 m airliner with ray radius 60/100/150 km and the FaINT F-18).
+  const PL_R = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0], PL_CUT = [74.1, 74.5, 73.5, 71.8, 69.6, 63.5, 55.9, 45.0];
+  const lerp = (xs, ys, x) => { if (x <= xs[0]) return ys[0]; for (let i = 1; i < xs.length; i++) if (x <= xs[i]) return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[ys.length - 1]; };
+  function pldbPrimary(p) {
+    if (!(p > 0)) return 0;
+    if (p < PL_PSF[0]) return PL_DB[0] + 35.7 * Math.log10(p / PL_PSF[0]);
+    if (p > PL_PSF[PL_PSF.length - 1]) return PL_DB[PL_DB.length - 1] + 35.7 * Math.log10(p / PL_PSF[PL_PSF.length - 1]);
+    return lerp(PL_PSF.map(Math.log10), PL_DB, Math.log10(p));
+  }
+  function legPldb(s, ac, fl) {
+    if (s.M <= 1 || !ac.boom) return 0;
+    // beyond 3 Haglund heights the model falls below ~45 PLdB (background level): reported as that upper bound
+    if (s.type === "boomless") { const r = legCausticHeight(s, ac, fl) / safeHeight(ac, fl, s.M); return lerp(PL_R, PL_CUT, r); }
+    return pldbPrimary(psf(ac, s.M, fl));
+  }
+  const X59_GOAL = 75;
+  return { psf, route, LIMIT, CUTOFF_MAX, SHADOW_ENVELOPE, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, secondaryPsf, bufferPenalty, isa, legPldb, pldbPrimary, X59_GOAL };
 })();

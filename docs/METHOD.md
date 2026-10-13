@@ -174,6 +174,33 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
     scaled ×1.25 so never below the model). The router's cushion is the quiet height; each boomless leg reports
     its psf at caustic height 1 km + (map limit − flown Mach)/0.0128 per km.
 
+- **Waveforms and perceived loudness (deep study 2, `engine/burgers.py`, `study/boom_physics.py`):** the
+  augmented Burgers equation along the under-track ray (nonlinear steepening by a Godunov scheme; ISO 9613-1
+  thermoviscous absorption and O₂/N₂ relaxation exactly in frequency, dispersion included; ray-tube spreading and
+  impedance, no wind), started from Carlson's N-wave 10 body lengths below the aircraft. Verified in CI
+  (`engine/test_burgers.py`): ISO 9613-1 table values (4.98 / 9.04 / 23.1 dB/km at 1 / 2 / 4 kHz, 20 °C, 70%);
+  the exact Taylor shock (first-order convergence, 1.6% at 16 points per thickness); exact lossless N-wave aging
+  over 19.7 km (peak 0.2%, duration 0.3%). Against Carlson on the ground (ISA, 60% RH at the surface): peak
+  −14% to +5% and duration within 6% for six aircraft; time-step halving changes PLdB by 0.2 dB.
+  Perceived loudness is Stevens Mark VII (NASA TP-3134) in the PyLdB implementation (Utah State University, MIT,
+  vendored at commit 0e40b88; reproduces its regression value 77.68 PLdB).
+  - **Primary booms:** absorption alone gives 0.4–1.5 ms rise times and 98–111 PLdB (Concorde 111). Measured rise
+    times are 2–5× longer because of turbulence, so the site uses an N-wave with rise 2.5 ms × (1 psf / psf):
+    Concorde's 2 psf → 106 PLdB, inside NASA's quoted 105–109. Humidity matters: Overture 108 PLdB at 20% surface RH,
+    112 at 90% (no turbulence).
+  - **Boomless legs:** the incident wave reaches the turning height with a physical rise time of 1.6 ms (airliner)
+    to 3.0 ms (F-18); through the Airy caustic model the ground PLdB is 73–75 at 0.5–1 Haglund height, 72–74 at
+    1 ΔZ_S (0.11–0.15 psf), 69–70 at 1.5, 63–64 at 2 and ≤ 45 beyond 3, for ray radii 60–150 km. The incident rise
+    time does not matter below the caustic (2 ms and the physical value give the same psf and PLdB to 0.1 dB):
+    only low frequencies reach the ground. A typical boomless leg flown with the Auto margin (about 0.05) sits more than three Haglund
+    heights up and is reported at ≤ 45 PLdB (model), with FaINT's measured ≤ 69 dB PLSEL as the context. NASA's
+    X-59 design goal is 75 PLdB: a boomless leg at the quiet height is already below it.
+  - **Not modelled:** turbulence (it lengthens rise times and spreads psf; the site's rise-time model is empirical),
+    nonlinearity at the caustic, ground impedance.
+- **Humid air (model 2.10):** c² = γ_d R_d T (1 + 0.51 q). The meteorological virtual temperature (0.608 q) ignored
+  that water vapour also lowers γ and overstated c by up to 0.35 m/s in hot humid air (CI test against the mixture
+  value from R, c_p, c_v).
+
 ## 4. Regulated zone
 Inside national territory, plus 12 nm of territorial sea, plus a 24 nm boom-carpet half-width (great-circle
 distance on a 0.1° grid), flight must be boomless or subsonic. Beyond it, design Mach is allowed. Every
@@ -225,6 +252,16 @@ above, winds tapered to zero at 70 km. Thermospheric returns (0.1–0.3 Pa) are 
 - **Turns (issue #44).** A turning aircraft focuses its rays. A 2× focus needs about 0.3 km more cushion below
   the turning point (1.62 vs 1.32 km for an airliner, caustic model; 1.5×: +0.17 km; 3×: +0.5 km), so boomless
   legs whose heading changes by more than 2° per 15 nm fly 0.004 Mach slower. Cost in tests: 0–1 min per route.
+
+**Flight-path angle and level changes (deep study 4).** In a stratified windless atmosphere a ray keeps its
+horizontal trace speed c/cos ψ; for flight-path angle γ the Mach-cone condition gives
+cos γ cos ψ cos φ − sin γ sin ψ = 1/M at the aircraft, and the under-track ray limits, so the highest boomless Mach
+is M(γ) = 1 / cos(arccos(1/M₀) + γ) for a level-flight cutoff M₀ (`study/results/flight_path_angle.json`): a 3° descent
+costs 0.024–0.039 Mach and a 3° climb gains 0.029–0.045 at M₀ 1.10–1.20. Descents therefore stay subsonic or before
+the boomless block; a climb at the cutoff Mach is safe. Per 300 nm block, another level was faster than FL550 in 32% of
+blocks over a year of hindcast routes when chosen on the 24 h forecast (mean +0.007 Mach for FL450/550, +0.010 with
+FL350; ≥ 0.01 on 25% of flights; `study/results/fl_choice.json`). Plans show a **level advisory**: blocks where a level
+within +50/−100 of the planned one allows ≥ 0.01 Mach more over land. The router itself still flies one level.
 
 ### 5.1 Fail-closed rules and evidence file
 Over land a corridor is flown only when all of these hold; otherwise that leg is planned subsonic and the
@@ -312,6 +349,47 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 83% Jun–Aug), Europe 43% (27% Mar–May, 56% Jun–Aug), China 75%, Australia 87%, Middle East 88%, Brazil 97%; all land
 40% (FL450 32%, FL350 20%). Weekly 00 UTC dates only (12–14 per season), so the seasonal maps are indicative.
 
+### 6.6 How the corridor varies: hours, seasons, years (deep study 1, `engine/variability.py`, `study/variability_eval.py`)
+2,680 GFS analyses (00/06/12/18 UTC every 3rd day, Apr 2021 – Sep 2026), 3,627 land nodes (2°, 60 S–75 N), same physics,
+floor and terrain as the map; data on the `study-variability` branch with NOAA ENSO/QBO indices.
+- **Variance of the FL550 worst-direction limit** (median node): annual cycle 48%, weather 51%, year-to-year 1%,
+  diurnal < 1% (sd 0.031 Mach). The diurnal swing is 0.0017 Mach (median node; 0.005 at the 90th percentile; largest in
+  Brazil and Australia, 0.005–0.007): the floor sits 1 km above terrain, above most of the boundary layer's daily
+  cycle (2 m temperature swings ±3–4 K, floor sound speed only ±0.2 m/s). Afternoon local time is best, morning worst.
+- **Season** (share of time every direction keeps ≥ M1.10 at FL550): contiguous US 34% in January to 97% in July,
+  Europe 20% (Feb) to 82% (Jul–Aug), East Asia 32% to 95%, Russia and Canada 2–64%; tropics and southern hemisphere
+  land 80–100% all year. FL450 and FL350 are far lower (US July 66% and 22%). Eastbound is harder than westbound in
+  winter (US −0.065 Mach in January, ≈ 0 in July), the jet stream.
+- **Drivers** (anomalies about each node's annual cycle; multiple regression, median R² 0.57 over 1,500 nodes):
+  standardized coefficients wind at cruise −0.50, sound speed at cruise −0.32, jet at 250 hPa +0.23, sound speed at
+  the floor +0.20; the largest sound speed below and the floor's are nearly the same variable (r 0.97).
+- **Memory:** anomaly autocorrelation 0.83 at 6 h, 0.70 at 12 h, 0.25 at 3 days, 0.11 at 6 days: the corridor of the
+  day is set by the weather of the day; persistence beyond ~2 days is little better than climatology.
+- **Year to year:** all-land usable share 68–70% in 2022–2025; contiguous US 62–68%. **ENSO:** monthly anomalies
+  correlate with the ONI three months earlier (all land r −0.42; US −0.49, slope −2.7 points per unit ONI, n_eff ≈ 31;
+  India −0.44; Sahara–Sahel −0.41): fewer corridors after El Niño. **QBO** (30 hPa, 3-month lag): East Asia r +0.41.
+  Five years cover two El Niño and three La Niña phases, so these are suggestive. ONI was +2.16 in Jul–Sep 2026.
+- On the site: "Month by month, five years" table on the Physics tab (`site/geo/seasonal.json`).
+
+### 6.7 Is the probability honest? (deep study 3, `study/calibration.py`, `study/error_scales.py`)
+Truth = 24 launch dates × 12 stations of balloons where the weekly GEFS hindcast exists (27,879 station-level-direction
+samples); spread = GEFS 24 h member sd at the station.
+- **Spread–skill:** RMS error rises from 0.0098 to 0.0166 across GEFS-spread quintiles (corr |error|–spread 0.24):
+  the spread carries information, as the margin assumes.
+- **Shipped σ = √(s² + e²):** too wide in the body (z sd 0.85; PIT humped) but with a heavier tail than Gaussian:
+  4σ exceeded in 0.018% of samples vs 0.003% (95% CI 0–0.055%). Generalized Pareto tail shape −0.03 (exponential-like,
+  not heavy). Per balloon sample, split-conformal k for 1e-3 is 2.7–3.1; the shipped k = 4 covers it.
+- **EMOS (minimum CRPS, half-year hold-out both ways):** truth ~ N(a + b₁·GFS + b₂·IFS, c² + d²s²) cuts CRPS 11%
+  (0.00714 → 0.00634); almost all of it is the two-model mean (b₁ 0.38–0.46, b₂ 0.54–0.62; c 0.0082–0.0087,
+  d 0.76–1.08). Adding model disagreement to the variance adds nothing (0.00633). At equal per-sample risk EMOS
+  flies 0.002–0.004 Mach faster at k = 2–3; at k = 4 the estimate (+0.013) rests on 5 events. **Decision:** keep the
+  shipped margin (fitted on flights, not samples); refit k on a two-model gridded hindcast when one exists.
+- **Error correlation scales:** 24 h forecast errors (f24 − analysis) decorrelate with an e-folding of 110–150 nm
+  (corr 0.43–0.51 within 100 nm, 0.04–0.07 at 300–400 nm); balloon-minus-model errors at station pairs 186–261 nm apart
+  correlate 0.12–0.24. Both are shorter than the 300 nm used for the hindcast's real-world field and the router's
+  per-flight chance; the FL550 hindcast is insensitive to it (0.39/0.40% at L = 100 nm vs 0.39/0.48% at 300 nm), but
+  the per-flight chance should be recalibrated with ~150 nm blocks (**Open**).
+
 ## 7. Known limitations
 | Limitation | Effect | Bound or plan |
 |---|---|---|
@@ -319,7 +397,8 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 | 1° grid (GFS, and IFS thinned from 0.25°) | analysis RMS 0.0092 for the two-model mean, 0.009–0.016 by station | GFS 0.25° gave no gain (§6.2, #6) |
 | Second model at FL600 and FL300 not validated | balloons were compared at FL350, 450 and 550 only. In the first live two-model build IFS − GFS had sd 0.008–0.011 at FL350–550 but 0.014 at FL600, where IFS's 13 levels jump from 100 to 50 hPa around the aircraft; IFS ran 0.001–0.002 lower, so the mean is the more cautious there | balloon validation at FL600 (#9) |
 | Second model may be missing | when IFS is unpublished, incomplete or more than 12 h older than GFS, the build is GFS only (`manifest.json` → `models.ifs_note`, shown on the map's run line) | margins were fitted on GFS alone, so they hold either way |
-| Level flight | a −3° descent costs about 0.03 Mach | descent subsonic in the route model |
+| One level per route | another level is ≥ 0.01 Mach faster on 25% of flights (§5) | level advisory in plans; per-block level choice in the router (Open) |
+| Level flight at the cutoff | a −3° descent costs 0.024–0.039 Mach, a climb gains as much (§5) | descents subsonic in the route model |
 | Secondary-boom loudness only estimated (Concorde's 1–10 Pa scaled per aircraft); footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |
 | Manoeuvre focusing | superbooms in turns and acceleration | flagged later (#18) |
 | Turbulence | spikier or rounder booms | psf distribution (#19) |

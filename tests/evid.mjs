@@ -22,6 +22,8 @@ const { integrity, ...rest } = signed;
 const recomputed = (await import('crypto')).createHash('sha256').update(JSON.stringify(rest)).digest('hex');
 if (!integrity || integrity.value !== recomputed) fail.push(`integrity hash mismatch: ${integrity && integrity.value} vs ${recomputed}`);
 if (!rest.model_version) fail.push('no model_version in evidence');
+if (!(typeof rest.summary.max_pldb_on_land === 'number' && rest.summary.max_pldb_on_land <= 75)) fail.push('evidence: boomless loudness missing or above 75 PLdB: ' + rest.summary.max_pldb_on_land);
+if (!rest.legs.some(l => l.type === 'boomless' && typeof l.pldb_ground === 'number')) fail.push('evidence: no per-leg PLdB');
 if (errs.length) fail.push('page errors: ' + errs.join(' | '));
 await b.close();
 if (fail.length) { console.error(fail.join('\n')); process.exit(1); }

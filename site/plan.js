@@ -108,8 +108,10 @@
     for (const fl of MC.S.man.flight_levels) {
       const f = await RT.makeField(fl, MC.S.fi);
       if (my !== seq) return;
-      rows.push({ fl, o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 500) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
+      rows.push({ fl, o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 500) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e),
+                  same: ac.supersonic ? RT.evalPath(f, ac, r.opt.path, "corr", e) : null });
       renderFl(rows);
+      levelAdvice(r, rows);
       await new Promise(res => setTimeout(res, 0));
     }
     // departure-time advice: the corridor moves with the weather, so the same flight can be faster at another hour
@@ -139,7 +141,7 @@
       ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
     const bm = sup ? BOOM.route(o, MC.S.fl) : null;
-    if (sup) $("routeSummary").insertAdjacentHTML("beforeend", `<p class="fine">${bm.sea ? `Boom at sea ${bm.sea.toFixed(1)} psf. ` : ""}Flown supersonic over land it would be ${bm.overland.toFixed(1)} psf, ${Math.round(bm.overland / BOOM.LIMIT)}× the proposed FAA limit.</p>`);
+    if (sup) $("routeSummary").insertAdjacentHTML("beforeend", `<p class="fine">${bm.sea ? `Boom at sea ${bm.sea.toFixed(1)} psf. ` : ""}Flown supersonic over land it would be ${bm.overland.toFixed(1)} psf, ${Math.round(bm.overland / BOOM.LIMIT)}× the proposed FAA limit (about ${Math.round(bm.overlandPldb)} PLdB).${bm.landPldb ? ` Loudest boomless leg on the ground: ${bm.landPldb <= 45.05 ? "model 45 PLdB or less" : `model about ${Math.round(bm.landPldb)} PLdB`}; NASA's X-59 aims for ${BOOM.X59_GOAL}, and FaINT measured up to 69 dB PLSEL below the turning point (turbulence, background).` : ""}</p>`);
     const tv = o.block - r.base.block, sv = o.perSeat - r.base.perSeat;
     $("routeKpis").innerHTML = [
       k(fmtT(o.block), "Block time"),
@@ -185,6 +187,7 @@
         mach: r4(s.M), psf_ground_upper: s.type === "boomless" ? Math.max(r4(BOOM.legPsf(s, r.ac, r.fl)), BOOM.SHADOW_ENVELOPE) : null, boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
         wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null,
         models_disagree: s.type === "boomless" ? (q => q == null ? null : q.one ? "one model only" : q.none ? null : r4(q.d))(MC.disagreementSync(s.lon, s.lat, s.leadH, r.fl)) : null,
+        pldb_ground: s.M > 1 ? Math.round(BOOM.legPldb(s, r.ac, r.fl) * 10) / 10 : null,
         approach_limited: !!s.approach, p_exceed_011: s.pExceed ? Math.round(s.pExceed * 1e6) / 1e6 : 0,
         secondary: s.ssb ? (s.ssb.hit ? "would land on regulated land: leg slowed to cutoff" : s.ssb.pts.length ? "lands at sea" : "none") + (s.ssb.nodata ? " (no stratosphere data)" : "") : null };
       t += s.t; return row;
@@ -208,7 +211,7 @@
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
       summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
-        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), max_psf_on_land_model: r4(bm.landModel), psf_upper_note: "boomless legs shown at the larger of the caustic model and FaINT's measured 0.10 psf envelope", secondary_psf_estimate: (sp => ({ typical: r4(sp.typical), upper: r4(sp.upper) }))(BOOM.secondaryPsf(r.ac, r.ac.design, r.fl)), p_exceed_011_flight: r4(o.pFlight || 0), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), max_psf_on_land_model: r4(bm.landModel), max_pldb_on_land: Math.round(bm.landPldb * 10) / 10, pldb_note: "Stevens Mark VII; boomless legs from the caustic model (45 = 'or less'), primary booms with a turbulent rise time (Method 3.4); FaINT measured up to 69 dB PLSEL below the turning point", psf_upper_note: "boomless legs shown at the larger of the caustic model and FaINT's measured 0.10 psf envelope", secondary_psf_estimate: (sp => ({ typical: r4(sp.typical), upper: r4(sp.upper) }))(BOOM.secondaryPsf(r.ac, r.ac.design, r.fl)), p_exceed_011_flight: r4(o.pFlight || 0), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
       checks, all_checks_pass: checks.every(c => c.pass), legs,
     };
   }
@@ -373,6 +376,40 @@
     $("depTable").innerHTML = `<tr><th>Departure (UTC)</th><th>Block</th><th>vs ban</th><th>Boomless</th><th>$/seat</th></tr>` +
       rows.map(x => `<tr class="${x === best ? "hl" : ""} ${x.k === MC.S.fi ? "cur" : ""}"><td>${d3.utcFormat("%a %H:%M")(new Date(x.t))}${x === best ? " (best)" : ""}</td><td>${fmtT(x.o.block)}</td>
         <td class="${x.o.block < x.b.block ? "pos" : ""}">${fmtMin(x.o.block - x.b.block)}</td><td>${x.o.dLand ? Math.round(100 * x.o.dBoomless / x.o.dLand) + "%" : "–"}</td><td>${money(x.o.perSeat)}</td></tr>`).join("");
+  }
+
+  // Level advisory (deep study 4, study/fl_choice.py): along this route, 300 nm blocks where another level allows a
+  // faster boomless Mach. In the hindcast a lower level was faster in about a third of blocks (+0.007 Mach on average,
+  // +0.01 or more on a quarter of flights). A descent at the cutoff Mach costs ~0.03 Mach per -3 deg while it lasts
+  // (results/flight_path_angle.json), so the change itself is flown subsonic or before the boomless block.
+  const BLOCK_NM = 300, MIN_GAIN = 0.01;
+  function blockMach(o) {
+    const out = new Map();
+    for (const s of o.segs) {
+      if (!s.landish) continue;                            // every land leg: boomless, or subsonic where no corridor
+      const k = Math.floor((s.x0 + s.x1) / 2 / BLOCK_NM), v = out.get(k) || { m: 0, d: 0 };
+      v.m += s.M * s.d; v.d += s.d; out.set(k, v);
+    }
+    return new Map([...out].filter(([, v]) => v.d >= 100).map(([k, v]) => [k, v.m / v.d]));
+  }
+  function levelAdvice(r, rows) {
+    const el = $("lvlNote"); if (!el) return;
+    const cur = rows.find(x => x.fl === r.fl && x.same);
+    if (!r.ac.supersonic || !cur) { el.textContent = ""; return; }
+    const base = blockMach(cur.same), adv = [];
+    for (const [k, m0] of base) {
+      let best = null;
+      for (const x of rows) {
+        if (!x.same || x.fl === r.fl || x.fl > r.fl + 50 || x.fl < r.fl - 100) continue;
+        const m = blockMach(x.same).get(k);
+        if (m != null && m - m0 >= MIN_GAIN && (!best || m > best.m)) best = { fl: x.fl, m };
+      }
+      if (best) adv.push({ k, fl: best.fl, gain: best.m - m0 });
+    }
+    el.innerHTML = adv.length ? `<b>Level advisory.</b> On this route another level allows a faster Mach over land in ${adv.length} of ${base.size} 300 nm blocks: ` +
+      adv.map(a => `nm ${(a.k * BLOCK_NM).toLocaleString()}–${((a.k + 1) * BLOCK_NM).toLocaleString()} at FL${a.fl} (+${a.gain.toFixed(3)})`).join("; ") +
+      `. Change level before the block or while subsonic: a 3° descent at the cutoff Mach lowers the limit about 0.03 Mach while it lasts.`
+      : rows.length === MC.S.man.flight_levels.length ? `Level advisory: FL${r.fl} is within ${MIN_GAIN} Mach of the best level on every overland block of this route.` : "";
   }
 
   function renderFl(rows) {

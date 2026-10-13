@@ -1,0 +1,920 @@
+{
+ "method": "augmented Burgers (engine/burgers.py) from Carlson's N-wave at 10 body lengths; ISO 9613-1 absorption and O2/N2 relaxation; ray-tube spreading, no wind; ground x1.9; PLdB = Stevens Mark VII (PyLdB). Cutoff legs: incident rise time from augmented Burgers to the 10-degree ray height, then the linear Airy caustic model (engine/caustic.py) to the ground.",
+ "atmosphere": "ISA, relative humidity 60% at the surface decaying with a 3 km scale (1% floor), unless noted",
+ "ground": [
+  {
+   "name": "Concorde",
+   "mach": 2.0,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.099,
+   "psf_carlson": 2.059,
+   "duration_ms": 317.7,
+   "duration_carlson_ms": 325.5,
+   "rise_ms": 0.74,
+   "pldb": 111.1,
+   "seconds": 15
+  },
+  {
+   "name": "Concorde",
+   "mach": 2.0,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 2.298,
+   "psf_carlson": 2.059,
+   "duration_ms": 318.3,
+   "duration_carlson_ms": 325.5,
+   "rise_ms": 0.04,
+   "pldb": 114.5,
+   "seconds": 10
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.126,
+   "psf_carlson": 2.062,
+   "duration_ms": 341.4,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.78,
+   "pldb": 111.2,
+   "seconds": 11
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 2.323,
+   "psf_carlson": 2.062,
+   "duration_ms": 342.0,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.04,
+   "pldb": 114.6,
+   "seconds": 9
+  },
+  {
+   "name": "Aerion AS2 (bizjet)",
+   "mach": 1.4,
+   "fl": 450,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 1.382,
+   "psf_carlson": 1.416,
+   "duration_ms": 180.5,
+   "duration_carlson_ms": 178.2,
+   "rise_ms": 1.08,
+   "pldb": 105.7,
+   "seconds": 3
+  },
+  {
+   "name": "Aerion AS2 (bizjet)",
+   "mach": 1.4,
+   "fl": 450,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 1.579,
+   "psf_carlson": 1.416,
+   "duration_ms": 181.2,
+   "duration_carlson_ms": 178.2,
+   "rise_ms": 0.06,
+   "pldb": 110.7,
+   "seconds": 2
+  },
+  {
+   "name": "NASA N+3 concept",
+   "mach": 1.6,
+   "fl": 500,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 1.908,
+   "psf_carlson": 1.888,
+   "duration_ms": 265.2,
+   "duration_carlson_ms": 267.0,
+   "rise_ms": 0.82,
+   "pldb": 109.9,
+   "seconds": 4
+  },
+  {
+   "name": "NASA N+3 concept",
+   "mach": 1.6,
+   "fl": 500,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 2.109,
+   "psf_carlson": 1.888,
+   "duration_ms": 265.8,
+   "duration_carlson_ms": 267.0,
+   "rise_ms": 0.04,
+   "pldb": 113.6,
+   "seconds": 3
+  },
+  {
+   "name": "Boom XB-1 (demonstrator)",
+   "mach": 1.3,
+   "fl": 360,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 0.808,
+   "psf_carlson": 0.922,
+   "duration_ms": 86.2,
+   "duration_carlson_ms": 81.9,
+   "rise_ms": 1.38,
+   "pldb": 98.3,
+   "seconds": 1
+  },
+  {
+   "name": "Boom XB-1 (demonstrator)",
+   "mach": 1.3,
+   "fl": 360,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 1.005,
+   "psf_carlson": 0.922,
+   "duration_ms": 87.0,
+   "duration_carlson_ms": 81.9,
+   "rise_ms": 0.04,
+   "pldb": 106.3,
+   "seconds": 1
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "mach": 1.3,
+   "fl": 370,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 0.949,
+   "psf_carlson": 1.047,
+   "duration_ms": 102.8,
+   "duration_carlson_ms": 97.9,
+   "rise_ms": 1.26,
+   "pldb": 100.7,
+   "seconds": 1
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "mach": 1.3,
+   "fl": 370,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": false,
+   "dtau": 2e-05,
+   "psf": 1.148,
+   "psf_carlson": 1.047,
+   "duration_ms": 103.7,
+   "duration_carlson_ms": 97.9,
+   "rise_ms": 0.04,
+   "pldb": 107.6,
+   "seconds": 1
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 20.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.065,
+   "psf_carlson": 2.062,
+   "duration_ms": 341.4,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 1.52,
+   "pldb": 107.9,
+   "seconds": 11
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 90.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.149,
+   "psf_carlson": 2.062,
+   "duration_ms": 341.5,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.64,
+   "pldb": 111.6,
+   "seconds": 11
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": -15.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.087,
+   "psf_carlson": 2.062,
+   "duration_ms": 346.0,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.4,
+   "pldb": 110.5,
+   "seconds": 11
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 15.0,
+   "absorb": true,
+   "dtau": 2e-05,
+   "psf": 2.168,
+   "psf_carlson": 2.062,
+   "duration_ms": 337.2,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.68,
+   "pldb": 110.8,
+   "seconds": 10
+  },
+  {
+   "name": "Boom Overture",
+   "mach": 1.7,
+   "fl": 550,
+   "rh_surface": 60.0,
+   "dT": 0.0,
+   "absorb": true,
+   "dtau": 1e-05,
+   "psf": 2.127,
+   "psf_carlson": 2.062,
+   "duration_ms": 341.4,
+   "duration_carlson_ms": 349.1,
+   "rise_ms": 0.76,
+   "pldb": 111.4,
+   "seconds": 41
+  }
+ ],
+ "cutoff": [
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 0.5,
+   "depth_m": 534,
+   "mach": 1.1463,
+   "incident_free_psf": 0.815,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.7492,
+    "pldb": 73.3
+   },
+   "model_2ms": {
+    "psf": 0.7492,
+    "pldb": 73.3
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 0.75,
+   "depth_m": 800,
+   "mach": 1.1428,
+   "incident_free_psf": 0.806,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.2975,
+    "pldb": 73.1
+   },
+   "model_2ms": {
+    "psf": 0.2975,
+    "pldb": 73.1
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 1.0,
+   "depth_m": 1067,
+   "mach": 1.1393,
+   "incident_free_psf": 0.798,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.1305,
+    "pldb": 72.2
+   },
+   "model_2ms": {
+    "psf": 0.1305,
+    "pldb": 72.2
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 1.25,
+   "depth_m": 1334,
+   "mach": 1.1358,
+   "incident_free_psf": 0.79,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0634,
+    "pldb": 70.9
+   },
+   "model_2ms": {
+    "psf": 0.0634,
+    "pldb": 70.9
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 1.5,
+   "depth_m": 1601,
+   "mach": 1.1323,
+   "incident_free_psf": 0.781,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0332,
+    "pldb": 68.7
+   },
+   "model_2ms": {
+    "psf": 0.0332,
+    "pldb": 68.7
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 2.0,
+   "depth_m": 2135,
+   "mach": 1.1252,
+   "incident_free_psf": 0.765,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0105,
+    "pldb": 63.2
+   },
+   "model_2ms": {
+    "psf": 0.0105,
+    "pldb": 63.2
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 2.5,
+   "depth_m": 2668,
+   "mach": 1.118,
+   "incident_free_psf": 0.748,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0035,
+    "pldb": 55.2
+   },
+   "model_2ms": {
+    "psf": 0.0035,
+    "pldb": 55.2
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 60.0,
+   "haglund_m": 1067,
+   "depth_ratio": 3.0,
+   "depth_m": 3202,
+   "mach": 1.1108,
+   "incident_free_psf": 0.73,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0012,
+    "pldb": 45.0
+   },
+   "model_2ms": {
+    "psf": 0.0012,
+    "pldb": 45.0
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 0.5,
+   "depth_m": 633,
+   "mach": 1.145,
+   "incident_free_psf": 0.812,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.8099,
+    "pldb": 73.6
+   },
+   "model_2ms": {
+    "psf": 0.8099,
+    "pldb": 73.6
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 0.75,
+   "depth_m": 949,
+   "mach": 1.1409,
+   "incident_free_psf": 0.802,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.32,
+    "pldb": 74.0
+   },
+   "model_2ms": {
+    "psf": 0.32,
+    "pldb": 74.0
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 1.0,
+   "depth_m": 1265,
+   "mach": 1.1367,
+   "incident_free_psf": 0.792,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.1397,
+    "pldb": 72.8
+   },
+   "model_2ms": {
+    "psf": 0.1397,
+    "pldb": 72.8
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 1.25,
+   "depth_m": 1582,
+   "mach": 1.1325,
+   "incident_free_psf": 0.782,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0675,
+    "pldb": 71.4
+   },
+   "model_2ms": {
+    "psf": 0.0675,
+    "pldb": 71.4
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 1.5,
+   "depth_m": 1898,
+   "mach": 1.1283,
+   "incident_free_psf": 0.772,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0352,
+    "pldb": 69.2
+   },
+   "model_2ms": {
+    "psf": 0.0352,
+    "pldb": 69.2
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 2.0,
+   "depth_m": 2531,
+   "mach": 1.1199,
+   "incident_free_psf": 0.752,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0109,
+    "pldb": 63.3
+   },
+   "model_2ms": {
+    "psf": 0.0109,
+    "pldb": 63.3
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 2.5,
+   "depth_m": 3164,
+   "mach": 1.1114,
+   "incident_free_psf": 0.732,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0036,
+    "pldb": 55.9
+   },
+   "model_2ms": {
+    "psf": 0.0036,
+    "pldb": 55.9
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 100.0,
+   "haglund_m": 1265,
+   "depth_ratio": 3.0,
+   "depth_m": 3796,
+   "mach": 1.1028,
+   "incident_free_psf": 0.711,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0012,
+    "pldb": 44.7
+   },
+   "model_2ms": {
+    "psf": 0.0012,
+    "pldb": 44.7
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 0.5,
+   "depth_m": 724,
+   "mach": 1.1438,
+   "incident_free_psf": 0.809,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.8609,
+    "pldb": 74.1
+   },
+   "model_2ms": {
+    "psf": 0.8609,
+    "pldb": 74.1
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 0.75,
+   "depth_m": 1086,
+   "mach": 1.139,
+   "incident_free_psf": 0.798,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.3386,
+    "pldb": 74.5
+   },
+   "model_2ms": {
+    "psf": 0.3386,
+    "pldb": 74.5
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 1.0,
+   "depth_m": 1449,
+   "mach": 1.1343,
+   "incident_free_psf": 0.786,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.1471,
+    "pldb": 73.5
+   },
+   "model_2ms": {
+    "psf": 0.1471,
+    "pldb": 73.5
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 1.25,
+   "depth_m": 1811,
+   "mach": 1.1295,
+   "incident_free_psf": 0.775,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0707,
+    "pldb": 71.8
+   },
+   "model_2ms": {
+    "psf": 0.0707,
+    "pldb": 71.8
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 1.5,
+   "depth_m": 2173,
+   "mach": 1.1246,
+   "incident_free_psf": 0.763,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0366,
+    "pldb": 69.6
+   },
+   "model_2ms": {
+    "psf": 0.0366,
+    "pldb": 69.6
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 2.0,
+   "depth_m": 2897,
+   "mach": 1.1149,
+   "incident_free_psf": 0.74,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0112,
+    "pldb": 63.5
+   },
+   "model_2ms": {
+    "psf": 0.0112,
+    "pldb": 63.5
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 2.5,
+   "depth_m": 3621,
+   "mach": 1.1052,
+   "incident_free_psf": 0.717,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0037,
+    "pldb": 55.7
+   },
+   "model_2ms": {
+    "psf": 0.0037,
+    "pldb": 55.7
+   }
+  },
+  {
+   "name": "Boom Overture",
+   "fl": 550,
+   "R_km": 150.0,
+   "haglund_m": 1449,
+   "depth_ratio": 3.0,
+   "depth_m": 4346,
+   "mach": 1.0953,
+   "incident_free_psf": 0.692,
+   "incident_rise_ms": 1.62,
+   "incident_rise_lossless_ms": 0.06,
+   "physical_rise": {
+    "psf": 0.0012,
+    "pldb": 44.7
+   },
+   "model_2ms": {
+    "psf": 0.0012,
+    "pldb": 44.7
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 0.5,
+   "depth_m": 246,
+   "mach": 1.1501,
+   "incident_free_psf": 0.469,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.6142,
+    "pldb": 71.4
+   },
+   "model_2ms": {
+    "psf": 0.6142,
+    "pldb": 71.4
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 0.75,
+   "depth_m": 368,
+   "mach": 1.1485,
+   "incident_free_psf": 0.468,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.2498,
+    "pldb": 71.8
+   },
+   "model_2ms": {
+    "psf": 0.2499,
+    "pldb": 71.8
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 1.0,
+   "depth_m": 491,
+   "mach": 1.1469,
+   "incident_free_psf": 0.467,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.1119,
+    "pldb": 70.7
+   },
+   "model_2ms": {
+    "psf": 0.1119,
+    "pldb": 70.7
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 1.25,
+   "depth_m": 614,
+   "mach": 1.1453,
+   "incident_free_psf": 0.467,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.0555,
+    "pldb": 69.2
+   },
+   "model_2ms": {
+    "psf": 0.0555,
+    "pldb": 69.2
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 1.5,
+   "depth_m": 737,
+   "mach": 1.1436,
+   "incident_free_psf": 0.466,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.0296,
+    "pldb": 67.2
+   },
+   "model_2ms": {
+    "psf": 0.0296,
+    "pldb": 67.2
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 2.0,
+   "depth_m": 982,
+   "mach": 1.1404,
+   "incident_free_psf": 0.464,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.0097,
+    "pldb": 62.4
+   },
+   "model_2ms": {
+    "psf": 0.0097,
+    "pldb": 62.4
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 2.5,
+   "depth_m": 1228,
+   "mach": 1.1372,
+   "incident_free_psf": 0.463,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.0035,
+    "pldb": 55.2
+   },
+   "model_2ms": {
+    "psf": 0.0035,
+    "pldb": 55.2
+   }
+  },
+  {
+   "name": "F/A-18 (FaINT test aircraft)",
+   "fl": 370,
+   "R_km": 100.0,
+   "haglund_m": 491,
+   "depth_ratio": 3.0,
+   "depth_m": 1474,
+   "mach": 1.1339,
+   "incident_free_psf": 0.461,
+   "incident_rise_ms": 3.02,
+   "incident_rise_lossless_ms": 0.04,
+   "physical_rise": {
+    "psf": 0.0012,
+    "pldb": 45.0
+   },
+   "model_2ms": {
+    "psf": 0.0012,
+    "pldb": 45.0
+   }
+  }
+ ]
+}

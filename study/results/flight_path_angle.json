@@ -1,0 +1,41 @@
+{
+ "method": "Snell's law in a stratified, windless atmosphere: a ray's horizontal trace speed c/cos(psi) is conserved; for flight-path angle gamma (climb > 0) the Mach-cone condition V.n = c_a gives cos(gamma)cos(psi)cos(phi) - sin(gamma)sin(psi) = 1/M at the aircraft; the leg is boomless if the largest trace speed over ray azimuths phi in [-60, 60] deg stays below the largest effective sound speed under the aircraft. Under-track closed form: M(gamma) = 1/cos(acos(1/Mcut) + gamma). Table: highest boomless Mach at flight-path angle gamma for a column whose level-flight cutoff is Mcut.",
+ "rows": [
+  {
+   "level_cutoff": 1.1,
+   "gamma_-5": 1.0616,
+   "gamma_-3": 1.0757,
+   "gamma_-2": 1.0833,
+   "gamma_-1": 1.0914,
+   "gamma_0": 1.1,
+   "gamma_1": 1.109,
+   "gamma_2": 1.1186,
+   "gamma_3": 1.1286,
+   "gamma_5": 1.1503
+  },
+  {
+   "level_cutoff": 1.15,
+   "gamma_-5": 1.0998,
+   "gamma_-3": 1.1183,
+   "gamma_-2": 1.1283,
+   "gamma_-1": 1.1389,
+   "gamma_0": 1.15,
+   "gamma_1": 1.1617,
+   "gamma_2": 1.174,
+   "gamma_3": 1.1869,
+   "gamma_5": 1.2147
+  },
+  {
+   "level_cutoff": 1.2,
+   "gamma_-5": 1.1385,
+   "gamma_-3": 1.1613,
+   "gamma_-2": 1.1735,
+   "gamma_-1": 1.1864,
+   "gamma_0": 1.2,
+   "gamma_1": 1.2142,
+   "gamma_2": 1.2292,
+   "gamma_3": 1.2449,
+   "gamma_5": 1.2788
+  }
+ ]
+}

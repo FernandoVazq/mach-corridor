@@ -7,7 +7,7 @@ commit) changes with every build. A compliance case should cite both. Issues ref
 
 | Model | Date | What changed in the answer | Issues |
 |---|---|---|---|
-| 2.10 | 2026-10-13 | Humid-air sound speed: c² = γ_d R_d T (1 + 0.51 q) instead of the meteorological virtual temperature (0.608 q), which ignored water vapour lowering γ and overstated c by up to ~0.35 m/s in hot humid low levels (cutoff Mach up to ~0.001 too high where the fastest layer is near the ground). Deep study 2 | — |
+| 2.10 | 2026-10-13 | Humid-air sound speed: c² = γ_d R_d T (1 + 0.51 q) instead of the meteorological virtual temperature (0.608 q), which ignored water vapour lowering γ and overstated c by up to ~0.35 m/s in hot humid low levels (cutoff Mach up to ~0.001 too high where the fastest layer is near the ground). Plans and evidence add perceived loudness (PLdB) per leg and a level advisory. Deep studies 2 and 4 | — |
 | 2.9 | 2026-10-13 | Boomless Mach = mean of GFS and ECMWF IFS per node and direction (IFS run at most 12 h older; GFS only when IFS is missing); no corridor where either model has none. Against 3,500 balloons the mean cuts the 24 h error 0.0130 → 0.0117 (unsafe side 0.0110 → 0.0095). Margins unchanged (calibrated on GFS alone, so now conservative) | #9 |
 | 2.8 | 2026-10-13 | FL550 margin k 3.75 → 4.0: choosing the fastest of several paths raised > 0.11 psf flights 0.43% → 0.59%; with k 4.0 the chosen paths give 0.28% (95% upper 0.47%) for 0.7 min. Boomless legs reported at the larger of the caustic model and FaINT's 0.10 psf envelope | #40, #19 |
 | 2.7 | 2026-10-13 | Auto margin includes an air-data and Mach-hold allowance (1σ 0.005, in quadrature): about +0.004 Mach at a typical margin | #43 |

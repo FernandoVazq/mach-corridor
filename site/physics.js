@@ -281,6 +281,23 @@
       `<tr><td>All land</td>${per.map(p => `<td class="${p === cl.season ? "cur" : ""}">${Math.round(100 * m.all_land[fk][p])}%</td>`).join("")}</tr>`;
   }
 
+  // ---------- month by month, five years (study/variability_eval.py -> geo/seasonal.json) ----------
+  let SE = null;
+  async function drawSeasonal() {
+    if (!SE) SE = await fetch("geo/seasonal.json").then(r => r.json());
+    const fk = `FL${cl.fl}`, mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const regs = Object.keys(SE.months);
+    const cell = v => { const c = d3.rgb(clColor(v)), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return `<td style="background:${c};color:${lum < 140 ? "#fff" : "#0b1220"}">${Math.round(100 * v)}</td>`; };
+    $("seTable").innerHTML = `<tr><th>Region (land, ${fk}), %</th>${mon.map(m => `<th>${m}</th>`).join("")}</tr>` +
+      regs.map(r => `<tr><td>${r}</td>${SE.months[r][fk].map(cell).join("")}</tr>`).join("");
+    const us = SE.annual_fl550["Contiguous US"], yrs = Object.keys(us);
+    $("seSub").textContent = `Share of time every direction has a corridor of at least M1.10 (${SE.analyses.toLocaleString()} GFS analyses, Apr 2021 – Sep 2026)`;
+    $("seNote").innerHTML = `The year-to-year change is small (contiguous US at FL550: ${yrs.map(y => `${y} ${Math.round(100 * us[y])}%`).join(", ")}); ` +
+      `the hour of day barely matters (median swing ${SE.diurnal_amplitude_median.toFixed(4)} Mach); the weather of the day matters most, and a corridor "forgets" ` +
+      `within about three days (autocorrelation ${SE.autocorrelation["72h"]["All land"]} at 72 h). <b>El Niño:</b> in these five years, US months that came about three months after El Niño conditions had fewer corridors, ` +
+      `about ${Math.abs(Math.round(1000 * SE.enso.slope_us_per_oni) / 10)} points less per unit of the ENSO index. The index is now ${SE.enso.oni_latest.replace(" (NOAA CPC)", "")}, a strong El Niño, so this winter may run a few points below the table; five years is too short to be sure (Method §6.6).`;
+  }
+
   async function open() {
     if (drawn) return;
     if (!P) P = await fetch("geo/physics.json").then(r => r.json());
@@ -288,9 +305,10 @@
     seg($("phFl"), [[350, "FL350"], [450, "FL450"], [550, "FL550"]], () => st.fl, v => { st.fl = v; redraw(); });
     seg($("phSrc"), [["balloon", "Balloons"], ["gfs", "Global forecast"]], () => st.src, v => { st.src = v; redraw(); });
     insights(); redraw(); drawAlt(); drawVal();
-    seg($("clFl"), [[350, "FL350"], [450, "FL450"], [550, "FL550"]], () => cl.fl, v => { cl.fl = v; drawClim(); });
+    seg($("clFl"), [[350, "FL350"], [450, "FL450"], [550, "FL550"]], () => cl.fl, v => { cl.fl = v; drawClim(); drawSeasonal().catch(e => console.warn("seasonal", e)); });
     seg($("clSeason"), [["Year", "All year"], ["Dec-Feb", "Dec–Feb"], ["Mar-May", "Mar–May"], ["Jun-Aug", "Jun–Aug"], ["Sep-Nov", "Sep–Nov"]], () => cl.season, v => { cl.season = v; drawClim(); });
     loadClim().then(drawClim).catch(err => console.warn("climatology", err));
+    drawSeasonal().catch(e => console.warn("seasonal", e));
     const pre = PRESETS();
     $("abPreset").innerHTML = pre.map((p, i) => `<option value="${i}">${p.name}</option>`).join("");
     const cur = window.AIRCRAFT.find(a => a.id === "custom");

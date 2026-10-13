@@ -362,6 +362,11 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .cllegend i { flex: 0 0 220px; height: 10px; border-radius: 5px; }
 .climtbl { margin-top: 12px; margin-bottom: 8px; }
 .climtbl td.cur, .climtbl th.cur { font-weight: 600; }
+.h3 { font-size: 15px; font-weight: 600; margin: 24px auto 4px; }
+.h3 .muted { font-size: 12.5px; font-weight: 400; margin-left: 6px; }
+.phys > .h3, .phys > .fine { margin-left: auto; margin-right: auto; max-width: 1180px; }
+.setbl td, .setbl th { text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+.setbl td:first-child, .setbl th:first-child { text-align: left; white-space: nowrap; }
 
 /* cockpit (EFB) view: large type, readable at arm's length */
 dialog.efb[open] { gap: 10px; }

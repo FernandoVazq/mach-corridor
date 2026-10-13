@@ -1,0 +1,300 @@
+{
+ "samples": 27879,
+ "launch_dates": 24,
+ "stations": 12,
+ "first": "20251023",
+ "last": "20260924",
+ "note": "samples = station x level x direction; directions and levels of one launch are strongly correlated, so intervals bootstrap whole launch dates",
+ "spread_skill": [
+  {
+   "sd_lo": 0.001,
+   "sd_hi": 0.0044,
+   "n": 5576,
+   "rmse": 0.0098,
+   "mean_sd": 0.0037
+  },
+  {
+   "sd_lo": 0.0044,
+   "sd_hi": 0.0055,
+   "n": 5576,
+   "rmse": 0.0113,
+   "mean_sd": 0.005
+  },
+  {
+   "sd_lo": 0.0055,
+   "sd_hi": 0.0067,
+   "n": 5576,
+   "rmse": 0.0126,
+   "mean_sd": 0.0061
+  },
+  {
+   "sd_lo": 0.0067,
+   "sd_hi": 0.0086,
+   "n": 5577,
+   "rmse": 0.0138,
+   "mean_sd": 0.0076
+  },
+  {
+   "sd_lo": 0.0086,
+   "sd_hi": 0.0476,
+   "n": 5576,
+   "rmse": 0.0166,
+   "mean_sd": 0.0117
+  }
+ ],
+ "corr_abs_err_sd": 0.244,
+ "shipped": {
+  "mean_z": -0.137,
+  "sd_z": 0.848,
+  "crps": 0.00714,
+  "exceed": {
+   "k1": {
+    "observed": 0.08193,
+    "gaussian": 0.158655,
+    "ci95": [
+     0.07126,
+     0.09259
+    ]
+   },
+   "k2": {
+    "observed": 0.00832,
+    "gaussian": 0.02275,
+    "ci95": [
+     0.0047,
+     0.01246
+    ]
+   },
+   "k3": {
+    "observed": 0.00075,
+    "gaussian": 0.00135,
+    "ci95": [
+     0.0,
+     0.00163
+    ]
+   },
+   "k4": {
+    "observed": 0.00018,
+    "gaussian": 3.2e-05,
+    "ci95": [
+     0.0,
+     0.00055
+    ]
+   }
+  },
+  "pit_deciles": [
+   0.046,
+   0.0645,
+   0.0879,
+   0.1083,
+   0.1241,
+   0.1363,
+   0.128,
+   0.1185,
+   0.1041,
+   0.0824
+  ]
+ },
+ "emos": {
+  "gfs_only_spread": {
+   "crps_heldout": 0.00702,
+   "params_by_half": [
+    [
+     0.00195,
+     1.00041,
+     0.00166,
+     0.00882,
+     1.28523,
+     0.23017
+    ],
+    [
+     0.01155,
+     0.99122,
+     -0.00913,
+     0.00861,
+     1.01944,
+     0.34898
+    ]
+   ],
+   "mean_z": -0.003,
+   "sd_z": 1.066,
+   "exceed": {
+    "k2": 0.03142,
+    "k3": 0.00438,
+    "k4": 0.00065
+   }
+  },
+  "gfs_ifs_spread": {
+   "crps_heldout": 0.00634,
+   "params_by_half": [
+    [
+     -0.00098,
+     0.46307,
+     0.54022,
+     0.00865,
+     1.07829,
+     0.83654
+    ],
+    [
+     0.00714,
+     0.376,
+     0.61929,
+     0.00819,
+     0.75803,
+     -0.73437
+    ]
+   ],
+   "mean_z": -0.013,
+   "sd_z": 1.087,
+   "exceed": {
+    "k2": 0.02948,
+    "k3": 0.00463,
+    "k4": 0.00065
+   }
+  },
+  "gfs_ifs_spread_disagreement": {
+   "crps_heldout": 0.00633,
+   "params_by_half": [
+    [
+     -0.0012,
+     0.46291,
+     0.54056,
+     0.00832,
+     1.02408,
+     0.35301
+    ],
+    [
+     0.0067,
+     0.37808,
+     0.61759,
+     0.00809,
+     0.6615,
+     0.33224
+    ]
+   ],
+   "mean_z": -0.011,
+   "sd_z": 1.081,
+   "exceed": {
+    "k2": 0.02956,
+    "k3": 0.00481,
+    "k4": 0.0005
+   }
+  }
+ },
+ "equal_risk_emos_vs_shipped": {
+  "k2": {
+   "rate": 0.00832,
+   "events": 232,
+   "k_emos": 2.72,
+   "mean_margin_shipped": 0.0295,
+   "mean_gain_mach": 0.0022
+  },
+  "k3": {
+   "rate": 0.00075,
+   "events": 21,
+   "k_emos": 3.97,
+   "mean_margin_shipped": 0.0443,
+   "mean_gain_mach": 0.0035
+  },
+  "k4": {
+   "rate": 0.00018,
+   "events": 5,
+   "k_emos": 4.47,
+   "mean_margin_shipped": 0.059,
+   "mean_gain_mach": 0.0129
+  }
+ },
+ "crps_mean_of_models_shipped_sigma": 0.00656,
+ "tails": {
+  "shipped": {
+   "threshold_z": 1.241,
+   "gpd_shape": -0.031,
+   "gpd_scale": 0.451,
+   "k_needed": {
+    "p0.01": {
+     "gaussian": 2.33,
+     "empirical": 1.94,
+     "gpd": 1.95
+    },
+    "p0.001": {
+     "gaussian": 3.09,
+     "empirical": 2.82,
+     "gpd": 2.9
+    },
+    "p0.0001": {
+     "gaussian": 3.72,
+     "empirical": null,
+     "gpd": 3.79
+    }
+   },
+   "max_z": 4.53
+  },
+  "emos_best": {
+   "threshold_z": 1.7,
+   "gpd_shape": -0.093,
+   "gpd_scale": 0.615,
+   "k_needed": {
+    "p0.01": {
+     "gaussian": 2.33,
+     "empirical": 2.62,
+     "gpd": 2.62
+    },
+    "p0.001": {
+     "gaussian": 3.09,
+     "empirical": 3.85,
+     "gpd": 3.72
+    },
+    "p0.0001": {
+     "gaussian": 3.72,
+     "empirical": null,
+     "gpd": 4.6
+    }
+   },
+   "max_z": 4.36
+  }
+ },
+ "conformal_shipped": {
+  "p0.01": [
+   {
+    "k": 2.01,
+    "heldout_exceed": 0.00589
+   },
+   {
+    "k": 1.84,
+    "heldout_exceed": 0.01666
+   }
+  ],
+  "p0.001": [
+   {
+    "k": 2.74,
+    "heldout_exceed": 0.00154
+   },
+   {
+    "k": 3.14,
+    "heldout_exceed": 0.00029
+   }
+  ]
+ },
+ "by_fl": {
+  "350": {
+   "n": 9282,
+   "rmse": 0.0127,
+   "sd_z": 0.772,
+   "mean_sd": 0.0081,
+   "exceed_k3": 0.0
+  },
+  "450": {
+   "n": 9293,
+   "rmse": 0.0139,
+   "sd_z": 0.922,
+   "mean_sd": 0.0068,
+   "exceed_k3": 0.00226
+  },
+  "550": {
+   "n": 9304,
+   "rmse": 0.0124,
+   "sd_z": 0.841,
+   "mean_sd": 0.0055,
+   "exceed_k3": 0.0
+  }
+ }
+}
