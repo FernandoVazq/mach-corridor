@@ -2,7 +2,7 @@
 ECMWF IFS open data (issue #9): a second forecast model next to GFS.
 
 Source: AWS Open Data bucket `ecmwf-forecasts` (eu-central-1, no account), path
-  <yyyymmdd>/<HH>z/ifs/0p25/oper/<yyyymmdd><HH>0000-<step>h-oper-fc.grib2   (+ .index, JSON lines)
+  <yyyymmdd>/<HH>z/ifs/0p25/oper/<yyyymmdd><HH>0000-<step>h-oper-fc.grib2   (index: same name ending -fc.index, JSON lines)
 06/18 UTC runs before IFS cycle 50r1 sit under stream `scda`; both are tried. Steps: 00/12 UTC 0-144 h by 3 h,
 06/18 UTC 0-90 h by 3 h. Fields are byte-range downloaded from the index (param + levelist), like build.fetch.
 
@@ -29,9 +29,14 @@ def fetch(run, step, params=("t", "u", "v", "gh", "r")):
     last = None
     for stream in ("oper", "scda"):
         u = url(run, step, stream)
-        r = S.get(u + ".index", timeout=60)
+        iu = u[:-len("grib2")] + "index"                 # the index replaces the extension: ...-fc.index
+        r = None
+        for k in range(3):
+            r = S.get(iu, timeout=60)
+            if r.status_code != 503: break               # S3 "slow down": back off and retry
+            import time; time.sleep(3 * (k + 1))
         if r.status_code != 200:
-            last = f"{r.status_code} {u}.index"; continue
+            last = f"{r.status_code} {iu}"; continue
         rows = [json.loads(l) for l in r.text.splitlines() if l.strip()]
         want = [x for x in rows if x.get("levtype") == "pl" and x.get("param") in params]
         if not want:
