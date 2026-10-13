@@ -230,6 +230,32 @@
     download(base + "_legs.csv", [cols.join(","), ...ev.legs.map(l => cols.map(c => l[c] ?? "").join(","))].join("\n"), "text/csv");
   }
 
+  // ---------- route export (issue #23): GeoJSON and KML, one feature per constant-Mach stretch ----------
+  function stretches(r) {
+    const o = r.opt, dep = Date.parse(MC.S.man.valid_times[r.fi]), out = [];
+    let t = 0, cur = null;
+    for (const s of o.segs) {
+      const key = `${s.type}|${s.M.toFixed(3)}`;
+      if (!cur || cur.key !== key) { cur = { key, type: s.type, mach: +s.M.toFixed(3), from_nm: Math.round(s.x0), coords: [[+s.p[0].toFixed(4), +s.p[1].toFixed(4)]], eto: new Date(dep + t * 3.6e6).toISOString().slice(0, 16) + "Z" }; out.push(cur); }
+      cur.coords.push([+s.q[0].toFixed(4), +s.q[1].toFixed(4)]); cur.to_nm = Math.round(s.x1); t += s.t;
+    }
+    return out;
+  }
+  function exportRoute() {
+    if (!R) return;
+    const st = stretches(R), man = MC.S.man, base = `mach-corridor_${R.names.join("-")}_FL${R.fl}`;
+    const props = { from: R.names[0], to: R.names[1], aircraft: R.ac.name, flight_level: R.fl, gfs_run: man.run_time, model_version: man.model_version || null,
+      note: "Research prototype, not for flight. Not an ARINC 633 flight plan: a waypoint list for display and analysis." };
+    const gj = { type: "FeatureCollection", properties: props, features: st.map(x => ({ type: "Feature",
+      properties: { type: x.type, mach: x.mach, from_nm: x.from_nm, to_nm: x.to_nm, eto_utc: x.eto }, geometry: { type: "LineString", coordinates: x.coords } })) };
+    download(base + ".geojson", JSON.stringify(gj, null, 1), "application/geo+json");
+    const col = { boomless: "ff4fb8e8", super: "ffd47a2b", sub: "ff9aa3b5", climb: "ff9aa3b5" };   // KML colours are aabbggrr
+    const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${esc(`${R.names[0]} - ${R.names[1]} FL${R.fl}`)}</name><description>${esc(props.note + " GFS " + props.gfs_run)}</description>` +
+      st.map(x => `<Placemark><name>${esc(`${x.type} M${x.mach}`)}</name><description>${esc(`${x.from_nm}-${x.to_nm} nm, from ${x.eto}`)}</description><Style><LineStyle><color>${col[x.type] || "ffffffff"}</color><width>4</width></LineStyle></Style><LineString><altitudeMode>absolute</altitudeMode><coordinates>${x.coords.map(c => `${c[0]},${c[1]},${Math.round(R.fl * 30.48)}`).join(" ")}</coordinates></LineString></Placemark>`).join("") + `</Document></kml>`;
+    download(base + ".kml", kml, "application/vnd.google-earth.kml+xml");
+  }
+
   // ---------- cockpit (EFB) view, issue #24: the next 300 nm from a point of the planned route ----------
   const AHEAD = 300;
   function efbOpen() {
@@ -371,6 +397,7 @@
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
     $("evidenceBtn").onclick = exportEvidence;
     $("efbBtn").onclick = efbOpen;
+    $("routeExportBtn").onclick = exportRoute;
     $("routeSummary").addEventListener("click", ev => {
       if (ev.target.id !== "staleBtn" || !R) return;
       MC.S.allowStale = !MC.S.allowStale; planRoute(R.A, R.B, R.names);
@@ -416,5 +443,5 @@
       if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
     }
   });
-  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: () => R && withIntegrity(evidence(R)) };
+  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: () => R && withIntegrity(evidence(R)), stretches: () => R && stretches(R) };
 })();
