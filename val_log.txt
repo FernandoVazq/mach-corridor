@@ -1,0 +1,47 @@
+2025-10-05 00:00:00+00:00 ifs f24 failed: IFS 2025100400 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251004/00z/ifs/0p25/scda/20251004000000-24h-scda-fc.index)
+2025-10-05 00Z: 12 launches, 96s
+2025-10-15 00:00:00+00:00 ifs f24 failed: IFS 2025101400 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251014/00z/ifs/0p25/scda/20251014000000-24h-scda-fc.index)
+2025-10-15 00Z: 12 launches, 75s
+2025-10-25 00Z: 11 launches, 81s
+2025-11-04 00Z: 12 launches, 89s
+2025-11-14 00:00:00+00:00 ifs f24 failed: IFS 2025111300 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251113/00z/ifs/0p25/scda/20251113000000-24h-scda-fc.index)
+2025-11-14 00Z: 12 launches, 65s
+2025-11-24 00:00:00+00:00 ifs f24 failed: IFS 2025112300 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251123/00z/ifs/0p25/scda/20251123000000-24h-scda-fc.index)
+2025-11-24 00Z: 12 launches, 74s
+2025-12-04 00:00:00+00:00 ifs ana failed: IFS 2025120400 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251204/00z/ifs/0p25/scda/20251204000000-0h-scda-fc.index)
+2025-12-04 00Z: 12 launches, 76s
+2025-12-14 00Z: 12 launches, 63s
+2025-12-24 00Z: 12 launches, 63s
+2026-01-03 00Z: 12 launches, 78s
+2026-01-13 00Z: 12 launches, 58s
+2026-01-23 00Z: 12 launches, 62s
+2026-02-02 00:00:00+00:00 ifs f24 failed: IFS 2026020100 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260201/00z/ifs/0p25/scda/20260201000000-24h-scda-fc.index)
+2026-02-02 00Z: 11 launches, 62s
+2026-02-12 00Z: 11 launches, 77s
+2026-02-22 00Z: 12 launches, 72s
+2026-03-04 00Z: 12 launches, 69s
+2026-03-14 00:00:00+00:00 ifs ana failed: IFS 2026031400 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260314/00z/ifs/0p25/scda/20260314000000-0h-scda-fc.index)
+2026-03-14 00Z: 12 launches, 67s
+2026-03-24 00Z: 12 launches, 74s
+2026-04-03 00Z: 12 launches, 62s
+2026-04-13 00Z: 11 launches, 83s
+2026-04-23 00Z: 12 launches, 68s
+2026-05-03 00Z: 12 launches, 73s
+2026-05-13 00Z: 12 launches, 79s
+2026-05-23 00Z: 12 launches, 64s
+2026-06-02 00Z: 12 launches, 118s
+2026-06-12 00:00:00+00:00 ifs f06 failed: IFS 2026061118 +6h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260611/18z/ifs/0p25/scda/20260611180000-6h-scda-fc.index)
+2026-06-12 00Z: 12 launches, 64s
+2026-06-22 00Z: 12 launches, 71s
+2026-07-02 00:00:00+00:00 ifs ana failed: IFS 2026070200 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260702/00z/ifs/0p25/scda/20260702000000-0h-scda-fc.index)
+2026-07-02 00Z: 11 launches, 66s
+2026-07-12 00Z: 11 launches, 77s
+2026-07-22 00Z: 12 launches, 120s
+2026-08-01 00Z: 11 launches, 71s
+2026-08-11 00Z: 12 launches, 77s
+2026-08-21 00:00:00+00:00 ifs ana failed: IFS 2026082100 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260821/00z/ifs/0p25/scda/20260821000000-0h-scda-fc.index)
+2026-08-21 00Z: 12 launches, 67s
+2026-08-31 00Z: 12 launches, 68s
+2026-09-10 00Z: 10 launches, 69s
+2026-09-20 00Z: 12 launches, 70s
+2026-09-30 00Z: 11 launches, 84s
