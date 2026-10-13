@@ -235,6 +235,52 @@
   }
   const redraw = () => { drawTornado(); drawImp(); };
 
+  // ---------- climatology for network planners (study/climatology.py -> geo/clim.png, clim.json) ----------
+  const cl = { fl: 550, season: "Year", meta: null, bytes: null, land: null };
+  const clColor = v => d3.interpolateYlGnBu(0.08 + 0.92 * v);
+  async function loadClim() {
+    if (cl.meta) return;
+    const [meta, img, topo] = await Promise.all([
+      fetch("geo/clim.json").then(r => r.json()),
+      new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = "geo/clim.png"; }),
+      fetch("vendor/countries-50m.json").then(r => r.json())]);
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, img.width, img.height).data, b = new Uint8Array(img.width * img.height);
+    for (let i = 0; i < b.length; i++) b[i] = d[4 * i];
+    Object.assign(cl, { meta, bytes: b, W: img.width, land: topojson.mesh(topo, topo.objects.countries, (x, y) => x === y) });
+  }
+  function drawClim() {
+    if (!cl.meta) return;
+    const m = cl.meta, [tw, th] = m.tile, r = m.fls.indexOf(cl.fl), c = m.periods.indexOf(cl.season);
+    const cv = $("clMap"), W = cv.width, H = cv.height, g = cv.getContext("2d");
+    const lat0 = 78, lat1 = -60, proj = d3.geoEquirectangular().scale(W / (2 * Math.PI)).translate([W / 2, H / 2 + (lat0 + lat1) / 2 / 360 * W]);
+    const img = g.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      const ll = proj.invert([W / 2, y]); const lat = ll[1]; const j = Math.round(90 - lat);
+      if (j < 0 || j >= th) continue;
+      for (let x = 0; x < W; x++) {
+        const lon = proj.invert([x, y])[0], i = ((Math.round(lon + 180) % 360) + 360) % 360;
+        const v = cl.bytes[(r * th + j) * cl.W + c * tw + i]; if (v === 255) continue;
+        const col = d3.rgb(clColor(v / 250)), o = 4 * (y * W + x);
+        img.data[o] = col.r; img.data[o + 1] = col.g; img.data[o + 2] = col.b; img.data[o + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    g.beginPath(); d3.geoPath(proj, g)(cl.land);
+    g.strokeStyle = "rgba(10,18,30,.55)"; g.lineWidth = 2; g.stroke();             // halo, then a light line: reads on every shade
+    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 0.7; g.stroke();
+    const n = m.dates_per_period[cl.season];
+    $("clTitle").textContent = `Chance that a given heading has a corridor of at least M1.10, FL${cl.fl}, ${cl.season === "Year" ? "all year" : cl.season}`;
+    $("clSub").textContent = `Share of days × 36 directions with boomless Mach ≥ 1.15 at the floor (≥ M1.10 after a 0.05 margin). ${n} weekly 00 UTC GFS analyses, Oct 2025 – Oct 2026. Over open sea design Mach is allowed anyway.`;
+    $("clMap").setAttribute("aria-label", `${$("clTitle").textContent}. Values by region are in the table below.`);
+    $("clRamp").style.background = `linear-gradient(90deg, ${d3.range(0, 1.01, 0.1).map(clColor).join(",")})`;
+    const regs = Object.keys(m.regions), per = m.periods, fk = `FL${cl.fl}`;
+    $("clTable").innerHTML = `<tr><th>Region (land, FL${cl.fl})</th>${per.map(p => `<th class="${p === cl.season ? "cur" : ""}">${p === "Year" ? "All year" : p}</th>`).join("")}</tr>` +
+      regs.map(rg => `<tr><td>${rg}</td>${per.map(p => `<td class="${p === cl.season ? "cur" : ""}">${Math.round(100 * m.regions[rg][fk][p])}%</td>`).join("")}</tr>`).join("") +
+      `<tr><td>All land</td>${per.map(p => `<td class="${p === cl.season ? "cur" : ""}">${Math.round(100 * m.all_land[fk][p])}%</td>`).join("")}</tr>`;
+  }
+
   async function open() {
     if (drawn) return;
     if (!P) P = await fetch("geo/physics.json").then(r => r.json());
@@ -242,6 +288,9 @@
     seg($("phFl"), [[350, "FL350"], [450, "FL450"], [550, "FL550"]], () => st.fl, v => { st.fl = v; redraw(); });
     seg($("phSrc"), [["balloon", "Balloons"], ["gfs", "Global forecast"]], () => st.src, v => { st.src = v; redraw(); });
     insights(); redraw(); drawAlt(); drawVal();
+    seg($("clFl"), [[350, "FL350"], [450, "FL450"], [550, "FL550"]], () => cl.fl, v => { cl.fl = v; drawClim(); });
+    seg($("clSeason"), [["Year", "All year"], ["Dec-Feb", "Dec–Feb"], ["Mar-May", "Mar–May"], ["Jun-Aug", "Jun–Aug"], ["Sep-Nov", "Sep–Nov"]], () => cl.season, v => { cl.season = v; drawClim(); });
+    loadClim().then(drawClim).catch(err => console.warn("climatology", err));
     const pre = PRESETS();
     $("abPreset").innerHTML = pre.map((p, i) => `<option value="${i}">${p.name}</option>`).join("");
     const cur = window.AIRCRAFT.find(a => a.id === "custom");

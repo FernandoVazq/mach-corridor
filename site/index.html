@@ -250,6 +250,17 @@
         <svg id="chVal" viewBox="0 0 520 300" role="img" aria-label="Forecast error against balloons"></svg>
       </figure>
     </div>
+    <h2 class="h2">Where and when corridors work <span class="muted">Climatology for network planners: a year of weekly analyses.</span></h2>
+    <div class="pctl">
+      <div class="seg" id="clFl" role="radiogroup" aria-label="Climatology flight level"></div>
+      <div class="seg" id="clSeason" role="radiogroup" aria-label="Season"></div>
+    </div>
+    <figure class="panel climfig" tabindex="0">
+      <figcaption><b id="clTitle">Chance that a given heading has a corridor</b><span id="clSub"></span></figcaption>
+      <canvas id="clMap" width="1120" height="430" role="img" aria-label="Map of the chance that a heading has a boomless corridor"></canvas>
+      <div class="cllegend"><span>0%</span><i id="clRamp"></i><span>100%</span></div>
+    </figure>
+    <div class="tblwrap climtbl" tabindex="0" role="region" aria-label="Corridor chance by region and season"><table class="tbl" id="clTable"></table></div>
     <h2 class="h2">Build an aircraft <span class="muted">Change its numbers and see its boom, its corridor and its routes.</span></h2>
     <div class="acbuild" id="acBuild">
       <label>Start from<select id="abPreset"></select></label>

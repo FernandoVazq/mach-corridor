@@ -261,6 +261,12 @@ adopted): measure the gate on the unsafe side only, where 6 h and 12 h re-planni
 Primary boom: the published cases in §6.1. Below the caustic: FaINT (§3.4). **Open:** sBOOM reference cases
 (#14), X-59 and XB-1 measurements (#21), secondary booms (#16).
 
+### 6.5 Climatology for network planners (`study/climatology.py`, issue #30)
+Share of days × 36 directions with boomless Mach ≥ 1.15 at the floor (≥ M1.10 after a 0.05 margin), from the 53
+weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contiguous US 65% of the year (50% Dec–Feb,
+83% Jun–Aug), Europe 43% (27% Mar–May, 56% Jun–Aug), China 75%, Australia 87%, Middle East 88%, Brazil 97%; all land
+40% (FL450 32%, FL350 20%). Weekly 00 UTC dates only (12–14 per season), so the seasonal maps are indicative.
+
 ## 7. Known limitations
 | Limitation | Effect | Bound or plan |
 |---|---|---|

@@ -354,3 +354,11 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .band { opacity: .12; } .lim { stroke: var(--bad); stroke-dasharray: 4 3; stroke-width: 1.2; }
 .phys > .plain, .phys > .pctl, .phys > .acbuild, .phys > .kpirow, .phys > .abgo { margin-left: auto; margin-right: auto; max-width: 1180px; }
 .phys > .plain { margin-top: 16px; margin-bottom: 12px; }
+
+/* climatology (Physics tab) */
+.phys > .climfig, .phys > .climtbl { margin-left: auto; margin-right: auto; max-width: 1180px; }
+.climfig canvas { width: 100%; height: auto; display: block; border-radius: 6px; background: var(--surface-2); }
+.cllegend { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+.cllegend i { flex: 0 0 220px; height: 10px; border-radius: 5px; }
+.climtbl { margin-top: 12px; margin-bottom: 8px; }
+.climtbl td.cur, .climtbl th.cur { font-weight: 600; }

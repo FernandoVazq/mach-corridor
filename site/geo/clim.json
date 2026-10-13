@@ -1,0 +1,194 @@
+{
+ "source": "53 weekly GFS analyses, 00 UTC, Oct 2025 - Oct 2026 (study-data)",
+ "threshold": 1.15,
+ "meaning": "share of days x 36 directions with boomless Mach >= 1.15 at the floor (>= M1.10 after a 0.05 margin)",
+ "periods": [
+  "Year",
+  "Dec-Feb",
+  "Mar-May",
+  "Jun-Aug",
+  "Sep-Nov"
+ ],
+ "dates_per_period": {
+  "Year": 53,
+  "Dec-Feb": 13,
+  "Mar-May": 13,
+  "Jun-Aug": 13,
+  "Sep-Nov": 14
+ },
+ "fls": [
+  350,
+  450,
+  550
+ ],
+ "tile": [
+  360,
+  181
+ ],
+ "encoding": "value / 250 = share; 255 = no data",
+ "lon0": -180,
+ "lat0": 90,
+ "regions": {
+  "Contiguous US": {
+   "FL350": {
+    "Year": 0.355,
+    "Dec-Feb": 0.34,
+    "Mar-May": 0.386,
+    "Jun-Aug": 0.352,
+    "Sep-Nov": 0.344
+   },
+   "FL450": {
+    "Year": 0.52,
+    "Dec-Feb": 0.392,
+    "Mar-May": 0.47,
+    "Jun-Aug": 0.676,
+    "Sep-Nov": 0.539
+   },
+   "FL550": {
+    "Year": 0.65,
+    "Dec-Feb": 0.501,
+    "Mar-May": 0.576,
+    "Jun-Aug": 0.831,
+    "Sep-Nov": 0.691
+   }
+  },
+  "Europe": {
+   "FL350": {
+    "Year": 0.341,
+    "Dec-Feb": 0.31,
+    "Mar-May": 0.319,
+    "Jun-Aug": 0.372,
+    "Sep-Nov": 0.361
+   },
+   "FL450": {
+    "Year": 0.369,
+    "Dec-Feb": 0.297,
+    "Mar-May": 0.244,
+    "Jun-Aug": 0.486,
+    "Sep-Nov": 0.444
+   },
+   "FL550": {
+    "Year": 0.427,
+    "Dec-Feb": 0.369,
+    "Mar-May": 0.266,
+    "Jun-Aug": 0.559,
+    "Sep-Nov": 0.509
+   }
+  },
+  "China": {
+   "FL350": {
+    "Year": 0.302,
+    "Dec-Feb": 0.351,
+    "Mar-May": 0.349,
+    "Jun-Aug": 0.218,
+    "Sep-Nov": 0.291
+   },
+   "FL450": {
+    "Year": 0.55,
+    "Dec-Feb": 0.44,
+    "Mar-May": 0.499,
+    "Jun-Aug": 0.659,
+    "Sep-Nov": 0.6
+   },
+   "FL550": {
+    "Year": 0.746,
+    "Dec-Feb": 0.639,
+    "Mar-May": 0.688,
+    "Jun-Aug": 0.867,
+    "Sep-Nov": 0.788
+   }
+  },
+  "Australia": {
+   "FL350": {
+    "Year": 0.397,
+    "Dec-Feb": 0.384,
+    "Mar-May": 0.386,
+    "Jun-Aug": 0.395,
+    "Sep-Nov": 0.42
+   },
+   "FL450": {
+    "Year": 0.618,
+    "Dec-Feb": 0.736,
+    "Mar-May": 0.618,
+    "Jun-Aug": 0.52,
+    "Sep-Nov": 0.598
+   },
+   "FL550": {
+    "Year": 0.872,
+    "Dec-Feb": 0.973,
+    "Mar-May": 0.862,
+    "Jun-Aug": 0.773,
+    "Sep-Nov": 0.878
+   }
+  },
+  "Brazil": {
+   "FL350": {
+    "Year": 0.364,
+    "Dec-Feb": 0.342,
+    "Mar-May": 0.316,
+    "Jun-Aug": 0.408,
+    "Sep-Nov": 0.39
+   },
+   "FL450": {
+    "Year": 0.803,
+    "Dec-Feb": 0.858,
+    "Mar-May": 0.828,
+    "Jun-Aug": 0.705,
+    "Sep-Nov": 0.819
+   },
+   "FL550": {
+    "Year": 0.969,
+    "Dec-Feb": 0.996,
+    "Mar-May": 0.967,
+    "Jun-Aug": 0.934,
+    "Sep-Nov": 0.978
+   }
+  },
+  "Middle East": {
+   "FL350": {
+    "Year": 0.37,
+    "Dec-Feb": 0.387,
+    "Mar-May": 0.418,
+    "Jun-Aug": 0.316,
+    "Sep-Nov": 0.361
+   },
+   "FL450": {
+    "Year": 0.676,
+    "Dec-Feb": 0.547,
+    "Mar-May": 0.603,
+    "Jun-Aug": 0.819,
+    "Sep-Nov": 0.731
+   },
+   "FL550": {
+    "Year": 0.878,
+    "Dec-Feb": 0.77,
+    "Mar-May": 0.847,
+    "Jun-Aug": 0.969,
+    "Sep-Nov": 0.924
+   }
+  }
+ },
+ "all_land": {
+  "FL350": {
+   "Year": 0.2,
+   "Dec-Feb": 0.177,
+   "Mar-May": 0.187,
+   "Jun-Aug": 0.229,
+   "Sep-Nov": 0.206
+  },
+  "FL450": {
+   "Year": 0.317,
+   "Dec-Feb": 0.275,
+   "Mar-May": 0.285,
+   "Jun-Aug": 0.361,
+   "Sep-Nov": 0.343
+  },
+  "FL550": {
+   "Year": 0.404,
+   "Dec-Feb": 0.356,
+   "Mar-May": 0.359,
+   "Jun-Aug": 0.473,
+   "Sep-Nov": 0.427
+  }
+ }
+}
