@@ -1,0 +1,42 @@
+2025-10-09 00:00:00+00:00 ifs f24 failed: IFS 2025100800 +24h not found (503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251008/00z/ifs/0p25/scda/20251008000000-24h-scda-fc.index)
+2025-10-09 00Z: 11 launches, 91s
+2025-10-19 00Z: 12 launches, 58s
+2025-10-29 00Z: 10 launches, 66s
+2025-11-08 00Z: 12 launches, 76s
+2025-11-18 00Z: 12 launches, 68s
+2025-11-28 00Z: 12 launches, 83s
+2025-12-08 00Z: 11 launches, 60s
+2025-12-18 00Z: 12 launches, 66s
+2025-12-28 00:00:00+00:00 ifs ana failed: IFS 2025122800 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251228/00z/ifs/0p25/scda/20251228000000-0h-scda-fc.index)
+2025-12-28 00Z: 12 launches, 62s
+2026-01-07 00Z: 12 launches, 71s
+2026-01-17 00Z: 11 launches, 59s
+2026-01-27 00Z: 12 launches, 64s
+2026-02-06 00:00:00+00:00 ifs f24 failed: IFS 2026020500 +24h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260205/00z/ifs/0p25/scda/20260205000000-24h-scda-fc.index)
+2026-02-06 00Z: 12 launches, 69s
+2026-02-16 00Z: 12 launches, 62s
+2026-02-26 00Z: 12 launches, 89s
+2026-03-08 00Z: 12 launches, 79s
+2026-03-18 00:00:00+00:00 ifs ana failed: IFS 2026031800 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260318/00z/ifs/0p25/scda/20260318000000-0h-scda-fc.index)
+2026-03-18 00Z: 12 launches, 72s
+2026-03-28 00:00:00+00:00 ifs ana failed: IFS 2026032800 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260328/00z/ifs/0p25/scda/20260328000000-0h-scda-fc.index)
+2026-03-28 00Z: 12 launches, 72s
+2026-04-07 00Z: 12 launches, 61s
+2026-04-17 00Z: 12 launches, 75s
+2026-04-27 00Z: 12 launches, 84s
+2026-05-07 00Z: 12 launches, 65s
+2026-05-17 00Z: 12 launches, 70s
+2026-05-27 00Z: 12 launches, 61s
+2026-06-06 00Z: 12 launches, 100s
+2026-06-16 00:00:00+00:00 ifs ana failed: IFS 2026061600 +0h not found (503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260616/00z/ifs/0p25/scda/20260616000000-0h-scda-fc.index)
+2026-06-16 00Z: 12 launches, 92s
+2026-06-26 00Z: 12 launches, 94s
+2026-07-06 00Z: 10 launches, 58s
+2026-07-16 00Z: 12 launches, 68s
+2026-07-26 00Z: 12 launches, 73s
+2026-08-05 00Z: 12 launches, 86s
+2026-08-15 00Z: 10 launches, 65s
+2026-08-25 00Z: 12 launches, 73s
+2026-09-04 00Z: 12 launches, 84s
+2026-09-14 00Z: 12 launches, 71s
+2026-09-24 00Z: 12 launches, 69s
