@@ -1,0 +1,40 @@
+2025-10-07 12Z: 9 launches, 73s
+2025-10-17 12Z: 9 launches, 83s
+2025-10-27 12Z: 9 launches, 91s
+2025-11-06 12:00:00+00:00 ifs ana failed: IFS 2025110612 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251106/12z/ifs/0p25/scda/20251106120000-0h-scda-fc.index)
+2025-11-06 12Z: 9 launches, 59s
+2025-11-16 12:00:00+00:00 ifs ana failed: IFS 2025111612 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251116/12z/ifs/0p25/scda/20251116120000-0h-scda-fc.index)
+2025-11-16 12Z: 9 launches, 77s
+2025-11-26 12Z: 9 launches, 71s
+2025-12-06 12Z: 9 launches, 73s
+2025-12-16 12Z: 9 launches, 69s
+2025-12-26 12Z: 9 launches, 62s
+2026-01-05 12Z: 9 launches, 74s
+2026-01-15 12:00:00+00:00 ifs ana failed: IFS 2026011512 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260115/12z/ifs/0p25/scda/20260115120000-0h-scda-fc.index)
+2026-01-15 12Z: 9 launches, 64s
+2026-01-25 12Z: 9 launches, 82s
+2026-02-04 12Z: 9 launches, 68s
+2026-02-14 12Z: 9 launches, 55s
+2026-02-24 12Z: 8 launches, 83s
+2026-03-06 12Z: 8 launches, 56s
+2026-03-16 12Z: 8 launches, 73s
+2026-03-26 12Z: 9 launches, 71s
+2026-04-05 12Z: 8 launches, 58s
+2026-04-15 12Z: 8 launches, 55s
+2026-04-25 12Z: 8 launches, 70s
+2026-05-05 12Z: 8 launches, 68s
+2026-05-15 12Z: 8 launches, 74s
+2026-05-25 12Z: 8 launches, 69s
+2026-06-04 12Z: 8 launches, 71s
+2026-06-14 12Z: 9 launches, 72s
+2026-06-24 12:00:00+00:00 ifs ana failed: 503 Server Error: Slow Down for url: https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260624/12z/ifs/0p25/oper/20260624120000-0h-oper-fc.grib2
+2026-06-24 12Z: 9 launches, 132s
+2026-07-04 12Z: 8 launches, 74s
+2026-07-14 12Z: 8 launches, 88s
+2026-07-24 12Z: 9 launches, 74s
+2026-08-03 12Z: 8 launches, 62s
+2026-08-13 12Z: 10 launches, 85s
+2026-08-23 12Z: 9 launches, 81s
+2026-09-02 12Z: 9 launches, 68s
+2026-09-12 12Z: 10 launches, 58s
+2026-09-22 12Z: 10 launches, 76s
