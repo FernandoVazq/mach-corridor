@@ -31,11 +31,13 @@ jobs:
           else
             run=$(python3 -c "import json;print(json.load(open('m.json'))['run_time'])")
             mv=$(python3 -c "import json;print(json.load(open('m.json')).get('model_version',''))")
+            gen=$(python3 -c "import json;print(json.load(open('m.json'))['generated'])")
+            built=$(( (now - $(date -u -d "$gen" +%s)) / 3600 ))
             age=$(( (now - $(date -u -d "$run" +%s)) / 3600 ))
             want=$(grep -oP 'MODEL_VERSION = "\K[^"]+' engine/build.py || true)
             echo "run $run, age ${age} h, model $mv (main $want)"
             if [ "$age" -gt 18 ]; then state=bad; msg="The published GFS run $run is ${age} h old (limit 18 h): the router is failing closed over land."; fi
-            if [ -n "$want" ] && [ "$mv" != "$want" ] && [ "$age" -gt 3 ]; then state=bad; msg="$msg The site serves model $mv but main is $want."; fi
+            if [ -n "$want" ] && [ "$mv" != "$want" ] && [ "$built" -ge 2 ]; then state=bad; msg="$msg The site serves model $mv but main is $want."; fi
           fi
           open=$(gh api "repos/$REPO/issues?state=open&labels=monitor" --jq '.[0].number // empty')
           if [ "$state" = bad ]; then
