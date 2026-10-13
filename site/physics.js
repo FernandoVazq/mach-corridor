@@ -287,7 +287,19 @@
     if (!SE) SE = await fetch("geo/seasonal.json").then(r => r.json());
     const fk = `FL${cl.fl}`, mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const regs = Object.keys(SE.months);
-    const cell = v => { const c = d3.rgb(clColor(v)), lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return `<td style="background:${c};color:${lum < 140 ? "#fff" : "#0b1220"}">${Math.round(100 * v)}</td>`; };
+    // text colour with the better WCAG contrast against the cell (relative luminance, both themes use these fills)
+    const relL = c => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+    const DARK = d3.rgb("#0b1220"), LD = relL(DARK);
+    const cell = v => {
+      let c = d3.rgb(clColor(v)); const L = relL(c), white = 1.05 / (L + 0.05) >= (L + 0.05) / (LD + 0.05);
+      // mid tones reach neither text colour at 4.5:1: nudge the fill (darker under white text, lighter under dark text)
+      for (let i = 0; i < 20; i++) {
+        const Lc = relL(c), ratio = white ? 1.05 / (Lc + 0.05) : (Lc + 0.05) / (LD + 0.05);
+        if (ratio >= 4.6) break;
+        c = white ? c.darker(0.1) : c.brighter(0.1);
+      }
+      return `<td style="background:${c.formatHex()};color:${white ? "#fff" : "#0b1220"}">${Math.round(100 * v)}</td>`;
+    };
     $("seTable").innerHTML = `<tr><th>Region (land, ${fk}), %</th>${mon.map(m => `<th>${m}</th>`).join("")}</tr>` +
       regs.map(r => `<tr><td>${r}</td>${SE.months[r][fk].map(cell).join("")}</tr>`).join("");
     const us = SE.annual_fl550["Contiguous US"], yrs = Object.keys(us);

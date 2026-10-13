@@ -163,9 +163,9 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | Item | Result |
 |---|---|
 | 1 Variability (5 years, `engine/variability.py`) | 2,680 GFS analyses, 3,627 land nodes: FL550 limit = annual cycle 48%, weather 51%, year-to-year 1%, hour of day < 1% (0.0017 Mach); drivers R² 0.57 (cruise wind, cruise sound speed, jet, floor); memory ~2–3 days; ~2.7 points fewer US corridors per unit ONI three months later (suggestive). Site: month-by-month table |
-| 2 Boom physics (`engine/burgers.py`) | Augmented Burgers verified (ISO 9613-1, Taylor shock, exact N-wave aging; CI); −14…+5% vs Carlson. PLdB (Mark VII, PyLdB): boomless legs 72–74 at the 0.11 psf height, ≤ 45 with the Auto margin; Concorde 106.8 with turbulent rise. **Model 2.10:** humid sound speed 0.51 q (was 0.608 q, up to 0.35 m/s fast). Site: PLdB per leg |
-| 3 Calibration | Spread–skill holds (RMS 0.0098 → 0.0166 by spread quintile); shipped σ conservative in the body, 4σ tail 0.018%; EMOS gain = the two-model mean; error e-folding 110–150 nm (#48) |
-| 4 Operations | M(γ) = 1/cos(arccos(1/M₀) + γ): −3° costs 0.024–0.039, +3° gains 0.029–0.045; another level faster in 32% of 300 nm blocks (+0.007 Mach). Site: level advisory; router per-block levels (#49) |
+| 2 Boom physics (`engine/burgers.py`) | Augmented Burgers verified (ISO 9613-1, Taylor shock, exact N-wave aging; CI); −12…+3% vs Carlson. PLdB (Mark VII, PyLdB): boomless legs 71–73.5 at the 0.11 psf height, ≤ 45 with the Auto margin; Concorde 106.8 with turbulent rise. **Model 2.10:** humid sound speed 0.51 q (was 0.608 q, up to 0.35 m/s fast). Site: PLdB per leg |
+| 3 Calibration | Spread–skill holds (RMS 0.0098 → 0.0166 by spread quintile); shipped σ conservative in the body, 4σ tail 0.018%; about three quarters of the EMOS gain is the two-model mean; error e-folding 110–150 nm (#48) |
+| 4 Operations | M(γ) = 1/cos(arccos(1/M₀) + γ): −3° costs 0.024–0.039, +3° gains 0.029–0.045; the forecast picks FL450 over FL550 in 32% of 300 nm blocks (+0.007 Mach before margin). Site: level advisory; router per-block levels (#49) |
 | 5 Market | No public competitor; Boom and Honeywell patents close to the architecture (#51); regulation timeline to the AC and mid-2027 rule; launch-boom forecasts the best expansion (#50) |
 | Feature scan (ForeFlight & co.) | Shipped: boom navlog (CSV), ICAO Item 15 string, data-age chip, level advisory. Next: vertical profile (#45), briefing PDF (#46), alerts (#47) |
 | Fix | IFS run selection checks every step and falls back to an older run |

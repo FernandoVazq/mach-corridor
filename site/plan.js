@@ -442,7 +442,7 @@
   }
 
   // Level advisory (deep study 4, study/fl_choice.py): along this route, 300 nm blocks where another level allows a
-  // faster boomless Mach. In the hindcast a lower level was faster in about a third of blocks (+0.007 Mach on average,
+  // faster boomless Mach. In the hindcast the forecast picked FL450 over FL550 in about a third of blocks (+0.007 Mach before margin on average,
   // +0.01 or more on a quarter of flights). A descent at the cutoff Mach costs ~0.03 Mach per -3 deg while it lasts
   // (results/flight_path_angle.json), so the change itself is flown subsonic or before the boomless block.
   const BLOCK_NM = 300, MIN_GAIN = 0.01;

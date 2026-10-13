@@ -181,7 +181,7 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
   (`engine/test_burgers.py`): ISO 9613-1 table values (4.98 / 9.04 / 23.1 dB/km at 1 / 2 / 4 kHz, 20 °C, 70%);
   the exact Taylor shock (first-order convergence, 1.6% at 16 points per thickness); exact lossless N-wave aging
   over 19.7 km (peak 0.2%, duration 0.3%). Against Carlson on the ground (ISA, 60% RH at the surface): peak
-  −14% to +5% and duration within 6% for six aircraft; time-step halving changes PLdB by 0.2 dB.
+  −12% to +3% (+5% with a +15 °C atmosphere) and duration within 6% for six aircraft; time-step halving changes PLdB by 0.2 dB.
   Perceived loudness is Stevens Mark VII (NASA TP-3134) in the PyLdB implementation (Utah State University, MIT,
   vendored at commit 0e40b88; reproduces its regression value 77.68 PLdB).
   - **Primary booms:** absorption alone gives 0.4–1.5 ms rise times and 98–111 PLdB (Concorde 111). Measured rise
@@ -189,8 +189,8 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
     Concorde's 2 psf → 106 PLdB, inside NASA's quoted 105–109. Humidity matters: Overture 108 PLdB at 20% surface RH,
     112 at 90% (no turbulence).
   - **Boomless legs:** the incident wave reaches the turning height with a physical rise time of 1.6 ms (airliner)
-    to 3.0 ms (F-18); through the Airy caustic model the ground PLdB is 73–75 at 0.5–1 Haglund height, 72–74 at
-    1 ΔZ_S (0.11–0.15 psf), 69–70 at 1.5, 63–64 at 2 and ≤ 45 beyond 3, for ray radii 60–150 km. The incident rise
+    to 3.0 ms (F-18); through the Airy caustic model the ground PLdB is 71–74.5 at 0.5–1 Haglund height (70.7–73.5 at
+    1 ΔZ_S, 0.11–0.15 psf), 67–70 at 1.5, 62–64 at 2 and ≤ 45 beyond 3, for ray radii 60–150 km (airliner and F-18). The incident rise
     time does not matter below the caustic (2 ms and the physical value give the same psf and PLdB to 0.1 dB):
     only low frequencies reach the ground. A typical boomless leg flown with the Auto margin (about 0.05) sits more than three Haglund
     heights up and is reported at ≤ 45 PLdB (model), with FaINT's measured ≤ 69 dB PLSEL as the context. NASA's
@@ -258,9 +258,11 @@ horizontal trace speed c/cos ψ; for flight-path angle γ the Mach-cone conditio
 cos γ cos ψ cos φ − sin γ sin ψ = 1/M at the aircraft, and the under-track ray limits, so the highest boomless Mach
 is M(γ) = 1 / cos(arccos(1/M₀) + γ) for a level-flight cutoff M₀ (`study/results/flight_path_angle.json`): a 3° descent
 costs 0.024–0.039 Mach and a 3° climb gains 0.029–0.045 at M₀ 1.10–1.20. Descents therefore stay subsonic or before
-the boomless block; a climb at the cutoff Mach is safe. Per 300 nm block, another level was faster than FL550 in 32% of
-blocks over a year of hindcast routes when chosen on the 24 h forecast (mean +0.007 Mach for FL450/550, +0.010 with
-FL350; ≥ 0.01 on 25% of flights; `study/results/fl_choice.json`). Plans show a **level advisory**: blocks where a level
+the boomless block; a climb at the cutoff Mach is safe. Choosing per 300 nm block between FL450 and FL550 on the 24 h forecast,
+over a year of hindcast routes, picked FL450 in 32% of blocks; the boomless Mach actually gained, scored on the
+analysis **before margin**, averaged +0.007 (+0.010 with FL350 too; ≥ 0.01 on 25% of flights; 95th percentile +0.034;
+`study/results/fl_choice.json`). FL450's margin is larger (k 4.25, balloon RMS 0.0139 vs 0.0124), which can eat a
+similar amount, so the net gain may be smaller. Plans show a **level advisory**: blocks where a level
 within +50/−100 of the planned one allows ≥ 0.01 Mach more over land. The router itself still flies one level.
 
 ### 5.1 Fail-closed rules and evidence file
@@ -359,7 +361,8 @@ floor and terrain as the map; data on the `study-variability` branch with NOAA E
 - **Season** (share of time every direction keeps ≥ M1.10 at FL550): contiguous US 34% in January to 97% in July,
   Europe 20% (Feb) to 82% (Jul–Aug), East Asia 32% to 95%, Russia and Canada 2–64%; tropics and southern hemisphere
   land 80–100% all year. FL450 and FL350 are far lower (US July 66% and 22%). Eastbound is harder than westbound in
-  winter (US −0.065 Mach in January, ≈ 0 in July), the jet stream.
+  winter (US −0.065 Mach in January, about 0 in July in the US and Europe; in July westbound is the harder one over
+  India and the Middle East, +0.14 and +0.10), the jet streams.
 - **Drivers** (anomalies about each node's annual cycle; multiple regression, median R² 0.57 over 1,500 nodes):
   standardized coefficients wind at cruise −0.50, sound speed at cruise −0.32, jet at 250 hPa +0.23, sound speed at
   the floor +0.20; the largest sound speed below and the floor's are nearly the same variable (r 0.97).
@@ -380,7 +383,7 @@ samples); spread = GEFS 24 h member sd at the station.
   4σ exceeded in 0.018% of samples vs 0.003% (95% CI 0–0.055%). Generalized Pareto tail shape −0.03 (exponential-like,
   not heavy). Per balloon sample, split-conformal k for 1e-3 is 2.7–3.1; the shipped k = 4 covers it.
 - **EMOS (minimum CRPS, half-year hold-out both ways):** truth ~ N(a + b₁·GFS + b₂·IFS, c² + d²s²) cuts CRPS 11%
-  (0.00714 → 0.00634); almost all of it is the two-model mean (b₁ 0.38–0.46, b₂ 0.54–0.62; c 0.0082–0.0087,
+  (0.00714 → 0.00634); about three quarters of it is the two-model mean (0.00714 → 0.00656 with the shipped σ; b₁ 0.38–0.46, b₂ 0.54–0.62; c 0.0082–0.0087,
   d 0.76–1.08). Adding model disagreement to the variance adds nothing (0.00633). At equal per-sample risk EMOS
   flies 0.002–0.004 Mach faster at k = 2–3; at k = 4 the estimate (+0.013) rests on 5 events. **Decision:** keep the
   shipped margin (fitted on flights, not samples); refit k on a two-model gridded hindcast when one exists.
