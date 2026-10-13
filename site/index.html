@@ -146,7 +146,7 @@
         <div id="routeOut" hidden>
           <div id="routeSummary" class="rsum"></div>
           <div id="routeKpis" class="kgrid"></div>
-          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button><button class="btn" id="evidenceBtn" title="Every leg with the data, model version, margin and checks behind it (JSON + CSV)">Download evidence</button></div>
+          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button><button class="btn" id="efbBtn" title="Tablet view for the flight deck: the next 300 nm of boomless Mach from any point of the route">Cockpit view</button><button class="btn" id="evidenceBtn" title="Every leg with the data, model version, margin and checks behind it (JSON + CSV)">Download evidence</button></div>
           <h3>Block time</h3>
           <svg id="rLadder" viewBox="0 0 340 130" role="img" aria-label="Block time comparison"></svg>
           <h3>Mach and wind along the route <span>Click a point to see it in 3D</span></h3>
@@ -331,6 +331,17 @@
       <p class="fine">Data: NOAA GFS via AWS Open Data, checked hourly and rebuilt within an hour of each new run. Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
     </article>
   </main>
+
+  <dialog id="efb" class="big efb" aria-labelledby="efbTitle">
+    <div class="d3head">
+      <div><h2 id="efbTitle">Cockpit view <span id="efbRoute"></span></h2><p id="efbSub">Next 300 nm from the chosen point. Research prototype: not for flight.</p></div>
+      <form method="dialog"><button class="icon" aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6"/></svg></button></form>
+    </div>
+    <label class="efbpos">Position along the route <input type="range" id="efbPos" min="0" max="100" step="1" value="0" aria-describedby="efbPosLbl"><span id="efbPosLbl"></span></label>
+    <div class="efbtiles" id="efbTiles"></div>
+    <svg id="efbChart" viewBox="0 0 1000 360" role="img" aria-label="Boomless Mach over the next 300 nm"></svg>
+    <ol class="efbnext" id="efbNext" aria-label="Next changes"></ol>
+  </dialog>
 
   <dialog id="col3d" class="big">
     <div class="d3head">

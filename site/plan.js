@@ -230,6 +230,67 @@
     download(base + "_legs.csv", [cols.join(","), ...ev.legs.map(l => cols.map(c => l[c] ?? "").join(","))].join("\n"), "text/csv");
   }
 
+  // ---------- cockpit (EFB) view, issue #24: the next 300 nm from a point of the planned route ----------
+  const AHEAD = 300;
+  function efbOpen() {
+    if (!R) return;
+    const o = R.opt, dlg = $("efb");
+    $("efbRoute").textContent = `${R.names[0]} → ${R.names[1]}, FL${R.fl}`;
+    $("efbPos").max = Math.round(o.dist); $("efbPos").value = 0;
+    $("efbPos").oninput = () => efbDraw(+$("efbPos").value);
+    dlg.showModal(); efbDraw(0);
+  }
+  function efbDraw(x0) {
+    const o = R.opt, segs = o.segs, at = x => segs.find(s => x >= s.x0 && x < s.x1) || segs[segs.length - 1];
+    const s0 = at(x0), tAt = x => { let t = 0; for (const s of segs) { if (s.x1 <= x) t += s.t; else { t += s.t * Math.max(0, x - s.x0) / s.d; break; } } return t; };
+    const dep = Date.parse(MC.S.man.valid_times[R.fi]), when = new Date(dep + tAt(x0) * 3.6e6);
+    $("efbPosLbl").textContent = `${Math.round(x0).toLocaleString()} nm · ${d3.utcFormat("%H:%MZ")(when)}`;
+    const lim = s => s.mcut != null && Number.isFinite(s.margin) ? s.mcut + s.margin - BOOM.bufferPenalty(R.ac, R.fl) : null;
+    const typeName = { boomless: "Boomless (cutoff)", super: "Supersonic, over water", sub: "Subsonic", climb: "Climb / descent" };
+    const CHG = 0.01;                                  // a Mach change the crew acts on
+    const next = segs.find(s => s.x0 > x0 && (s.type !== s0.type || Math.abs(s.M - s0.M) > CHG));
+    const tile = (v, l, cls = "") => `<div class="${cls}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    $("efbTiles").innerHTML = [
+      tile(`M${s0.M.toFixed(3)}`, `Fly now · ${typeName[s0.type] || s0.type}`),
+      tile(lim(s0) ? `M${lim(s0).toFixed(3)}` : "—", "Forecast boomless limit here"),
+      tile(Number.isFinite(s0.margin) && s0.margin ? `${s0.margin.toFixed(3)}` : "—", "Margin kept (Mach)"),
+      tile(next ? `${Math.round(next.x0 - x0)} nm` : "—", next ? `To next change: ${typeName[next.type] || next.type}, M${next.M.toFixed(2)}` : "No change ahead", next && next.x0 - x0 < 30 ? "warn" : ""),
+    ].join("");
+    // chart: the next 300 nm
+    const svg = d3.select("#efbChart"); svg.selectAll("*").remove();
+    const W = 1000, H = 360, m = { l: 64, r: 40, t: 34, b: 40 };
+    const win = segs.filter(s => s.x1 > x0 && s.x0 < x0 + AHEAD);
+    const vals = win.flatMap(s => [s.M, lim(s)].filter(v => v != null && v > 0.9 && v < 2.5));
+    const y = d3.scaleLinear([Math.min(0.9, d3.min(vals) - 0.02), Math.max(1.3, d3.max(vals) + 0.02)], [H - m.b, m.t]).nice();
+    const x = d3.scaleLinear([0, AHEAD], [m.l, W - m.r]), X = s => [x(Math.max(0, s.x0 - x0)), x(Math.min(AHEAD, s.x1 - x0))];
+    const g = svg.append("g");
+    g.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d => d + " nm")).call(axisLight);
+    g.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(".2f"))).call(axisLight);
+    g.append("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(1)).attr("y2", y(1)).attr("stroke", "var(--ink-3)").attr("stroke-dasharray", "3 4");
+    g.append("text").attr("x", W - m.r).attr("y", y(1) - 6).attr("text-anchor", "end").attr("fill", "var(--ink-3)").style("font-size", "13px").text("Mach 1");
+    // margin band between the forecast limit and what is flown, then the limit and the flown Mach
+    for (const s of win) {
+      const L = lim(s), [a, b] = X(s);
+      if (L != null && s.type === "boomless") g.append("rect").attr("x", a).attr("width", Math.max(1, b - a)).attr("y", y(L)).attr("height", Math.max(0, y(s.M) - y(L))).attr("fill", "var(--accent)").attr("opacity", 0.14);
+      if (L != null) g.append("line").attr("x1", a).attr("x2", b).attr("y1", y(L)).attr("y2", y(L)).attr("stroke", "var(--ink-2)").attr("stroke-width", 1.5).attr("stroke-dasharray", "6 4");
+      g.append("line").attr("x1", a).attr("x2", b).attr("y1", y(s.M)).attr("y2", y(s.M)).attr("stroke", colors()[s.type]).attr("stroke-width", 4).attr("stroke-linecap", "round")
+        .append("title").text(`${Math.round(s.x0)}–${Math.round(s.x1)} nm: M${s.M.toFixed(3)}${L ? `, limit M${L.toFixed(3)}` : ""}`);
+      if (s.approach || (s.ssb && s.ssb.hit)) g.append("rect").attr("x", a).attr("width", Math.max(1, b - a)).attr("y", m.t).attr("height", 6).attr("fill", "var(--warn)");
+    }
+    g.append("text").attr("x", m.l).attr("y", 16).attr("fill", "var(--ink-2)").style("font-size", "13px").text("Thick: Mach to fly · dashed: forecast boomless limit · shaded: margin · orange bar: slowed for approach or secondary booms");
+    // the next changes, in words
+    const items = []; let prev = s0;
+    for (const s of segs) {
+      if (s.x0 <= x0 || s.x0 > x0 + AHEAD) continue;
+      if (s.type !== prev.type || Math.abs(s.M - prev.M) > CHG) {
+        items.push(`${Math.round(s.x0 - x0)} nm (${d3.utcFormat("%H:%MZ")(new Date(dep + tAt(s.x0) * 3.6e6))}): ${typeName[s.type] || s.type}, M${s.M.toFixed(3)}${s.approach ? " — slowed: regulated ground within 90 km ahead" : s.ssb && s.ssb.hit ? " — slowed: secondary booms would land on land" : s.turn ? " — turn" : ""}`);
+        prev = s;
+      }
+    }
+    $("efbNext").innerHTML = items.length ? items.slice(0, 6).map(t => `<li>${t}</li>`).join("") : "<li>No change in the next 300 nm.</li>";
+  }
+  function axisLight(g) { g.select(".domain").attr("stroke", "var(--rule)"); g.selectAll("text").style("font-size", "13px").style("fill", "var(--ink-2)"); g.selectAll("line").attr("stroke", "var(--rule)"); }
+
   function drawLadder(r) {
     const rows = [["787-9 today", r.base, MC.css("--ink-3")]];
     if (r.ac.supersonic) rows.push(["Overland ban, direct", r.ban, MC.css("--route-sub")], ["Corridors, direct", r.gc, MC.css("--route-super")], ["Corridors, optimised", r.opt, MC.css("--route-boomless")]);
@@ -309,6 +370,7 @@
     $("routeGo").onclick = go;
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
     $("evidenceBtn").onclick = exportEvidence;
+    $("efbBtn").onclick = efbOpen;
     $("routeSummary").addEventListener("click", ev => {
       if (ev.target.id !== "staleBtn" || !R) return;
       MC.S.allowStale = !MC.S.allowStale; planRoute(R.A, R.B, R.names);

@@ -362,3 +362,17 @@ dialog.big[open] { display: flex; flex-direction: column; }
 .cllegend i { flex: 0 0 220px; height: 10px; border-radius: 5px; }
 .climtbl { margin-top: 12px; margin-bottom: 8px; }
 .climtbl td.cur, .climtbl th.cur { font-weight: 600; }
+
+/* cockpit (EFB) view: large type, readable at arm's length */
+dialog.efb[open] { gap: 10px; }
+.efbpos { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--ink-2); }
+.efbpos input { flex: 1; }
+.efbpos span { min-width: 160px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.efbtiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.efbtiles > div { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; }
+.efbtiles .v { font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.efbtiles .l { font-size: 13px; color: var(--ink-3); }
+.efbtiles .warn .v { color: var(--warn); }
+#efbChart { width: 100%; height: auto; max-height: 52vh; }
+.efbnext { margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.6; }
+@media (max-width: 760px) { .efbtiles { grid-template-columns: repeat(2, 1fr); } .efbtiles .v { font-size: 26px; } }
