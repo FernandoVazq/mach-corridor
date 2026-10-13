@@ -1,30 +1,30 @@
 {
- "updated": "2026-10-12",
+ "updated": "2026-10-13",
  "kpis": [
   {
    "id": "exposure",
    "name": "Flights with > 0.11 psf on the ground",
    "unit": "%",
-   "today": 0.44,
+   "today": 0.28,
    "target": 0.1,
    "better": "lower",
    "phase": 1,
    "gate": 0.5,
    "source": "study/robust_eval.py",
    "start": 1.2,
-   "note": "Held out, scored in psf with the caustic model (study/psf_eval.py): 0.39–0.48% at FL550 as the router flies (margin + cushion); 95% upper 0.88%. Without the per-aircraft cushion 1.3–1.4%"
+   "note": "Model 2.8 (FL550 k 4.0), paths chosen as the router does, scored in psf: 0.28% (95% upper 0.47%, under the 0.5% gate) (study/router_bias.py). Great circles: 0.24%"
   },
   {
    "id": "saved",
    "name": "Minutes saved per overland flight",
    "unit": "min",
-   "today": 27.6,
+   "today": 27.9,
    "target": 30,
    "better": "higher",
    "phase": 1,
    "source": "Hindcast study, 53 weeks × 48 routes × 31 GEFS members",
    "start": 28.2,
-   "note": "Held-out mean of 29.1 and 26.1 min, ensemble margin, FL550"
+   "note": "FL550, k 4.0, fastest of 7 paths per route and date (held-out year); great circles 26.1"
   },
   {
    "id": "captured",
@@ -137,5 +137,5 @@
    "gate": "FAA accepts the method as part of an operator's means of compliance"
   }
  ],
- "sprint": 5
+ "sprint": 6
 }
