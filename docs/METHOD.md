@@ -299,7 +299,7 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 ## 7. Known limitations
 | Limitation | Effect | Bound or plan |
 |---|---|---|
-| Single-column atmosphere (no horizontal gradients along the ~40 km ray) | unknown sign | 3D ray tracing (#17) |
+| Single-column atmosphere (no horizontal gradients along the ~40 km ray) | 3D ray tracing through the 2° forecast (600 cases, FL550, `engine/rays3d.py`): 3D minus column mean −0.0002, sd 0.0022, 95% of cases within ±0.0045 Mach, no sign bias | small next to the margin (~0.055); finer grids (0.25°) would resolve sharper gradients (#17) |
 | 1° GFS | analysis-time error 0.009–0.016 | GFS 0.25° (#6) |
 | Level flight | a −3° descent costs about 0.03 Mach | descent subsonic in the route model |
 | Secondary-boom loudness not computed; footprint ±25 km | conservative (any landing on land counts); lateral drift ignored | PCBoom secondary cases (#16) |
