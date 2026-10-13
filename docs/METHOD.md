@@ -44,7 +44,7 @@ c(z) + w(z)·e ≥ M c_a cos α + w_a·e. The largest Mach for which the ray sta
 
   M_α = ( max_{z_f ≤ z < z_a} [ c + w·e_α ] − w_a·e_α ) / ( c_a cos α ),   M = min over attainable α (|tan α| ≤ √(M²−1))
 
-- c = √(γ R T_v), virtual temperature from relative humidity (Bolton).
+- c = √(γ_d R_d T (1 + 0.51 q)), humid-air sound speed from relative humidity (Bolton vapour pressure; water vapour raises R but lowers γ, Cramer 1993). Until model 2.9 the meteorological virtual temperature (0.608 q) was used, about 0.3 m/s too fast in hot humid air.
 - Rays at α = 0, ±7.5° … ±45° (crosswind shear can make a lateral ray critical).
 - The 2 m surface point is not used as a refracting layer.
 - No corridor (M < 1) when no layer below is faster than the aircraft.

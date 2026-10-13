@@ -114,7 +114,21 @@ def test_two_model_mean():
     print("two-model mean: 13 vs 23 levels within 0.003; no corridor if either model has none; GFS-only switch works")
 
 
+def test_humid_sound_speed():
+    """Model 2.10: humid-air sound speed from first principles (mixture R and cp/cv) vs the 0.51 q shortcut."""
+    from physics import virtual_temperature, sound_speed
+    for T, rh, p in ((303.15, 80, 1000), (298.15, 60, 925), (280.0, 90, 850)):
+        es = 6.112 * np.exp(17.67 * (T - 273.15) / (T - 29.65)); e = rh / 100 * es
+        q = 0.622 * e / (p - 0.378 * e)
+        Rm = 287.05 * (1 - q) + 461.5 * q
+        cp = 1004.7 * (1 - q) + 1870.0 * q; cv = cp - Rm
+        exact = np.sqrt(cp / cv * Rm * T)
+        approx = float(sound_speed(virtual_temperature(T, rh, p)))
+        assert abs(exact - approx) < 0.05, (T, rh, p, exact, approx)
+    print("humid sound speed: 0.51 q shortcut within 0.05 m/s of the mixture value (0.608 q overstated it ~0.3 m/s)")
+
+
 if __name__ == "__main__":
     test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one(); test_haglund_buffer()
-    test_two_model_mean()
+    test_two_model_mean(); test_humid_sound_speed()
     print("all physics tests passed")

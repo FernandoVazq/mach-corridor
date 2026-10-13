@@ -40,12 +40,20 @@ def sound_speed(T):
     return np.sqrt(GAMMA * R_AIR * T)
 
 
-def virtual_temperature(T, rh, p_hpa):
-    """T (K), rh (%), p (hPa) -> Tv (K). Bolton saturation vapour pressure over water."""
+ACOUSTIC_Q = 0.51      # model 2.10: humid-air sound speed c^2 = gamma_d R_d T (1 + 0.51 q)
+
+
+def virtual_temperature(T, rh, p_hpa, k=ACOUSTIC_Q):
+    """T (K), rh (%), p (hPa) -> the temperature that gives humid air's sound speed through sound_speed() (K).
+    Moist air has R = R_d (1 + 0.608 q) but also a lower heat-capacity ratio, gamma = gamma_d (1 - ~0.10 q)
+    (cp, cv of water vapour 1870, 1410 J/kg/K vs 1005, 718 for dry air), so c^2 = gamma_d R_d T (1 + 0.51 q)
+    (Cramer 1993, J. Acoust. Soc. Am. 93, 2510). Until model 2.9 this used the meteorological virtual temperature
+    (0.608 q), which overstates c by up to ~0.3 m/s in hot humid air (unsafe side). Bolton saturation vapour
+    pressure over water."""
     es = 6.112 * np.exp(17.67 * (T - 273.15) / (T - 29.65))
     e = np.clip(rh, 0, 100) / 100.0 * es
     q = 0.622 * e / np.maximum(p_hpa - 0.378 * e, 1.0)
-    return T * (1.0 + 0.608 * q)
+    return T * (1.0 + k * q)
 
 
 def isa_pressure_hpa(h_m):
