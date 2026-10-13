@@ -6,6 +6,9 @@
    (study/results/caustic.json); the psf form is scaled x1.25 so it never under-predicts the model near the limit. */
 window.BOOM = (() => {
   const PSF = 47.880258, K_R = 1.9, LIMIT = 0.11, CUTOFF_MAX = 0.09;
+  // measured envelope below the turning point (issue #19): FaINT recorded up to 0.10 psf with the caustic more than two
+  // Haglund heights up, where the linear model gives < 0.01 (turbulence and ambient noise). Shown as the upper value.
+  const SHADOW_ENVELOPE = 0.10;
   function isa(h) {
     if (h < 11000) { const T = 288.15 - 0.0065 * h; return { p: 101325 * Math.pow(T / 288.15, 5.25588), a: Math.sqrt(1.4 * 287.05 * T) }; }
     return { p: 22632.1 * Math.exp(-(h - 11000) / 6341.62), a: Math.sqrt(1.4 * 287.05 * 216.65) };
@@ -19,13 +22,13 @@ window.BOOM = (() => {
   }
   // per-route summary from evaluated segments
   function route(o, fl) {
-    let land = 0, sea = 0;
+    let land = 0, landModel = 0, sea = 0;
     for (const s of o.segs) {
       if (s.M <= 1) continue;
-      if (s.landish) land = Math.max(land, legPsf(s, o.ac, fl));
+      if (s.landish) { const v = legPsf(s, o.ac, fl); landModel = Math.max(landModel, v); land = Math.max(land, s.type === "boomless" ? Math.max(v, SHADOW_ENVELOPE) : v); }
       else sea = Math.max(sea, psf(o.ac, s.M, fl));
     }
-    return { land, sea, overland: psf(o.ac, o.ac.design, fl) };
+    return { land, landModel, sea, overland: psf(o.ac, o.ac.design, fl) };
   }
   // ---- aircraft-specific pieces (engine/aircraft_study.py) ----
   // shape factor from the lift parameter when only weight and length are known (custom aircraft):
@@ -85,5 +88,5 @@ window.BOOM = (() => {
     return { typical: 0.066 * r, upper: 0.2 * r };
   }
   const legPsf = (s, ac, fl) => s.M <= 1 ? 0 : s.type === "boomless" ? shadowPsf(ac, s.M, fl, legCausticHeight(s, ac, fl)) : psf(ac, s.M, fl);
-  return { psf, route, LIMIT, CUTOFF_MAX, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, secondaryPsf, bufferPenalty, isa };
+  return { psf, route, LIMIT, CUTOFF_MAX, SHADOW_ENVELOPE, shapeFactor, signalLength, safeHeight, quietHeight, shadowPsf, legCausticHeight, legPsf, secondaryPsf, bufferPenalty, isa };
 })();

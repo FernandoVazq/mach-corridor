@@ -148,6 +148,10 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
   - **Quiet height** (caustic height giving 0.11 psf): 1.05–1.08 ΔZ_S for airliners and bizjets, about 1.0 for
     small aircraft: about 1.3 km for a 61 m airliner at FL550, 0.8 km for a bizjet, 0.43 km for XB-1, all at M1.15
     (`study/results/caustic.json`).
+  - **Measured envelope (issue #19):** with the caustic more than 2 ΔZ_S up FaINT still recorded up to 0.10 psf where
+    the linear model gives ≤ 0.011 (turbulence scattering and background noise are not in the model). Boomless legs
+    are therefore reported at the larger of the model and 0.10 psf: under the 0.11 limit with 0.01 to spare.
+    Turbulence as a psf distribution remains open.
   - **Site:** closed forms fitted to the model (quiet height within 0.04 ΔZ_S; psf −19%/+26% near the limit,
     scaled ×1.25 so never below the model). The router's cushion is the quiet height; each boomless leg reports
     its psf at caustic height 1 km + (map limit − flown Mach)/0.0128 per km.

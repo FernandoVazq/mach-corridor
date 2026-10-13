@@ -1,0 +1,38 @@
+{
+ "fl": 550,
+ "k": 3.75,
+ "flights": 2544,
+ "dates": 53,
+ "offsets_km": [
+  -450,
+  -300,
+  -150,
+  0,
+  150,
+  300,
+  450
+ ],
+ "great_circle": {
+  "over_011_pct": 0.43,
+  "ci95": [
+   0.2,
+   0.71
+  ],
+  "saved_min": 26.81
+ },
+ "chosen": {
+  "over_011_pct": 0.59,
+  "ci95": [
+   0.31,
+   0.91
+  ],
+  "saved_min": 28.58,
+  "share_not_great_circle": 0.527
+ },
+ "forecast_overstatement": {
+  "great_circle": 0.0,
+  "chosen": 0.0001,
+  "chosen_when_detoured": -0.0003,
+  "same_flights_great_circle": -0.0004
+ }
+}
