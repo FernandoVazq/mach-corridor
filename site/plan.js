@@ -201,7 +201,7 @@
     return {
       kind: "Mach Corridor flight evidence", disclaimer: "Research prototype. Not certified for flight planning.",
       exported_utc: iso(Date.now()), site: location.origin + location.pathname, link: location.href,
-      code_version: man.code_version || null, method: "docs/METHOD.md", data: { gfs_run: man.run_time, built: man.generated, source: man.source, physics: man.physics,
+      code_version: man.code_version || null, model_version: man.model_version || null, method: "docs/METHOD.md", changelog: "docs/CHANGELOG.md", data: { gfs_run: man.run_time, built: man.generated, source: man.source, physics: man.physics,
         gefs_run: gm ? gm.run_time : null },
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
@@ -214,9 +214,17 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
-  function exportEvidence() {
+  // integrity (issue #25): SHA-256 of the compact JSON of the evidence without its "integrity" field; anyone can
+  // recompute it to check the file was not edited after export
+  async function withIntegrity(ev) {
+    const body = JSON.stringify(ev);
+    let hex = null;
+    try { const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body)); hex = [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { /* insecure context */ }
+    return { ...ev, integrity: { algorithm: "SHA-256", over: "JSON.stringify of this object without the integrity field (compact, key order as written)", value: hex } };
+  }
+  async function exportEvidence() {
     if (!R) return;
-    const ev = evidence(R), base = `mach-corridor_${R.names.join("-")}_${ev.route.departure_utc.slice(0, 13).replace(/[-:T]/g, "")}Z_FL${R.fl}`;
+    const ev = await withIntegrity(evidence(R)), base = `mach-corridor_${R.names.join("-")}_${ev.route.departure_utc.slice(0, 13).replace(/[-:T]/g, "")}Z_FL${R.fl}`;
     download(base + ".json", JSON.stringify(ev, null, 1), "application/json");
     const cols = Object.keys(ev.legs[0]);
     download(base + "_legs.csv", [cols.join(","), ...ev.legs.map(l => cols.map(c => l[c] ?? "").join(","))].join("\n"), "text/csv");
@@ -346,5 +354,5 @@
       if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
     }
   });
-  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R) };
+  window.MCPLAN = { planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: () => R && withIntegrity(evidence(R)) };
 })();

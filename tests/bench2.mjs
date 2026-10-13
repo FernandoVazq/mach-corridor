@@ -1,6 +1,6 @@
 // Economics-tab cost: time one bestRoute (350 evals) for long routes with real stratosphere tables, check on/off.
 import { chromium } from 'playwright';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage();
 await p.goto('http://localhost:8765/#fl=550&mg=auto');
 await p.waitForFunction(() => window.MC && window.MC.S && window.MC.S.man && window.ROUTE, null, { timeout: 60000 });

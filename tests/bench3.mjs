@@ -1,6 +1,6 @@
 // Cost of the forward-reach and turn rules (issue #44): block time and slowed distance per route, rules off vs on.
 import { chromium } from 'playwright';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage();
 await p.goto('http://localhost:8765/#fl=550&mg=auto');
 await p.waitForFunction(() => window.MC && window.MC.S && window.MC.S.man && window.ROUTE, null, { timeout: 60000 });

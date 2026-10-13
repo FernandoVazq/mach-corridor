@@ -33,6 +33,7 @@ FLS = [300, 350, 400, 450, 500, 550, 600]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025
+MODEL_VERSION = "2.6"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
 COLS, ROWS = 6, 7
 NX, NY = 360, 181
 
@@ -252,6 +253,7 @@ def build(run, out_dir):
         "run_time": iso(run_t),
         "generated": iso(dt.datetime.now(dt.timezone.utc).replace(microsecond=0)),
         "code_version": os.environ.get("GITHUB_SHA", "local")[:7],
+        "model_version": MODEL_VERSION,
         "source": "NOAA GFS 1.0 deg pressure levels + 0.25 deg orography (AWS Open Data noaa-gfs-bdp-pds)",
         "physics": {"h_buf_m": H_BUF_DEFAULT, "terrain": orog_note, "lateral_rays": True,
                     "virtual_temperature": have_rh, "surface_layer_used": False},

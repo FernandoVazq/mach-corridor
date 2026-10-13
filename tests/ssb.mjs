@@ -2,7 +2,7 @@
 // Usage: node ssb.mjs [ROUTE] [base]
 import { chromium } from 'playwright';
 const route = process.argv[2] || 'KJFK-EGLL', base = process.argv[3] || 'http://localhost:8765/';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => { if (location.hash.includes('nossb') || window.name === 'nossb') window.__noSsb = true; }); await p.goto(base + `#fl=550&mg=auto&r=${route}&ac=overture&o=time`);

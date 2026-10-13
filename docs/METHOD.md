@@ -287,8 +287,10 @@ weekly 00 UTC analyses, by season; shown on the Physics tab. FL550, land: contig
 - Every map carries the GFS run id; hindcast data live on versioned branches (`study-data`,
   `study-data-gefs`, `study-data-haglund`).
 - Datasets are rebuilt from code (`study/datasets.py`).
-- Every evidence file carries the code version (build commit) and data runs (§5.1). Phase 4 adds a frozen
+- Every evidence file carries the model version (`docs/CHANGELOG.md`), the code version (build commit), the data
+  runs (§5.1) and a SHA-256 of its own content, recomputed in CI (`tests/evid.mjs`). Phase 4 adds a frozen
   regression set of 1,000 soundings.
+- Monthly validation in CI covers all 12 balloon stations, GFS and ECMWF IFS, at 0, 6 and 24 h.
 - Software assurance: ground planning tool, so DO-178C does not apply directly. The plan follows its spirit
   (requirements → code → test traceability, this document) and DO-200B for the data chain.
 

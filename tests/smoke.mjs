@@ -18,6 +18,8 @@ for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 8
   await p.waitForFunction(() => /psf/.test(document.getElementById('routeKpis')?.innerText || ''), null, { timeout: 60000 });
   const key = `${w}-${scheme}`;
   report[key] = { ready_ms: tReady, route_ms: Date.now() - t0 };
+  // performance budget (issue #29): the map must be interactive within 15 s even on a slow CI runner
+  if (tReady > 15000) fail.push(`${key}: map ready in ${tReady} ms (budget 15000)`);
   for (const tab of ['map', 'econ', 'physics', 'method']) {
     if (tab !== 'map') { await p.click(`button[data-tab="${tab}"]`); await p.waitForTimeout(tab === 'econ' ? 15000 : 1500); }
     await p.addScriptTag({ content: axe });

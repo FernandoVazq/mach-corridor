@@ -37,7 +37,7 @@ jobs:
       - working-directory: engine
         run: |
           set -o pipefail
-          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=base
+          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=all             # monthly: all 12 stations
           python validate.py --stations $ST --fetch-soundings --start ${{ steps.w.outputs.start }} --end ${{ steps.w.outputs.end }} --out ../val 2>&1 | tee ../val_log.txt
       - uses: actions/upload-artifact@v4
         with: { name: soundings, path: val/soundings.json, retention-days: 7 }
@@ -67,9 +67,9 @@ jobs:
         run: |
           set -o pipefail
           EV="${{ inputs.every }}"; [ -z "$EV" ] && EV=1
-          RS="${{ inputs.res }}"; [ -z "$RS" ] && RS=1p00,0p25
-          LD="${{ inputs.leads }}"; [ -z "$LD" ] && LD=0,24
-          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=base
+          RS="${{ inputs.res }}"; [ -z "$RS" ] && RS=ifs,1p00          # monthly: GFS and ECMWF IFS
+          LD="${{ inputs.leads }}"; [ -z "$LD" ] && LD=0,6,24
+          ST="${{ inputs.stations }}"; [ -z "$ST" ] && ST=all
           python validate.py --stations $ST --soundings ../val/soundings.json --start ${{ needs.soundings.outputs.start }} --end ${{ needs.soundings.outputs.end }} \
             --every $EV --res $RS --leads $LD --shard ${{ matrix.shard }} --nshards 10 --out ../val_out 2>&1 | tee ../val_log.txt
       - uses: actions/upload-artifact@v4
