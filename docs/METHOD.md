@@ -116,6 +116,15 @@ values as shipped: FL550 3.75 both halves, FL450 4.0 / 4.25, FL350 3.75 / 4.0.
 Reading: in the rule's unit the FL550 point estimates meet 0.5%, and the per-aircraft cushion is what does it
 (it cuts violations about three times for under a minute). With the site's ×1.25 psf factor FL550 is 0.56–0.69%.
 
+**Chance per flight (issue #20).** Each boomless leg exceeds 0.11 psf if the true limit falls below the flown
+Mach plus the cushion: p = Φ((M + turn − M_cut − margin)/(f·margin/k)). Legs within 300 nm share one error draw,
+so P(flight) = 1 − Π over 300 nm blocks of (1 − worst leg). The inflation f (errors heavier-tailed than Gaussian) is
+fitted on one half-year so the mean predicted rate equals the observed one, and tested on the other
+(`psf_eval.py --prob`): FL550 f = 1.15 / 1.19, predicted 0.54 / 0.34% vs observed 0.39 / 0.48%; FL450 1.25 / 1.35;
+FL350 1.11 / 1.29. Calibrated on average; with about five events per half-year, whether it ranks flights correctly
+is not yet shown. The site uses f = 1.17 (FL550), 1.30 (FL450), 1.20 (FL350) and shows the chance per flight;
+the evidence file carries it per leg.
+
 Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
 0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean
 is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).

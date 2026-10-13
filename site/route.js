@@ -93,6 +93,15 @@
   // REACH_KM = largest along-track landing distance of near-cutoff rays (+0.002 Mach: median 48, p99 86, max 90 km; study/results/forward_reach.json)
   const REACH_KM = 90;
   const TURN_DEG = 2, TURN_PEN = 0.004;
+  // sigma inflation per level = mean of the two held-out fits (study/results/psf_eval.json, flight_probability)
+  const P_INFL = { 350: 1.20, 450: 1.30, 550: 1.17 }, CHUNK_NM = 300;
+  const pInfl = fl => { const ks = Object.keys(P_INFL).map(Number); const k = ks.reduce((b, x) => Math.abs(x - fl) < Math.abs(b - fl) ? x : b); return P_INFL[k]; };
+  // standard normal CDF (Abramowitz & Stegun 7.1.26 erf, |error| < 1.5e-7)
+  function normCdf(z) {
+    const x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x);
+    const erf = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+  }
   function approachHit(field, lon, lat, brg) {
     const m = MC();
     if (window.__noReach || !m.regulatedLand || (m.landDistKm && m.landDistKm(lon, lat) > REACH_KM + 111)) return false;
@@ -228,11 +237,25 @@
     // take-off and climb (and the transonic push) burn more than the cruise-rate segments above account for:
     // a fixed allowance per flight (aircraft.js climbFuel; calibrated to Concorde, energy estimate for the others)
     if (ac.supersonic) fuel += ac.climbFuel || 0;   // every flight of a supersonic type takes off and climbs
+    // chance of more than 0.11 psf on the ground (issue #20): per leg, the true limit falls below the flown Mach plus
+    // the cushion; sigma = margin / k, inflated 1.17-1.30 by level (held-out calibration); legs within 300 nm share
+    // one error draw (the real-world error field's correlation length), so the flight takes the worst leg per 300 nm
+    let pFlight = 0;
+    if (ac.supersonic && mode === "corr") {
+      const kk = MC().kEffective ? MC().kEffective(field.fl) : 3.75, chunks = new Map();
+      for (const s of segs) {
+        if (s.type !== "boomless" || s.mcut == null || !(s.margin > 0)) { s.pExceed = 0; continue; }
+        const sig = pInfl(field.fl) * s.margin / kk, z = (s.M + (s.turn ? TURN_PEN : 0) - s.mcut - s.margin) / sig;
+        s.pExceed = normCdf(z);
+        const c = Math.floor(s.x0 / CHUNK_NM); chunks.set(c, Math.max(chunks.get(c) || 0, s.pExceed));
+      }
+      pFlight = 1 - [...chunks.values()].reduce((a, p) => a * (1 - p), 1);
+    }
     const block = t + BLOCK_EXTRA_H, nonFuel = ac.nonFuelPerBH * block, op = fuel * E.fuel + nonFuel;
     const pax = ac.seats * E.lf;
     return { path, segs, dist: total, air: t, block, fuel, fuelCost: fuel * E.fuel, nonFuel, op, perSeat: op / pax,
              fuelPerSeat: fuel / pax, co2PerSeat: fuel * CO2_PER_KG / pax, gen: op + E.vot * pax * block,
-             dLand, dBoomless, dSuper, dSkip, dHold, dSsb, dReach, ssbNoData, tAcc, windAvg: windSum / total, worstHead,
+             dLand, dBoomless, dSuper, dSkip, dHold, dSsb, dReach, ssbNoData, pFlight, tAcc, windAvg: windSum / total, worstHead,
              inRange: total <= ac.rangeNm, mode, ac };
   }
 

@@ -147,7 +147,7 @@
       k(dMoney(sv), "Cost per seat vs 787-9", sv <= 0 ? "pos" : "neg"),
       k(`${Math.round(Math.abs(o.windAvg))} kt`, o.windAvg >= 0 ? "Average tailwind" : "Average headwind", o.windAvg >= 0 ? "pos" : "neg"),
       k(o.dLand ? Math.round(100 * o.dBoomless / o.dLand) + "%" : "–", "Land legs flown boomless"),
-      sup ? k(bm.land ? `${bm.land < 0.01 ? "< 0.01" : bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
+      sup ? k(bm.land ? `${bm.land < 0.01 ? "< 0.01" : bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}${o.pFlight > 0 ? ` · ${o.pFlight < 0.001 ? "< 0.1" : (100 * o.pFlight).toFixed(1)}% chance over` : ""}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
           : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
     drawLadder(r); drawProfile(o);
@@ -182,7 +182,7 @@
         heading_deg: Math.round(s.brg), time_utc: iso(dep + t * 3.6e6), lead_h: Math.round(s.leadH * 10) / 10, type: s.type, over_land: !!s.landish,
         mach: r4(s.M), boomless_limit_after_margin: r4(s.mcut), margin: r4(s.margin), fail_closed: s.hold || null,
         wind_along_kt: Math.round(s.along * RT.KT), psf_ground: r4(BOOM.legPsf(s, r.ac, r.fl)), caustic_above_terrain_m: s.type === "boomless" ? Math.round(BOOM.legCausticHeight(s, r.ac, r.fl)) : null,
-        approach_limited: !!s.approach,
+        approach_limited: !!s.approach, p_exceed_011: s.pExceed ? Math.round(s.pExceed * 1e6) / 1e6 : 0,
         secondary: s.ssb ? (s.ssb.hit ? "would land on regulated land: leg slowed to cutoff" : s.ssb.pts.length ? "lands at sea" : "none") + (s.ssb.nodata ? " (no stratosphere data)" : "") : null };
       t += s.t; return row;
     });
@@ -204,7 +204,7 @@
       route: { from: r.names[0], to: r.names[1], A: r.A, B: r.B, departure_utc: iso(dep), aircraft: { id: r.ac.id, name: r.ac.name, design_mach: r.ac.design, subsonic_mach: r.ac.sub },
         flight_level: r.fl, objective: r.obj, margin_mode: MC.S.auto ? "auto" : "fixed" },
       summary: { distance_nm: Math.round(o.dist), block_h: r4(o.block), land_nm: Math.round(o.dLand), boomless_nm: Math.round(o.dBoomless),
-        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
+        fail_closed_nm: Object.fromEntries(Object.entries(o.dHold || {}).map(([k, v]) => [k, Math.round(v)])), max_psf_on_land: r4(bm.land), p_exceed_011_flight: r4(o.pFlight || 0), slowed_for_secondary_booms_nm: Math.round(o.dSsb || 0), slowed_for_forward_reach_nm: Math.round(o.dReach || 0), fuel_kg: Math.round(o.fuel) },
       checks, all_checks_pass: checks.every(c => c.pass), legs,
     };
   }

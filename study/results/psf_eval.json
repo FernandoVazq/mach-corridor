@@ -575,5 +575,175 @@
     "saved_min": 23.44
    }
   ]
+ },
+ "flight_probability": {
+  "FL350": [
+   {
+    "fit": "H1",
+    "k": 3.75,
+    "sigma_inflation": 1.11,
+    "fit_rate_pct": 0.16,
+    "test_mean_pred_pct": 0.178,
+    "test_observed_pct": 0.694,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 275,
+      "mean_pred_pct": 0.033,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 1021,
+      "mean_pred_pct": 0.217,
+      "observed_pct": 0.881
+     }
+    ]
+   },
+   {
+    "fit": "H2",
+    "k": 4.0,
+    "sigma_inflation": 1.29,
+    "fit_rate_pct": 0.463,
+    "test_mean_pred_pct": 0.418,
+    "test_observed_pct": 0.0,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 334,
+      "mean_pred_pct": 0.016,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 462,
+      "mean_pred_pct": 0.381,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.5-2%",
+      "flights": 452,
+      "mean_pred_pct": 0.753,
+      "observed_pct": 0.0
+     }
+    ]
+   }
+  ],
+  "FL450": [
+   {
+    "fit": "H1",
+    "k": 4.0,
+    "sigma_inflation": 1.25,
+    "fit_rate_pct": 0.321,
+    "test_mean_pred_pct": 0.388,
+    "test_observed_pct": 1.003,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 73,
+      "mean_pred_pct": 0.024,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 959,
+      "mean_pred_pct": 0.35,
+      "observed_pct": 1.251
+     },
+     {
+      "pred": "0.5-2%",
+      "flights": 264,
+      "mean_pred_pct": 0.625,
+      "observed_pct": 0.379
+     }
+    ]
+   },
+   {
+    "fit": "H2",
+    "k": 4.25,
+    "sigma_inflation": 1.35,
+    "fit_rate_pct": 0.463,
+    "test_mean_pred_pct": 0.381,
+    "test_observed_pct": 0.08,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 281,
+      "mean_pred_pct": 0.015,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 582,
+      "mean_pred_pct": 0.36,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.5-2%",
+      "flights": 385,
+      "mean_pred_pct": 0.681,
+      "observed_pct": 0.26
+     }
+    ]
+   }
+  ],
+  "FL550": [
+   {
+    "fit": "H1",
+    "k": 3.75,
+    "sigma_inflation": 1.19,
+    "fit_rate_pct": 0.481,
+    "test_mean_pred_pct": 0.544,
+    "test_observed_pct": 0.386,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 3,
+      "mean_pred_pct": 0.054,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 626,
+      "mean_pred_pct": 0.408,
+      "observed_pct": 0.479
+     },
+     {
+      "pred": "0.5-2%",
+      "flights": 667,
+      "mean_pred_pct": 0.673,
+      "observed_pct": 0.3
+     }
+    ]
+   },
+   {
+    "fit": "H2",
+    "k": 3.75,
+    "sigma_inflation": 1.15,
+    "fit_rate_pct": 0.386,
+    "test_mean_pred_pct": 0.341,
+    "test_observed_pct": 0.481,
+    "reliability": [
+     {
+      "pred": "0-0.1%",
+      "flights": 56,
+      "mean_pred_pct": 0.022,
+      "observed_pct": 0.0
+     },
+     {
+      "pred": "0.1-0.5%",
+      "flights": 1055,
+      "mean_pred_pct": 0.323,
+      "observed_pct": 0.569
+     },
+     {
+      "pred": "0.5-2%",
+      "flights": 137,
+      "mean_pred_pct": 0.61,
+      "observed_pct": 0.0
+     }
+    ]
+   }
+  ]
  }
 }

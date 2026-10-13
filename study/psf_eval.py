@@ -19,7 +19,8 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "engine"))
 FIT = "--fit" in sys.argv
-sys.argv = [a for a in sys.argv if a != "--fit"]
+PROB = "--prob" in sys.argv
+sys.argv = [a for a in sys.argv if a not in ("--fit", "--prob")]
 import robust_eval as RE                                   # noqa: E402  (loads the hindcast)
 from caustic import aircraft_wave, haglund, depth_for, ground_psf as model_psf, isa, PSF   # noqa: E402
 from boom import carlson, lift_parameter                   # noqa: E402
@@ -134,5 +135,61 @@ def fit_psf():
     json.dump(J, open(path, "w"), indent=1); print("added fit_on_psf")
 
 
+
+
+# ---------------------------------------------------------------- per-flight exceedance probability (issue #20)
+from scipy.stats import norm   # noqa: E402
+
+CHUNK_NM = 300.0                 # the real-world error field's correlation length: legs within it share one draw
+
+
+def flight_prob(r, d, fl, ac, margin_of, f):
+    """Predicted P(flight puts > 0.11 psf on the ground) with sigma inflated by f; and the flown Mach profile."""
+    kb = (r["name"], d, fl); smp = RE.S[kb]
+    Mmap = RE.MFS[kb]
+    Mf = Mmap - margin_of(r, d) + ac["pen"]
+    M = np.where(Mf >= RE.FLOOR, np.minimum(Mf, RE.DESIGN), RE.M_SUB)
+    _, _, Mfl = RE.fly(r, smp, M)
+    sig = np.sqrt(RE.SD[kb] ** 2 + RE.S_EXTRA ** 2) * f
+    sup = r["reg"] & (Mfl > 1.0)
+    p = np.where(sup, norm.cdf((Mfl - ac["pen"] - Mmap) / sig), 0.0)      # q = -pen: cushion in Mach
+    pos = np.cumsum(np.full(len(p), r["seg"])); ch = (pos // CHUNK_NM).astype(int)
+    pm = np.zeros(ch.max() + 1); np.maximum.at(pm, ch, p)
+    return 1 - np.prod(1 - pm)
+
+
+def prob_eval():
+    E = RE.fields(300, seed=11); SCALE[0] = 1.0
+    RJ = json.load(open(os.path.join(RE.OUT, "robust_eval.json")))["results"]
+    out = {}
+    for fl in RE.FLE:
+        ac = aircraft_at(fl)
+        fits = {x["fit"]: x["par"] for x in RJ[f"L300_FL{fl}_any_ensemble"]}
+        res = []
+        for fit, (fd, td) in (("H1", (RE.H1, RE.H2)), ("H2", (RE.H2, RE.H1))):
+            k = fits[fit]; mk = lambda r, d: k * np.sqrt(RE.SD[(r["name"], d, fl)] ** 2 + RE.S_EXTRA ** 2)
+            obs = {dd: run(fl, mk, [dd], E, ac, True)[dd][:, 0] for dd in fd + td}
+            routes = [r for r in RE.routes if r["reg"].sum()]
+            def mean_pred(f, ds): return float(np.mean([flight_prob(r, dd, fl, ac, mk, f) for dd in ds for r in routes]))
+            target = float(np.mean(np.concatenate([obs[dd] for dd in fd])))
+            lo, hi = 0.5, 6.0                                            # inflation f so that mean predicted = observed (fit half)
+            for _ in range(25):
+                mid = (lo + hi) / 2
+                if mean_pred(mid, fd) < target: lo = mid
+                else: hi = mid
+            f = (lo + hi) / 2
+            P = np.array([flight_prob(r, dd, fl, ac, mk, f) for dd in td for r in routes]); O = np.concatenate([obs[dd] for dd in td])
+            bins = [0, 0.001, 0.005, 0.02, 1.0]; rel = []
+            for a, b in zip(bins[:-1], bins[1:]):
+                m = (P >= a) & (P < b)
+                if m.sum(): rel.append(dict(pred=f"{100*a:g}-{100*b:g}%", flights=int(m.sum()), mean_pred_pct=round(100 * float(P[m].mean()), 3), observed_pct=round(100 * float(O[m].mean()), 3)))
+            res.append(dict(fit=fit, k=k, sigma_inflation=round(f, 2), fit_rate_pct=round(100 * target, 3), test_mean_pred_pct=round(100 * float(P.mean()), 3),
+                            test_observed_pct=round(100 * float(O.mean()), 3), reliability=rel))
+            print("prob", fl, res[-1], flush=True)
+        out[f"FL{fl}"] = res
+    path = os.path.join(RE.OUT, "psf_eval.json"); J = json.load(open(path)); J["flight_probability"] = out
+    json.dump(J, open(path, "w"), indent=1); print("added flight_probability")
+
+
 if __name__ == "__main__":
-    fit_psf() if FIT else main()
+    prob_eval() if PROB else fit_psf() if FIT else main()
