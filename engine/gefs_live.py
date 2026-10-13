@@ -18,7 +18,8 @@ from physics import mmax_grid
 from gefs import MEMBERS, WANT, BASE
 
 FHS = list(range(0, 55, 6))
-K = {350: 4.0, 450: 4.25, 550: 3.75}   # robust_eval.json: the larger k of the two half-year fits (time hold-out), 24 h lead
+K = {350: 4.0, 450: 4.25, 550: 4.0}    # robust_eval.json: the larger k of the two half-year fits (time hold-out), 24 h lead;
+                                         # FL550 raised 3.75 -> 4.0 for route choice (study/results/router_bias*.json, issue #40)
 
 
 def src(run, mem, part, fh):

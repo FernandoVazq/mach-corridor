@@ -81,7 +81,8 @@ The flown Mach is the forecast boomless Mach minus a margin.
   k·√(s² + e² + 0.005²), about +0.004 Mach at a typical margin. **Assumption**, to be replaced by the operator's
   certified figure for its aircraft.
 - **Auto, fallback:** k·σ(x), with σ² = σ_ana(x)² + 0.012², from 53 weekly hindcasts.
-- k per level: ensemble FL350 4.0, FL450 4.25, FL550 3.75 (the larger of two half-year fits, see below);
+- k per level: ensemble FL350 4.0, FL450 4.25, FL550 4.0 (the larger of two half-year fits, see below; FL550
+  raised from 3.75 for route choice, §6.3 "Route choice");
   fallback FL350 3.79, FL450 4.10, FL550 3.74 (2-fold cross-validated over dates). Other levels use the
   neighbouring values. If GEFS has no hour within 3 h of a leg, that leg uses the fallback map.
 
@@ -128,6 +129,22 @@ fitted on one half-year so the mean predicted rate equals the observed one, and 
 FL350 1.11 / 1.29. Calibrated on average; with about five events per half-year, whether it ranks flights correctly
 is not yet shown. The site uses f = 1.17 (FL550), 1.30 (FL450), 1.20 (FL350) and shows the chance per flight;
 the evidence file carries it per leg.
+
+**Route choice (`study/router_bias.py`, issue #40).** The router picks the path the forecast says is fastest, and
+the hindcast flew great circles. For every route and date at FL550, seven paths (the great circle and one-waypoint
+detours 150/300/450 km either side) were flown as the router flies them and the fastest on the forecast was scored
+in psf against truth:
+
+| k (FL550) | Policy | Flights > 0.11 psf | 95% CI | Minutes saved |
+|---|---|---|---|---|
+| 3.75 | great circle | 0.43% | 0.20–0.71% | 26.8 |
+| 3.75 | fastest of 7 | 0.59% | 0.31–0.91% | 28.6 |
+| 4.0 | great circle | 0.24% | 0.08–0.43% | 26.1 |
+| 4.0 | fastest of 7 | 0.28% | 0.12–0.47% | 27.9 |
+
+The forecast does not over-state the chosen paths more than the great circle (mean bias 0.0001 vs 0.0000); the
+chosen paths simply spend more distance in corridors. FL550 k is now 4.0. The live router searches many more paths
+than seven, so this is a lower bound on the effect.
 
 Evidence (`study/gefs_eval.py`, 53 weeks): the RMS error of the GFS forecast rises with the GEFS spread from
 0.004 (lowest decile) to 0.013–0.016 (highest). Correlation of |error| with spread is 0.39–0.45. The GEFS mean

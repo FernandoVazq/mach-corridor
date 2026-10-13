@@ -33,7 +33,7 @@ FLS = [300, 350, 400, 450, 500, 550, 600]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025
-MODEL_VERSION = "2.7"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
+MODEL_VERSION = "2.8"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
 COLS, ROWS = 6, 7
 NX, NY = 360, 181
 
