@@ -1,0 +1,42 @@
+2025-10-07 00Z: 12 launches, 77s
+2025-10-17 00Z: 12 launches, 66s
+2025-10-27 00Z: 12 launches, 56s
+2025-11-06 00Z: 12 launches, 78s
+2025-11-16 00Z: 12 launches, 56s
+2025-11-26 00Z: 12 launches, 75s
+2025-12-06 00Z: 12 launches, 72s
+2025-12-16 00:00:00+00:00 ifs ana failed: IFS 2025121600 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20251216/00z/ifs/0p25/scda/20251216000000-0h-scda-fc.index)
+2025-12-16 00Z: 12 launches, 71s
+2025-12-26 00Z: 12 launches, 65s
+2026-01-05 00Z: 12 launches, 61s
+2026-01-15 00Z: 12 launches, 62s
+2026-01-25 00Z: 11 launches, 59s
+2026-02-04 00Z: 12 launches, 71s
+2026-02-14 00Z: 12 launches, 81s
+2026-02-24 00:00:00+00:00 ifs ana failed: IFS 2026022400 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260224/00z/ifs/0p25/scda/20260224000000-0h-scda-fc.index)
+2026-02-24 00Z: 12 launches, 69s
+2026-03-06 00Z: 12 launches, 85s
+2026-03-16 00Z: 12 launches, 74s
+2026-03-26 00:00:00+00:00 ifs ana failed: IFS 2026032600 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260326/00z/ifs/0p25/scda/20260326000000-0h-scda-fc.index)
+2026-03-26 00Z: 12 launches, 66s
+2026-04-05 00Z: 12 launches, 63s
+2026-04-15 00:00:00+00:00 ifs f06 failed: IFS 2026041418 +6h not found (503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260414/18z/ifs/0p25/scda/20260414180000-6h-scda-fc.index)
+2026-04-15 00Z: 11 launches, 69s
+2026-04-25 00Z: 12 launches, 65s
+2026-05-05 00Z: 12 launches, 83s
+2026-05-15 00Z: 12 launches, 70s
+2026-05-25 00Z: 11 launches, 62s
+2026-06-04 00Z: 11 launches, 85s
+2026-06-14 00:00:00+00:00 ifs ana failed: IFS 2026061400 +0h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260614/00z/ifs/0p25/scda/20260614000000-0h-scda-fc.index)
+2026-06-14 00Z: 12 launches, 68s
+2026-06-24 00Z: 11 launches, 81s
+2026-07-04 00Z: 11 launches, 97s
+2026-07-14 00:00:00+00:00 ifs f06 failed: IFS 2026071318 +6h not found (404 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20260713/18z/ifs/0p25/scda/20260713180000-6h-scda-fc.index)
+2026-07-14 00Z: 11 launches, 77s
+2026-07-24 00Z: 12 launches, 75s
+2026-08-03 00Z: 10 launches, 73s
+2026-08-13 00Z: 12 launches, 74s
+2026-08-23 00Z: 12 launches, 72s
+2026-09-02 00Z: 11 launches, 76s
+2026-09-12 00Z: 12 launches, 69s
+2026-09-22 00Z: 12 launches, 65s
