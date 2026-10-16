@@ -26,7 +26,7 @@ jobs:
           set -u
           URL="https://fernandovazq.github.io/mach-corridor/data/manifest.json"
           now=$(date -u +%s); state=ok; msg=""
-          if ! curl -sf --max-time 30 "$URL" -o m.json; then
+          if ! curl -sfL --max-time 30 "$URL" -o m.json; then
             state=bad; msg="The live site's manifest did not load ($URL)."
           else
             run=$(python3 -c "import json;print(json.load(open('m.json'))['run_time'])")
