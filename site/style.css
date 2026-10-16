@@ -432,3 +432,12 @@ dialog.efb[open] { gap: 10px; }
 .machmax { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; }
 .machmax output { justify-self: end; font-weight: 600; color: var(--ink); }
 .machmax input { grid-column: 1 / -1; width: 100%; }
+
+/* support link (support.js, only when MC_CONFIG.sponsorsUrl is set) and the single ad slot (ads.js, off by default) */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.badge.support { display: inline-flex; align-items: center; gap: 5px; text-decoration: none; color: var(--ink-2); }
+.badge.support:hover { color: var(--ink); border-color: var(--ink-3); }
+.badge.support:hover span:not(.sr) { text-decoration: underline; text-underline-offset: 2px; }
+.badge.support svg { color: var(--bad); flex: none; }
+.adslot .adhead { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-3); margin-bottom: 8px; }
+.adslot .adbody { min-height: 100px; }
