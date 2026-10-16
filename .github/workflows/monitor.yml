@@ -24,7 +24,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -u
-          URL="https://fernandovazq.github.io/mach-corridor/data/manifest.json"
+          URL="https://machcorridor.com/data/manifest.json"
           now=$(date -u +%s); state=ok; msg=""
           if ! curl -sfL --max-time 30 "$URL" -o m.json; then
             state=bad; msg="The live site's manifest did not load ($URL)."

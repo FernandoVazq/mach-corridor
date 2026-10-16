@@ -1,6 +1,6 @@
 # Monetization: support button, custom domain, ads
 
-Status (16 Oct 2026): everything is prepared in code and **off**. Nothing changes on the live site until the switches in `site/config.js` are set. Every account, purchase and setting below has to be done by the owner.
+Status (16 Oct 2026): **domain done**: machcorridor.com bought at Porkbun ($11.08/yr, renews at the same price), DNS pointed at GitHub Pages, custom domain saved; github.io redirects to it. Still off: the support badge and ads (switches in `site/config.js`). Every account, purchase and setting below has to be done by the owner.
 
 | Piece | In the repo | Switch |
 |---|---|---|

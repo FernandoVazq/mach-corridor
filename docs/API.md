@@ -1,7 +1,7 @@
 # Mach Corridor data API
 
 Everything the site shows is built from static files served by GitHub Pages under
-`https://fernandovazq.github.io/mach-corridor/`. They are rebuilt within an hour of each NOAA GFS run. There is no
+`https://machcorridor.com/`. They are rebuilt within an hour of each NOAA GFS run. There is no
 server and no key. A Python client that answers the map's questions from these files is in `engine/client.py`
 (parity with the site checked in `tests/api.mjs`). **Research prototype: not for flight.**
 
