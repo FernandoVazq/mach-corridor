@@ -9,11 +9,14 @@
   const slot = typeof cfg === "object" && cfg.slot != null ? String(cfg.slot).trim() : "";
   if (!/^ca-pub-\d{10,20}$/.test(client)) { console.warn("MC_CONFIG.adsense: not a publisher id (ca-pub-…), ads stay off"); return; }
 
-  const s = document.createElement("script");
-  s.async = true;
-  s.crossOrigin = "anonymous";
-  s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(client);
-  document.head.appendChild(s);
+  // index.html carries the tag statically (AdSense's site check reads the raw HTML); add it only if missing.
+  if (!document.querySelector('script[src*="adsbygoogle.js"]')) {
+    const s = document.createElement("script");
+    s.async = true;
+    s.crossOrigin = "anonymous";
+    s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(client);
+    document.head.appendChild(s);
+  }
 
   if (!/^\d{6,20}$/.test(slot)) return;
   const box = document.getElementById("adSlot");

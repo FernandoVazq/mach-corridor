@@ -8,5 +8,6 @@ window.MC_CONFIG = {
   // Google AdSense. null: no ad code is loaded and nothing is shown.
   //   While applying (site verification only, no ad shown):  adsense: "ca-pub-1234567890123456",
   //   After approval (one ad unit in the right-hand panel): adsense: { client: "ca-pub-1234567890123456", slot: "1234567890" },
-  adsense: null
+  // Applied 16 Oct 2026 (verification only; no ad unit until a slot is added after approval).
+  adsense: "ca-pub-5654559314082674"
 };
