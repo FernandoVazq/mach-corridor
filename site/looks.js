@@ -168,7 +168,9 @@
     MC.on("draw", syncFlow);
     window.addEventListener("mc-tab", () => setTimeout(syncFlow, 0));
     reduced.addEventListener("change", () => { F.key = ""; syncFlow(); });
-    MC.satGlobal("sat", true); MC.satGlobal("earth", true); MC.satGlobal("night", true);   // small images, so the thumbnails fill in
+    // small images so the thumbnails fill in, fetched after the page has loaded so they never hold up the map
+    const thumbsImagery = () => setTimeout(() => { MC.satGlobal("sat", true); MC.satGlobal("earth", true); MC.satGlobal("night", true); }, 1500);
+    if (document.readyState === "complete") thumbsImagery(); else window.addEventListener("load", thumbsImagery, { once: true });
     mark(); renderThumbs(); syncFlow();
   }
   window.addEventListener("mc-ready", build);
