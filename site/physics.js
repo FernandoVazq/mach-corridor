@@ -334,8 +334,8 @@
     svg.append("text").attr("x", m.l + 6).attr("y", y(1.05) + 14).style("font-size", "11px").style("fill", "var(--ink-2)").text("M1.05 floor");
     svg.append("path").datum(rows).attr("class", "band").attr("fill", "var(--accent)").attr("d", d3.area().x(r => x(r.fl)).y0(r => y(r.s.land_any_p10)).y1(r => y(r.s.land_best_p90)));
     svg.append("path").datum(isa).attr("fill", "none").attr("stroke", "var(--ink-3)").attr("stroke-width", 1.5).attr("stroke-dasharray", "5 4").attr("d", d3.line().x(r => x(r.fl)).y(r => y(r.m)));
-    const lastI = isa.at(-1);
-    svg.append("text").attr("x", x(lastI.fl) - 4).attr("y", y(lastI.m) + 16).attr("text-anchor", "end").style("font-size", "11px").style("fill", "var(--ink-3)").text("standard atmosphere, no wind");
+    const firstI = isa.at(0);
+    svg.append("text").attr("x", x(firstI.fl) + 6).attr("y", y(firstI.m) + 18).attr("text-anchor", "start").style("font-size", "11px").style("fill", "var(--ink-3)").text("standard atmosphere, no wind");
     svg.append("path").datum(rows).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2.2).attr("d", d3.line().x(r => x(r.fl)).y(r => y(r.s.land_any_median)));
     svg.append("g").selectAll("circle").data(rows).join("circle").attr("cx", r => x(r.fl)).attr("cy", r => y(r.s.land_any_median)).attr("r", 4)
       .attr("fill", r => r.fl > hiFl ? "var(--surface)" : "var(--accent)").attr("stroke", "var(--accent)").attr("stroke-width", 2)

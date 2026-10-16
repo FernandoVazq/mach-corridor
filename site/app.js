@@ -520,7 +520,7 @@
   }
   // grid point (d3 pixel corner coordinates) -> lon/lat; edges of the grid are not contour lines and are skipped
   const ctLL = ([x, y]) => [(x - 0.5) / CT_UP - 180, 90 - (y - 0.5) / CT_UP];
-  const ctEdge = ([x, y]) => x <= 0.6 || x >= CW - 0.6 || y <= 0.6 || y >= CH - 0.6;
+  const ctEdge = ([x, y]) => x <= 0.6 || x >= CW - 0.6 || y <= 1.6 || y >= CH - 1.6;   // the poles' rows too
   // draw contour lines through toS(lon, lat) -> [x, y]; style(value) -> {stroke, width, label}; returns label anchors
   function strokeContours(g, toS, levels, style, w, h) {
     const anchors = [];
