@@ -285,7 +285,7 @@
     });
   }
   function openOnMap(row) {
-    MC.setTab("map"); $("fromIn").value = row.ra; $("toIn").value = row.rb; $("acSel").value = focus;
+    MC.setTab("map"); $("fromIn").value = row.ra; $("toIn").value = row.rb; $("acSel").value = focus; $("acSel").dispatchEvent(new Event("change"));
     window.MCPLAN.planRoute(pt(row.ra), pt(row.rb), [row.ra, row.rb]);
   }
   function renderAcTable() {

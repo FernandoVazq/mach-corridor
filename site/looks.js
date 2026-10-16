@@ -3,10 +3,11 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const NAMES = { mach: "Mach", sat: "Satellite", night: "Night", contour: "Contours", flow: "Wind flow", rose: "Directions" };
+  const NAMES = { mach: "Mach", sat: "Satellite", earth: "No clouds", night: "Night", contour: "Contours", flow: "Wind flow", rose: "Directions" };
   const TIPS = {
     mach: "Boomless cruise Mach as colour",
     sat: "Corridors over yesterday's NASA satellite image",
+    earth: "Corridors over NASA's cloud-free Blue Marble",
     night: "Corridors over NASA night lights",
     contour: "Isolines every 0.025 Mach, like a weather chart",
     flow: "The wind at this flight level, moving, coloured by Mach",
@@ -39,10 +40,10 @@
     const MC = window.MC; if (!MC || !MC.current) return;
     const g = cnv.getContext("2d"), w = cnv.width, h = cnv.height, v = thumbView(w, h), path = d3.geoPath(v.proj, g);
     g.save(); g.clearRect(0, 0, w, h);
-    g.fillStyle = look === "sat" || look === "night" ? "#01040b" : "#061029"; g.fillRect(0, 0, w, h);
+    g.fillStyle = MC.isPhoto(look) ? "#01040b" : "#061029"; g.fillRect(0, 0, w, h);
     g.imageSmoothingEnabled = true;
     if (look === "mach") cropGrid(g, MC.off, 4, w, h);
-    else if (look === "sat" || look === "night") {
+    else if (MC.isPhoto(look)) {
       const img = MC.satGlobal(look, true);
       if (img) g.drawImage(img, (TH.lon0 + 180) / 360 * img.width, (90 - TH.lat1) / 180 * img.height, (TH.lon1 - TH.lon0) / 360 * img.width, (TH.lat1 - TH.lat0) / 180 * img.height, 0, 0, w, h);
       cropGrid(g, MC.ovl, 4, w, h);
@@ -90,7 +91,7 @@
     p.lon = b.lon0 + Math.random() * (b.lon1 - b.lon0); p.lat = b.lat0 + Math.random() * (b.lat1 - b.lat0);
     p.age = 0; p.max = 90 + Math.random() * 110; return p;
   }
-  function viewKey() { const MC = window.MC, t = MC.S.t, v = MC.view; return [t.x.toFixed(1), t.y.toFixed(1), t.k.toFixed(3), v.W, v.H, MC.S.fi, MC.S.fl, MC.S.hd, MC.S.hdDeg].join("|"); }
+  function viewKey() { const MC = window.MC, t = MC.S.t, v = MC.view; return [t.x.toFixed(1), t.y.toFixed(1), t.k.toFixed(3), v.W, v.H, MC.S.fl].join("|"); }   // time steps keep the particles
   function resetFlow() {
     const MC = window.MC, v = MC.view, b = box(), n = Math.min(7000, Math.round(v.W * v.H / 330));
     F.parts = Array.from({ length: n }, () => spawn({}, b)); F.parts.forEach(p => { p.age = Math.random() * p.max; });
@@ -139,7 +140,10 @@
   let thumbTimer = null;
   function renderThumbs() {
     clearTimeout(thumbTimer);
-    thumbTimer = setTimeout(() => document.querySelectorAll("#lens canvas").forEach(c => renderThumb(c.dataset.look, c)), 120);
+    thumbTimer = setTimeout(() => {
+      if (window.MC.S.playing) { renderThumbs(); return; }      // the forecast is playing: wait until it stops
+      document.querySelectorAll("#lens canvas").forEach(c => renderThumb(c.dataset.look, c));
+    }, 700);
   }
   function mark() {
     document.querySelectorAll("#lens button").forEach(b => {
@@ -164,7 +168,7 @@
     MC.on("draw", syncFlow);
     window.addEventListener("mc-tab", () => setTimeout(syncFlow, 0));
     reduced.addEventListener("change", () => { F.key = ""; syncFlow(); });
-    MC.satGlobal("sat", true); MC.satGlobal("night", true);   // small images, so the thumbnails fill in
+    MC.satGlobal("sat", true); MC.satGlobal("earth", true); MC.satGlobal("night", true);   // small images, so the thumbnails fill in
     mark(); renderThumbs(); syncFlow();
   }
   window.addEventListener("mc-ready", build);

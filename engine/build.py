@@ -38,7 +38,7 @@ PLEV_HI = [40, 30, 20, 15, 10, 7, 5]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025
-MODEL_VERSION = "2.11"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
+MODEL_VERSION = "2.12"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
 COLS, ROWS = 6, 7
 NX, NY = 360, 181
 

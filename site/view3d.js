@@ -12,7 +12,7 @@ function paintTexture(cnv) {
   g.imageSmoothingEnabled = true;
   // map styles: the satellite looks wrap the globe in the NASA image (needs CORS) under the cyan corridor wash;
   // contours draw their lines on the Mach colours; flow and directions show the Mach colours on the globe
-  const look = MC.look, photo = (look === "sat" || look === "night") ? MC.satGlobal(look) : null, onPhoto = !!(photo && photo.cors);
+  const look = MC.look, photo = MC.isPhoto(look) ? MC.satGlobal(look) : null, onPhoto = !!(photo && photo.cors);
   if (onPhoto) {
     g.fillStyle = "#01040b"; g.fillRect(0, 0, w, h);
     g.drawImage(photo, 0, 0, w, h);
@@ -527,9 +527,19 @@ function renderDynamic(lite) {
     fragmentShader: "uniform vec3 uCol; varying vec2 vP; void main(){ float r = length(vP) / 150.0; gl_FragColor = vec4(uCol, 0.12 * (1.0 - smoothstep(0.35, 1.0, r))); }",
   }));
   buf.rotation.x = -Math.PI / 2; buf.position.set(60, K(zf) * VE, 0); grp.add(buf);
-  // altitude scale: ticks every 2 km, no labels (the side panel carries the numbers)
+  // altitude scale: ticks every 2 km, labelled in km and thousands of feet (every 4 km when the scale is compressed)
   grp.add(lineOf([[X0 * 1000, Zs * 1000, 0], [X0 * 1000, Zs * 1000, zTop]], 0xe2ebfc, 0.5));
-  for (let z = 0; z <= zTop; z += 2000) grp.add(lineOf([[X0 * 1000, Zs * 1000, z], [(X0 - (z % 10000 ? 2 : 5)) * 1000, Zs * 1000, z]], 0xe2ebfc, 0.5));
+  const every = VE >= 4 ? 2000 : 4000;
+  for (let z = 0; z <= zTop; z += 2000) {
+    grp.add(lineOf([[X0 * 1000, Zs * 1000, z], [(X0 - (z % 10000 ? 2 : 5)) * 1000, Zs * 1000, z]], 0xe2ebfc, 0.5));
+    if (z % every === 0) {
+      const lb = textSprite(z === 0 ? "0" : `${z / 1000} km · ${Math.round(z / 0.3048 / 1000)}k ft`, "#c3d6ef", 22);
+      lb.center.set(1, 0.5); lb.position.copy(V3((X0 - 7) * 1000, Zs * 1000, z)); grp.add(lb);
+    }
+  }
+  // the cruise level, named where the flight track meets the scale
+  const cl = textSprite(`FL${state.fl} · ${(za / 1000).toFixed(1)} km`, "#ffffff", 24);
+  cl.center.set(0, -0.6); cl.position.copy(V3(X0 * 1000, 0, za)); grp.add(cl);
 
   // ---- aircraft, track, shock, rays ----
   const ac = aircraftModel().g; grp.add(ac); poseAircraft();
@@ -802,7 +812,7 @@ async function play() {
       PB.dynAt = now; PB.busy = true;
       MC.loadProfiles(MC.S.man.forecast_hours[q.fhIndex]).then(pr => { if (PB) { const t0 = performance.now(); state.P = MC.profileAt(pr, q.lon, q.lat); state.fhIndex = q.fhIndex; renderDynamic(true); PERF.dyn.push(performance.now() - t0); } PB && (PB.busy = false); });
     }
-    if (now - PB.uiAt > 250) { PB.uiAt = now; posLabel(PB.x, q); }
+    if (now - PB.uiAt > 250) { PB.uiAt = now; posLabel(PB.x, q); drawInset(); }      // the locator globe follows the aircraft
     // contrail near the airports, stored in terrain coordinates so it stays where it was laid
     const ac = aircraftModel().g;
     if (!f.onGround && (PB.x < 220 || PB.x > D - 220)) {

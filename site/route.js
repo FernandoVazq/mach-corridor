@@ -56,8 +56,10 @@
     const s = Math.sin(brg * RAD), co = Math.cos(brg * RAD), along = u * s + v * co, cross = u * co - v * s;
     let M, type, mcut = null, skipped = false, mg = null, hold = null, sb = null, ah = false;
     const leadH = field.t0 + tHr;                       // hours after the forecast run when the aircraft is here
+    // E.sea === "boomless": no full-Mach cruise over the ocean either; open water is flown like land (boomless or subsonic)
+    const asLand = landish || !!(E && E.sea === "boomless" && mode === "corr");
     if (!ac.supersonic) { M = ac.design; type = "sub"; }
-    else if (landish) {
+    else if (asLand) {
       mg = typeof margin === "function" ? margin(lon, lat, field.fl, brg, Date.parse(m.S.man.run_time) + leadH * 3.6e6) : margin;
       mcut = (window.BOOM ? BOOM.bufferPenalty(ac, field.fl) : 0) + L(a => m.mHeadingSafe(a, brg, lon, lat)) - mg;
       // fail closed: no corridor on old data, past the end of the forecast, or without a margin
@@ -292,7 +294,11 @@
     for (let n = g; n >= 0; n = prev[n]) { nodes.push(ll(n)); if (n === s) break; }
     nodes.reverse();
     const grid = [A, ...nodes.slice(1, -1), [bLon, B[1]]];
-    const objOf = p => { const e = evalPath(field, ac, p, "corr", E); return obj === "time" ? e.block : obj === "cost" ? e.op : e.gen; };
+    // E.maxDetour (fraction of the great circle): beyond it every extra nm costs ten times its own time or cost,
+    // so the route does not run far out to sea just to fly full Mach over water
+    const gcNm = hav(A, [bLon, B[1]]), cap = Number.isFinite(E.maxDetour) ? gcNm * (1 + E.maxDetour) : Infinity;
+    const objOf = p => { const e = evalPath(field, ac, p, "corr", E), v = obj === "time" ? e.block : obj === "cost" ? e.op : e.gen;
+      return e.dist > cap ? v * (1 + 10 * (e.dist - cap) / e.dist) : v; };
     const pulled = stringPull(grid, field, ac, obj, E);
     const densify = (p, k) => { const o = [p[0]]; for (let i = 0; i < p.length - 1; i++) { const f = d3.geoInterpolate(p[i], p[i + 1]); for (let q = 1; q <= k; q++) o.push(q === k ? p[i + 1] : f(q / k)); } return o; };
     const r1 = refine(pulled.length <= 2 ? densify(pulled, 4) : pulled, objOf, maxEvals);

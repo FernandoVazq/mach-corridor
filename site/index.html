@@ -88,6 +88,9 @@
           <div class="chks">
             <label class="chk"><input type="checkbox" id="fadeOcean"> Dim open ocean</label>
             <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
+            <label class="chk" title="Deserts, farmland, forests, grassland, ice: NASA MODIS land cover"><input type="checkbox" id="landShow"> Land cover</label>
+            <label class="chk" title="Snow on the ground yesterday: NASA MODIS snow cover"><input type="checkbox" id="snowShow"> Snow</label>
+            <label class="chk" title="Ground above 1,500 m, denser above 3,000 m: the boom must clear it"><input type="checkbox" id="mtnShow"> Mountains</label>
             <label class="chk" id="disWrap" hidden title="Hatched where NOAA GFS and ECMWF IFS differ by 0.02 Mach or more in some direction, or only one has a corridor: trust the map less there"><input type="checkbox" id="disShow"> Model disagreement</label>
           </div>
         </div>
@@ -97,6 +100,7 @@
         <div class="lt" id="legendTitle">Boomless cruise Mach</div>
         <canvas id="legendBar" width="240" height="10"></canvas>
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
+        <div class="lkey" id="landKey" hidden></div>
         <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
       </div>
 
@@ -112,6 +116,7 @@
         </div>
         <output id="timeLbl" class="tval"></output>
       </div>
+      <button class="float routeBtn" id="routeMode" aria-pressed="false" title="Click a start and a destination on the map; nearby airports snap. Drag the ends of a route to move them."><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="3.5" cy="12.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12.5" cy="3.5" r="2" fill="currentColor"/><path d="M5 11 C 8 10, 8 6, 11 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg><span id="routeModeLbl">Plan a route</span></button>
       <div class="hint" id="hint">Click to inspect a point. Shift-click a second point to plan a route.</div>
       <div class="pickhint" id="pickHint" hidden>Tap the destination</div>
       <div class="float dirhint" id="dirHint" hidden></div>
@@ -152,10 +157,18 @@
         <datalist id="apts"></datalist>
         <div class="routeparams">
           <label>Aircraft<select id="acSel"></select></label>
+          <label class="span2 machmax">Top speed <output id="machMaxLbl"></output>
+            <input type="range" id="machMax" min="1.0" max="2.4" step="0.05" value="2.0" aria-label="The aircraft's top cruise Mach">
+          </label>
           <label>Optimise for<select id="objSel">
-            <option value="time">Time</option>
+            <option value="time" selected>Time</option>
             <option value="cost">Operating cost</option>
-            <option value="gen" selected>Cost and passenger time</option>
+            <option value="gen">Cost and passenger time</option>
+          </select></label>
+          <label class="span2">Over the ocean<select id="seaSel" title="Full Mach is legal beyond the regulated zone, but a real flight plan does not run far out to sea for it">
+            <option value="full10" selected>Full Mach, detour up to 10%</option>
+            <option value="full">Full Mach, any detour</option>
+            <option value="boomless">Boomless only, like over land</option>
           </select></label>
         </div>
         <div id="routeOut" hidden>

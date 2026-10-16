@@ -4,17 +4,152 @@
   const $ = id => document.getElementById(id);
   let MC, ACS, RT, R = null, seq = 0;
 
-  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.auto && MC.sigmaReady ? MC.marginAt : MC.S.margin });
+  // the aircraft as chosen, with the top-speed slider as its design Mach (cruise Mach over open water, cap over land)
+  function chosenAc() {
+    const base = ACS.find(a => a.id === $("acSel").value), m = +$("machMax").value;
+    if (!base.supersonic || !Number.isFinite(m) || Math.abs(m - base.design) < 1e-6) return base;
+    return Object.assign(Object.create(Object.getPrototypeOf(base)), base, { design: m, name: `${base.name.replace(/ \(.*\)$/, "")} at up to M${m.toFixed(2)}` });
+  }
+  function syncMachMax(reset) {
+    const base = ACS.find(a => a.id === $("acSel").value), sl = $("machMax");
+    sl.disabled = !base.supersonic;
+    if (reset || !base.supersonic) sl.value = base.supersonic ? base.design : 1.0;
+    const v = +sl.value, kts = Math.round(v * 573.6).toLocaleString("en-US");
+    $("machMaxLbl").textContent = base.supersonic ? `M ${v.toFixed(2)} · ${kts} kt${Math.abs(v - base.design) < 1e-6 ? " (design)" : ` (design M${base.design.toFixed(2)})`}` : `subsonic, M${base.design.toFixed(2)}`;
+  }
+  // over the ocean: "full" = design Mach beyond the regulated zone; a detour cap keeps the route from running far out to
+  // sea for it; "boomless" = open water flown like land
+  const SEA = { full: { sea: "full", maxDetour: Infinity }, full10: { sea: "full", maxDetour: 0.10 }, boomless: { sea: "boomless", maxDetour: 0.10 } };
+  const E = () => ({ fuel: +$("fuelPrice").value || 1.47, vot: +$("vot").value || 85, lf: +$("lf").value || 0.8, margin: MC.S.auto && MC.sigmaReady ? MC.marginAt : MC.S.margin,
+                     ...(SEA[$("seaSel") ? $("seaSel").value : "full10"] || SEA.full10) });
   const fmtT = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
   const fmtMin = h => { const m = Math.round(h * 60), a = Math.abs(m), sg = m > 0 ? "+" : m < 0 ? "−" : "";
     return a >= 90 ? `${sg}${Math.floor(a / 60)}h ${String(a % 60).padStart(2, "0")}m` : `${sg}${a} min`; };
   const money = x => "$" + Math.round(Math.abs(x)).toLocaleString();
   const dMoney = x => (x > 0 ? "+" : x < 0 ? "−" : "") + money(x);
+  // "KJFK", "45.3°N 64.1°W", "45.3N 64.1W" or "45.3, -64.1" -> {p: [lon, lat], name}
+  function parsePt(str) {
+    const t = (str || "").trim(), a = MC.APT[t.toUpperCase()];
+    if (a) return { p: [a[3], a[2]], name: a[0] };
+    let m = t.match(/^(-?\d+(?:\.\d+)?)\s*°?\s*([NS])[\s,]+(-?\d+(?:\.\d+)?)\s*°?\s*([EW])$/i);
+    if (m) { const lat = +m[1] * (/s/i.test(m[2]) ? -1 : 1), lon = +m[3] * (/w/i.test(m[4]) ? -1 : 1); return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { p: [lon, lat], name: ptName([lon, lat]) } : null; }
+    m = t.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) return { p: [+m[2], +m[1]], name: ptName([+m[2], +m[1]]) };
+    return null;
+  }
   const ptName = p => { const a = Object.values(MC.APT).find(a => Math.abs(a[2] - p[1]) < 0.05 && Math.abs(a[3] - p[0]) < 0.05); return a ? a[0] : `${MC.fmtLat(p[1])} ${MC.fmtLon(p[0])}`; };
   const colors = () => ({ boomless: MC.css("--route-boomless"), super: MC.css("--route-super"), sub: MC.css("--route-sub"), climb: MC.css("--route-sub") });
 
+  // ---------- picking a route on the map: Plan button -> click start -> click destination; drag the ends ----------
+  const pickS = { mode: null, A: null, drag: null, hover: null, justDragged: false };
+  const SNAP_PX = 18;
+  // screen point -> {p: [lon, lat], name}: the nearest airport within SNAP_PX, else the clicked point
+  function snapAt(sx, sy) {
+    const worldW = MC.view.k * MC.view.W0;
+    let best = null, bd = SNAP_PX;
+    for (const a of MC.AIRPORTS) {
+      const [x, y] = MC.toScreen(a[3], a[2]);
+      for (const dx of [-worldW, 0, worldW]) { const d = Math.hypot(x + dx - sx, y - sy); if (d < bd) { bd = d; best = a; } }
+    }
+    if (best) return { p: [best[3], best[2]], name: best[0] };
+    const [lon, lat] = MC.toLonLat(sx, sy), p = [MC.normLon(lon), Math.max(-89, Math.min(89, lat))];
+    return { p, name: ptName(p) };
+  }
+  function endAt(sx, sy) {          // 0 = start, 1 = destination, under the pointer (within 14 px)
+    if (!R) return null;
+    const worldW = MC.view.k * MC.view.W0;
+    for (const k of [1, 0]) {
+      const q = k ? R.B : R.A, [x, y] = MC.toScreen(q[0], q[1]);
+      for (const dx of [-worldW, 0, worldW]) if (Math.hypot(x + dx - sx, y - sy) < 14) return k;
+    }
+    return null;
+  }
+  function drawPickLayer(ctx, toScreen, worldW) {
+    if (!pickS.mode && !pickS.drag) return;
+    ctx.save(); ctx.font = "600 11px 'IBM Plex Sans', system-ui, sans-serif";
+    for (const a of MC.AIRPORTS) for (const dx of [-worldW, 0, worldW]) {
+      const [x0, y] = toScreen(a[3], a[2]), x = x0 + dx;
+      if (x < -20 || x > MC.view.W + 20 || y < -20 || y > MC.view.H + 20) continue;
+      const hot = pickS.hover && pickS.hover.name === a[0];
+      ctx.beginPath(); ctx.arc(x, y, hot ? 5 : 3.2, 0, 2 * Math.PI); ctx.fillStyle = hot ? "#fff" : "rgba(255,255,255,.75)"; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(3,11,38,.9)"; ctx.stroke();
+      if (hot || MC.view.k >= 2) { ctx.lineWidth = 3; ctx.strokeText(a[0], x + 7, y - 6); ctx.fillStyle = "#fff"; ctx.fillText(a[0], x + 7, y - 6); }
+    }
+    const mark = (q, label, filled) => {
+      const [x, y] = toScreen(q.p[0], q.p[1]);
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.fillStyle = filled ? "#fff" : "#061029"; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = filled ? "#061029" : "#fff"; ctx.stroke();
+      ctx.font = "600 12px 'IBM Plex Sans', system-ui, sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = "#061029";
+      ctx.strokeText(`${label} ${q.name}`, x + 10, y - 9); ctx.fillStyle = "#fff"; ctx.fillText(`${label} ${q.name}`, x + 10, y - 9);
+      return [x, y];
+    };
+    if (pickS.mode === "B" && pickS.A) {
+      const a = mark(pickS.A, "From", true);
+      if (pickS.hover) { const [bx, by] = toScreen(pickS.hover.p[0], pickS.hover.p[1]); ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bx, by); ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
+    }
+    if (pickS.drag && pickS.drag.q) {
+      const other = pickS.drag.k ? R.A : R.B, [ox, oy] = toScreen(other[0], other[1]), [bx, by] = toScreen(pickS.drag.q.p[0], pickS.drag.q.p[1]);
+      ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(bx, by); ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
+      mark(pickS.drag.q, pickS.drag.k ? "To" : "From", !pickS.drag.k);
+    }
+    ctx.restore();
+  }
+  function setPickMode(m) {
+    pickS.mode = m; pickS.hover = null;
+    const on = !!m;
+    $("routeMode").setAttribute("aria-pressed", on); $("routeModeLbl").textContent = on ? "Cancel" : "Plan a route";
+    $("pickHint").hidden = !on;
+    if (on) $("pickHint").textContent = m === "A" ? "Click the start. Airports snap." : "Now click the destination";
+    MC.canvas.style.cursor = on ? "copy" : "";
+    $("hint").style.visibility = on ? "hidden" : "visible";
+    MC.schedule();
+  }
+  function wirePicking() {
+    const wrap = $("mapWrap"), cv = MC.canvas;
+    const local = e => { const r = cv.getBoundingClientRect(), t = e.touches ? e.touches[0] || e.changedTouches[0] : e; return [t.clientX - r.left, t.clientY - r.top]; };
+    $("routeMode").onclick = () => setPickMode(pickS.mode ? null : "A");
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && (pickS.mode || pickS.drag)) { pickS.drag = null; setPickMode(null); } });
+    // clicks in pick mode go to the route, not to the point inspector
+    wrap.addEventListener("click", e => {
+      if (pickS.justDragged) { pickS.justDragged = false; e.stopPropagation(); return; }
+      if (!pickS.mode || e.target !== cv) return;
+      e.stopPropagation();
+      const q = snapAt(...local(e));
+      if (pickS.mode === "A") { pickS.A = q; setPickMode("B"); return; }
+      const a = pickS.A; pickS.A = null; setPickMode(null);
+      planRoute(a.p, q.p, [a.name, q.name]);
+      if (matchMedia("(max-width: 900px)").matches) $("routePanel").scrollIntoView({ behavior: "smooth" });
+    }, true);
+    // drag a route end: grab within 14 px, drop to re-plan (airports snap); the map does not pan meanwhile
+    const down = e => {
+      if (pickS.mode || !R || MC.S.view === "3d" || e.target !== cv) return;
+      const k = endAt(...local(e)); if (k == null) return;
+      e.stopPropagation(); e.preventDefault();
+      pickS.drag = { k, q: null }; cv.style.cursor = "grabbing";
+    };
+    wrap.addEventListener("mousedown", down, true);
+    wrap.addEventListener("touchstart", down, { capture: true, passive: false });
+    const move = e => {
+      if (pickS.drag) { if (e.cancelable) e.preventDefault(); pickS.drag.q = snapAt(...local(e)); MC.schedule(); return; }
+      if (e.touches || e.target !== cv) return;
+      const [sx, sy] = local(e);
+      if (pickS.mode) { pickS.hover = snapAt(sx, sy); MC.schedule(); return; }
+      cv.style.cursor = endAt(sx, sy) != null ? "grab" : "";
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("touchmove", move, { passive: false });
+    const up = () => {
+      const d = pickS.drag; if (!d) return;
+      pickS.drag = null; cv.style.cursor = ""; pickS.justDragged = true; setTimeout(() => { pickS.justDragged = false; }, 300);
+      if (!d.q) { MC.schedule(); return; }
+      const A = d.k ? { p: R.A, name: R.names[0] } : d.q, B = d.k ? d.q : { p: R.B, name: R.names[1] };
+      planRoute(A.p, B.p, [A.name, B.name], { keepView: true });
+    };
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+  }
+
   function drawOverlay(ctx, toScreen, worldW) {
-    if (!R) return;
+    if (!R) { drawPickLayer(ctx, toScreen, worldW); return; }
     const col = colors();
     const line = (segs, w, dash, color) => {
       for (const pass of [0, 1]) for (const s of segs) {
@@ -53,6 +188,7 @@
         acc -= L;
       }
     }
+    drawPickLayer(ctx, toScreen, worldW);
     for (const [p, name, k] of [[R.A, R.names[0], 0], [R.B, R.names[1], 1]]) {
       const [sx, sy] = toScreen(p[0], p[1]);
       ctx.beginPath(); ctx.arc(sx, sy, k ? 6.5 : 5, 0, 2 * Math.PI); ctx.fillStyle = k ? "#061029" : "#fff"; ctx.fill();
@@ -90,8 +226,9 @@
     el.querySelector("button").onclick = matchMap; el.hidden = false; $("hint").style.visibility = "hidden";
   }
 
-  async function planRoute(A, B, names) {
-    const my = ++seq, ac = ACS.find(a => a.id === $("acSel").value), obj = $("objSel").value, e = { ...E(), obj };
+  async function planRoute(A, B, names, opts = {}) {
+    $("fromIn").value = names[0]; $("toIn").value = names[1];      // the form always shows what the map shows
+    const my = ++seq, ac = chosenAc(), obj = $("objSel").value, e = { ...E(), obj };
     $("routeOut").hidden = false; $("routeSummary").innerHTML = "<span class='muted'>Finding the best route…</span>"; $("routeKpis").innerHTML = "";
     await new Promise(r => setTimeout(r, 15));
     const base = ACS.find(a => a.id === "b789");
@@ -101,9 +238,13 @@
     const r = { A, B, names, ac, obj, fl: MC.S.fl, fi: MC.S.fi,
       base: RT.evalPath(fieldB, base, gc, "ban", e), ban: RT.evalPath(field, ac, gc, "ban", e), gc: RT.evalPath(field, ac, gc, "corr", e) };
     r.opt = ac.supersonic ? RT.bestRoute(field, ac, A, B, obj, e) : r.gc;
-    R = r; MC.fit && MC.fit([...r.opt.path, ...r.gc.path]); MC.schedule(); render(r); dirHint(); window.dispatchEvent(new Event("mc-route"));
+    const fresh = !R || R.A !== A || R.B !== B;
+    R = r; if (fresh && !opts.keepView) MC.fit && MC.fit([...r.opt.path, ...r.gc.path]);
+    // a new route: colour the map for the direction it flies, so the map and the plan show the same Mach
+    if (fresh && ac.supersonic && MC.S.hd !== "hd" || fresh && ac.supersonic && Math.abs(((MC.S.hdDeg - routeBrg(r) + 540) % 360) - 180) > 30) { matchMap(); return; }
+    MC.schedule(); render(r); dirHint(); window.dispatchEvent(new Event("mc-route"));
     MC.hashExtra.r = [A, B].map((p, i) => MC.APT[names[i]] ? names[i] : `${p[1].toFixed(2)},${p[0].toFixed(2)}`).join("-");
-    MC.hashExtra.ac = ac.id; MC.hashExtra.o = obj; MC.writeHash();
+    MC.hashExtra.ac = ac.id; MC.hashExtra.o = obj; MC.hashExtra.sea = $("seaSel").value === "full10" ? null : $("seaSel").value; MC.writeHash();
     const rows = [];
     for (const fl of MC.S.man.flight_levels) {
       const f = await RT.makeField(fl, MC.S.fi);
@@ -138,6 +279,7 @@
       ${sup && !(o.dHold && o.dHold.stale) ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}
       ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Flying subsonic over land on the direct line beats every corridor route here for “${$("objSel").selectedOptions[0].text}”, so that is what is shown. Choose “Time” to see the fastest corridor route.</p>` : ""}
       ${sup ? holdNote(o) : ""}
+      ${sup && MC.S.thresh > 1.05 ? `<p class="fine">The map lights up M ${MC.S.thresh.toFixed(2)} and above only; the plan flies every corridor from M 1.05.</p>` : ""}
       ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
     const bm = sup ? BOOM.route(o, MC.S.fl) : null;
@@ -486,15 +628,18 @@
   window.addEventListener("mc-ready", ev => {
     MC = window.MC; ACS = window.AIRCRAFT; RT = window.ROUTE;
     MC.overlays.push(drawOverlay);
-    $("acSel").innerHTML = ACS.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
+    wirePicking();
+    // each aircraft with its top speed: Mach and true airspeed in the standard stratosphere (573.6 kt per Mach)
+    const kt = m => Math.round(m * 573.6).toLocaleString("en-US");
+    $("acSel").innerHTML = ACS.map(a => `<option value="${a.id}">${a.name} · M${a.design.toFixed(2)}, ${kt(a.design)} kt</option>`).join("");
     $("acSel").value = "concorde";
     const p = ev.detail;
     if (p.get("ac") && ACS.some(a => a.id === p.get("ac"))) $("acSel").value = p.get("ac");
     if (["time", "cost", "gen"].includes(p.get("o"))) $("objSel").value = p.get("o");
     const go = () => {
-      const a = MC.APT[$("fromIn").value.trim().toUpperCase()], b = MC.APT[$("toIn").value.trim().toUpperCase()];
-      if (!a || !b) { $("routeOut").hidden = false; $("routeSummary").textContent = "Use airport codes from the list, or click a point and shift-click a second one."; return; }
-      planRoute([a[3], a[2]], [b[3], b[2]], [a[0], b[0]]);
+      const a = parsePt($("fromIn").value), b = parsePt($("toIn").value);
+      if (!a || !b) { $("routeOut").hidden = false; $("routeSummary").textContent = "Use an airport code from the list or coordinates like 45.3N 64.1W, or press Plan on the map and click two points."; return; }
+      planRoute(a.p, b.p, [a.name, b.name]);
     };
     $("routeGo").onclick = go;
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
@@ -509,12 +654,18 @@
     });
     $("routeHd").onclick = matchMap;
     $("routeSwap").onclick = () => {
-      const f = $("fromIn").value; $("fromIn").value = $("toIn").value; $("toIn").value = f;
-      if (R) planRoute(R.B, R.A, [R.names[1], R.names[0]]); else if ($("fromIn").value && $("toIn").value) go();
+      if (R) planRoute(R.B, R.A, [R.names[1], R.names[0]], { keepView: true });
+      else { const f = $("fromIn").value; $("fromIn").value = $("toIn").value; $("toIn").value = f; if ($("fromIn").value && $("toIn").value) go(); }
     };
     MC.on("refresh", dirHint);
     for (const id of ["fromIn", "toIn"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") go(); });
-    for (const id of ["acSel", "objSel"]) $(id).onchange = () => { if (R) planRoute(R.A, R.B, R.names); };
+    if (SEA[p.get("sea")]) $("seaSel").value = p.get("sea");
+    syncMachMax(true);
+    if (p.get("mx") && +p.get("mx") >= 1 && +p.get("mx") <= 2.4) { $("machMax").value = +p.get("mx"); syncMachMax(false); }
+    $("machMax").oninput = () => syncMachMax(false);
+    $("machMax").onchange = () => { MC.hashExtra.mx = Math.abs(+$("machMax").value - ACS.find(a => a.id === $("acSel").value).design) < 1e-6 ? null : $("machMax").value; if (R) planRoute(R.A, R.B, R.names, { keepView: true }); else MC.writeHash(); };
+    $("acSel").addEventListener("change", () => { syncMachMax(true); MC.hashExtra.mx = null; }, true);
+    for (const id of ["acSel", "objSel", "seaSel"]) $(id).onchange = () => { MC.hashExtra.sea = $("seaSel").value === "full10" ? null : $("seaSel").value; if (R) planRoute(R.A, R.B, R.names, { keepView: true }); else MC.writeHash(); };
     // tap-friendly routing: start here / end here (works without a keyboard)
     let pendingStart = null;
     $("routeFromHere").onclick = () => {
@@ -533,19 +684,17 @@
       if (!pendingStart) return;
       const a = pendingStart; pendingStart = null; $("pickHint").hidden = true;
       const names = [ptName(a), ptName(p)];
-      $("fromIn").value = MC.APT[names[0]] ? names[0] : ""; $("toIn").value = MC.APT[names[1]] ? names[1] : "";
       planRoute(a, p.slice(), names);
     });
     MC.on("shiftSelect", (a, b) => {
       const names = [ptName(a), ptName(b)];
-      $("fromIn").value = MC.APT[names[0]] ? names[0] : ""; $("toIn").value = MC.APT[names[1]] ? names[1] : "";
       planRoute(a, b, names);
     });
-    MC.on("refresh", () => { if (R) planRoute(R.A, R.B, R.names); });
-    const r = p.get("r");
+    MC.on("refresh", () => { if (R) planRoute(R.A, R.B, R.names, { keepView: true }); });
+    const r = p.get("r");      // "KJFK-KLAX" or "45.28,-62.60-32.39,-102.25": only a dash after a digit or letter separates
     if (r) {
-      const pts = r.split("-").map(s => MC.APT[s] ? [[MC.APT[s][3], MC.APT[s][2]], s] : (([la, lo]) => [[+lo, +la], `${la},${lo}`])(s.split(",")));
-      if (pts.length === 2) { if (MC.APT[pts[0][1]]) $("fromIn").value = pts[0][1]; if (MC.APT[pts[1][1]]) $("toIn").value = pts[1][1]; planRoute(pts[0][0], pts[1][0], [pts[0][1], pts[1][1]]); }
+      const pts = r.split(/(?<=[0-9A-Za-z])-/).map(s => MC.APT[s] ? [[MC.APT[s][3], MC.APT[s][2]], s] : (([la, lo]) => [[+lo, +la], `${la},${lo}`])(s.split(",")));
+      if (pts.length === 2) planRoute(pts[0][0], pts[1][0], [ptName(pts[0][0]), ptName(pts[1][0])]);
     }
   });
   window.MCPLAN = { navRows: () => R && navRows(R), item15: () => R && item15(R), planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R) };

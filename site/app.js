@@ -29,7 +29,7 @@
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
   const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.05, auto: true, fade: false, view: "2d", thresh: 0, relief: true, dis: false,
-              look: "mach", t: d3.zoomIdentity, sel: null, playing: null };
+              look: "mach", land: false, snow: false, mtn: false, t: d3.zoomIdentity, sel: null, playing: null };
   // map styles ("looks", site/looks.js draws the switcher and the wind animation):
   //   mach     the boomless-Mach raster (navy -> white)
   //   sat      NASA GIBS true-colour satellite image of yesterday, corridors as a cyan wash, floor as an orange line
@@ -37,8 +37,9 @@
   //   contour  isolines every 0.025 Mach on a plain chart
   //   flow     the wind at the flight level as moving streaks, coloured by boomless Mach (looks.js)
   //   rose     per-point petals: boomless Mach for each of the 36 directions of travel
-  const LOOKS = ["mach", "sat", "night", "contour", "flow", "rose"];
-  const SAT_LOOK = l => l === "sat" || l === "night";
+  //   earth    NASA Blue Marble: the cloud-free satellite mosaic with shaded relief and sea-floor shading
+  const LOOKS = ["mach", "sat", "earth", "night", "contour", "flow", "rose"];
+  const SAT_LOOK = l => l === "sat" || l === "earth" || l === "night";
   const CHART_LOOK = l => l === "contour" || l === "flow" || l === "rose";
   const cache = new Map();
   const $ = id => document.getElementById(id);
@@ -449,9 +450,10 @@
   const SAT_SRC = {
     sat: { layers: ["VIIRS_NOAA20_CorrectedReflectance_TrueColor", "VIIRS_SNPP_CorrectedReflectance_TrueColor"], time: yday, fmt: "image/jpeg",
            credit: d => `Satellite: NASA GIBS, VIIRS true colour, ${d}` },
+    earth: { layers: ["BlueMarble_ShadedRelief_Bathymetry", "BlueMarble_NextGeneration"], time: () => "", fmt: "image/jpeg", credit: () => "Satellite without clouds: NASA Blue Marble (GIBS)" },
     night: { layers: ["VIIRS_Black_Marble"], time: () => "2016-01-01", fmt: "image/jpeg", credit: () => "Night lights: NASA Black Marble 2016 (GIBS)" },
   };
-  const wmsUrl = (look, layer, b, w, h) => `${GIBS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=${layer}&STYLES=&SRS=EPSG:4326&BBOX=${b.map(v => v.toFixed(4)).join(",")}&WIDTH=${w}&HEIGHT=${h}&FORMAT=${encodeURIComponent(SAT_SRC[look].fmt)}&TIME=${SAT_SRC[look].time()}`;
+  const wmsUrl = (look, layer, b, w, h) => `${GIBS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=${layer}&STYLES=&SRS=EPSG:4326&BBOX=${b.map(v => v.toFixed(4)).join(",")}&WIDTH=${w}&HEIGHT=${h}&FORMAT=${encodeURIComponent(SAT_SRC[look].fmt)}${SAT_SRC[look].time() ? "&TIME=" + SAT_SRC[look].time() : ""}`;
   // load with CORS first (needed to paint the 3D globe); if refused, without (the 2D map can still draw it)
   function loadImg(url) {
     const once = cors => new Promise((res, rej) => { const i = new Image(); if (cors) i.crossOrigin = "anonymous"; i.onload = () => res(Object.assign(i, { cors })); i.onerror = rej; i.src = url; });
@@ -503,20 +505,99 @@
     if (v && v.look === S.look) { const [ax, ay] = toScreen(v.b[0], v.b[3]), [bx, by] = toScreen(v.b[2], v.b[1]); ctx.drawImage(v.img, ax, ay, bx - ax, by - ay); }
   }
 
+  // ---------- surface layers: land cover, snow, mountains (any style) ----------
+  // why they matter: hot ground (deserts) speeds up sound near the surface and lifts the boomless Mach; snow-covered,
+  // cold ground slows it and lowers it; mountains raise the floor the boom's turning point must clear (Method 3.2)
+  const SURF = {
+    land: { layers: ["MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual"], time: () => "", fmt: "image/png", alpha: 0.62, credit: "Land cover: NASA MODIS IGBP (GIBS)" },
+    snow: { layers: ["MODIS_Terra_NDSI_Snow_Cover", "MODIS_Aqua_NDSI_Snow_Cover"], time: yday, fmt: "image/png", alpha: 0.9, credit: d => `Snow: NASA MODIS, ${d} (GIBS)` },
+  };
+  // land-cover key: each swatch is read from the image itself at a place that is that class, so key and map agree
+  const LAND_KEY = [["Desert, bare ground", 23, 12], ["Farmland", 42, -93.5], ["Rainforest", -3, -62], ["Boreal forest", 62, 100], ["Grassland", 47, 104], ["Savanna", 9, 22], ["Shrubland", -25, 133], ["Ice", 75, -40]];
+  const surf = { img: {}, status: {}, key: null, mtn: null };
+  function surfImg(k) {
+    if (surf.img[k] !== undefined) return surf.img[k];
+    surf.img[k] = null; surf.status[k] = "loading";
+    const src = SURF[k];
+    (async () => {
+      for (const layer of src.layers) {
+        const u = `${GIBS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=${layer}&STYLES=&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=4096&HEIGHT=2048&FORMAT=${encodeURIComponent(src.fmt)}&TRANSPARENT=TRUE${src.time() ? "&TIME=" + src.time() : ""}`;
+        try { const img = await loadImg(u); surf.img[k] = img; surf.status[k] = "ok"; if (k === "land") landKey(img); schedule(); updateKpis(); return; } catch (e) { /* next layer */ }
+      }
+      surf.status[k] = "failed"; updateKpis();
+    })();
+    return null;
+  }
+  function landKey(img) {
+    if (!img.cors) { surf.key = null; return; }
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    surf.key = LAND_KEY.map(([name, lat, lon]) => {
+      const x = Math.round((lon + 180) / 360 * img.width), y = Math.round((90 - lat) / 180 * img.height), d = g.getImageData(x - 2, y - 2, 5, 5).data;
+      const px = []; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) px.push([d[i], d[i + 1], d[i + 2]]);
+      if (!px.length) return null;
+      px.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+      const m = px[Math.floor(px.length / 2)]; return { name, rgb: `rgb(${m[0]},${m[1]},${m[2]})` };
+    }).filter(Boolean);
+    updateKpis();
+  }
+  // mountains: diagonal hatch where the terrain is above 1,500 m, twice as dense above 3,000 m (GFS orography)
+  function mtnCanvas() {
+    if (!terrain) return null;
+    if (surf.mtn) return surf.mtn;
+    const { nx, ny, z } = terrain, mask = document.createElement("canvas"); mask.width = nx; mask.height = ny;
+    const mg = mask.getContext("2d"), md = mg.createImageData(nx, ny);
+    for (let i = 0; i < nx * ny; i++) md.data[i * 4 + 3] = z[i] >= 3000 ? 255 : z[i] >= 1500 ? 150 : 0;
+    mg.putImageData(md, 0, 0);
+    const W2 = 2880, H2 = 1440, c = document.createElement("canvas"); c.width = W2; c.height = H2;
+    const g = c.getContext("2d");
+    g.strokeStyle = "rgba(255,228,190,.95)"; g.lineWidth = 1.1; g.beginPath();
+    for (let x = -H2; x < W2; x += 5) { g.moveTo(x, H2); g.lineTo(x + H2, 0); }
+    g.stroke();
+    g.globalCompositeOperation = "destination-in"; g.imageSmoothingEnabled = true; g.drawImage(mask, 0, 0, W2, H2);
+    surf.mtn = c; return c;
+  }
+  function drawSurface(wraps) {
+    const world = (img, alpha) => { for (const dx of wraps) { const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90), ox = dx * S.t.k; if (ux + ox < 0 || tx + ox > W) continue; ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(img, tx + ox, ty, ux - tx, uy - ty); ctx.restore(); } };
+    if (S.land) { const im = surfImg("land"); if (im) world(im, SURF.land.alpha); }
+    if (S.snow) { const im = surfImg("snow"); if (im) world(im, SURF.snow.alpha); }
+    if (S.mtn) { const m = mtnCanvas(); if (m) world(m, S.t.k >= 3 ? 0.55 : 0.8); }
+  }
+  function surfaceLegend() {
+    const el = $("landKey"); if (!el) return "";
+    const on = S.land || S.snow || S.mtn; el.hidden = !on;
+    if (!on) return "";
+    const sw = (style, label) => `<span class="lk"><i style="${style}"></i>${label}</span>`;
+    let h = "";
+    if (S.land) h += surf.key ? surf.key.map(k => sw(`background:${k.rgb}`, k.name)).join("") : sw("background:linear-gradient(90deg,#f9e79f,#c24f44,#086a10,#b6ff05)", surf.status.land === "failed" ? "Land cover unavailable right now" : "Land cover (colours by type)");
+    if (S.snow) h += sw("background:#e8f6ff", surf.status.snow === "failed" ? "Snow unavailable right now" : "Snow on the ground, yesterday");
+    if (S.mtn) h += sw("background:repeating-linear-gradient(-45deg,#ffe4be 0 1.5px,transparent 1.5px 5px)", "Above 1,500 m (denser above 3,000 m)");
+    el.innerHTML = h;
+    const cr = [S.land && surf.status.land === "ok" ? SURF.land.credit : "", S.snow && surf.status.snow === "ok" ? SURF.snow.credit(yday()) : ""].filter(Boolean).join(". ");
+    return " Deserts and hot ground lift the boomless Mach; snow and cold ground lower it; mountains raise the floor the boom must clear." + (cr ? " " + cr + "." : "");
+  }
+
   // ---------- isolines (contour look; also the floor edge on the satellite looks) ----------
   // marching squares on the 1-degree grid upsampled 2x (bilinear), so lines stay smooth when zoomed in
   const CT_UP = 2, CW = (NX - 1) * CT_UP + 1, CH = (NY - 1) * CT_UP + 1;
-  let ctCache = null;
+  // caches per data state (colorKey): the upsampled grid, the contour sets by level list, and their Path2D in base
+  // (unzoomed) map coordinates, so panning and zooming only re-stroke cached paths through a transform
+  const ct = { key: "", grid: null, sets: new Map(), paths: new Map() };
+  function ctFresh() { if (ct.key !== colorKey) { ct.key = colorKey; ct.grid = null; ct.sets.clear(); ct.paths.clear(); } }
   function contourSet(levels) {
-    const key = colorKey + "|" + levels.join(",");
-    if (ctCache && ctCache.key === key) return ctCache.c;
-    const g = mGrid(), v = new Float64Array(CW * CH);
-    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
-      const fi = x / CT_UP, fj = y / CT_UP, i0 = Math.min(NX - 2, Math.floor(fi)), j0 = Math.min(NY - 2, Math.floor(fj)), di = fi - i0, dj = fj - j0;
-      v[y * CW + x] = (g[j0 * NX + i0] * (1 - di) + g[j0 * NX + i0 + 1] * di) * (1 - dj) + (g[(j0 + 1) * NX + i0] * (1 - di) + g[(j0 + 1) * NX + i0 + 1] * di) * dj;
+    ctFresh();
+    const key = levels.join(",");
+    if (ct.sets.has(key)) return ct.sets.get(key);
+    if (!ct.grid) {
+      const g = mGrid(), v = new Float64Array(CW * CH);
+      for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+        const fi = x / CT_UP, fj = y / CT_UP, i0 = Math.min(NX - 2, Math.floor(fi)), j0 = Math.min(NY - 2, Math.floor(fj)), di = fi - i0, dj = fj - j0;
+        v[y * CW + x] = (g[j0 * NX + i0] * (1 - di) + g[j0 * NX + i0 + 1] * di) * (1 - dj) + (g[(j0 + 1) * NX + i0] * (1 - di) + g[(j0 + 1) * NX + i0 + 1] * di) * dj;
+      }
+      ct.grid = v;
     }
-    const c = d3.contours().size([CW, CH]).thresholds(levels)(v);
-    ctCache = { key, c }; return c;
+    const c = d3.contours().size([CW, CH]).thresholds(levels)(ct.grid);
+    ct.sets.set(key, c); return c;
   }
   // grid point (d3 pixel corner coordinates) -> lon/lat; edges of the grid are not contour lines and are skipped
   const ctLL = ([x, y]) => [(x - 0.5) / CT_UP - 180, 90 - (y - 0.5) / CT_UP];
@@ -543,6 +624,71 @@
     }
     return anchors;
   }
+  // ---------- vector layers in base (unzoomed) coordinates: built once per layout or data, drawn with the zoom as a
+  // canvas transform (re-projecting 50 m coastlines and contours on every pan frame made the chart looks lag) ----------
+  const baseKey = () => [W0.toFixed(1), x0.toFixed(1), y0.toFixed(1)].join("|");
+  const toBase = (lon, lat) => [x0 + (lon + 180) / 360 * W0, y0 + (90 - lat) / 180 * H0];
+  const vec = {};
+  function basePath(name, geo) {
+    const k = baseKey();
+    if (vec[name] && vec[name].k === k) return vec[name].p;
+    const p = new Path2D(), pr = d3.geoEquirectangular().precision(0.2).scale(W0 / (2 * Math.PI)).translate([x0 + W0 / 2, y0 + H0 / 2]);
+    d3.geoPath(pr, p)(geo);
+    vec[name] = { k, p }; return p;
+  }
+  // run f(s) with the context in base coordinates for world copy dx (s = 1 / zoom, to keep line widths in pixels)
+  function inBase(dx, f) {
+    const [ax] = toScreen(-180, 0), [bx] = toScreen(180, 0), ox = dx * S.t.k;
+    if (bx + ox < 0 || ax + ox > W) return;
+    ctx.save(); ctx.setTransform(dpr * S.t.k, 0, 0, dpr * S.t.k, dpr * (S.t.x + S.t.k * dx), dpr * S.t.y); f(1 / S.t.k); ctx.restore();
+  }
+  function contourPaths(levels) {
+    ctFresh();
+    const key = baseKey() + "|" + levels.join(",");
+    if (ct.paths.has(key)) return ct.paths.get(key);
+    const out = contourSet(levels).map(c => {
+      const p = new Path2D(), anchors = [];
+      for (const poly of c.coordinates) for (const ring of poly) {
+        let pen = false;
+        for (let n = 1; n < ring.length; n++) {
+          const a = ring[n - 1], b = ring[n];
+          if (ctEdge(a) && ctEdge(b)) { pen = false; continue; }
+          const pa = toBase(...ctLL(a)), pb = toBase(...ctLL(b));
+          if (!pen) { p.moveTo(pa[0], pa[1]); pen = true; }
+          p.lineTo(pb[0], pb[1]);
+        }
+        if (ring.length > 40) { const m = ring[Math.floor(ring.length / 2)]; if (!ctEdge(m)) anchors.push(toBase(...ctLL(m))); }
+      }
+      return { v: c.value, p, anchors };
+    });
+    ct.paths.set(key, out); return out;
+  }
+  const isFloor = v => Math.abs(v - lit()) < 1e-9;
+  const isMajor = v => Math.abs((v * 1000) % 50) < 1e-6 || Math.abs((v * 1000) % 50 - 50) < 1e-6;
+  // main map: cached contour paths for every visible world copy, then labels placed in screen space
+  function drawContoursMain(wraps, levels, styleOf, labels) {
+    const sets = contourPaths(levels);
+    for (const dx of wraps) inBase(dx, s => {
+      ctx.lineJoin = "round"; ctx.lineCap = "round";
+      for (const c of sets) { const st = styleOf(c.v); ctx.strokeStyle = st.stroke; ctx.lineWidth = st.width * s; ctx.stroke(c.p); }
+    });
+    if (!labels) return;
+    const placed = [];
+    ctx.font = "600 11px 'IBM Plex Sans', system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const c of sets) {
+      if (!isMajor(c.v) && !isFloor(c.v)) continue;
+      for (const [bx, by] of c.anchors) for (const dx of wraps) {
+        const x = S.t.x + S.t.k * (bx + dx), y = S.t.y + S.t.k * by;
+        if (x < 30 || x > W - 30 || y < 20 || y > H - 20 || placed.length > 60 || placed.some(p => Math.hypot(p.x - x, p.y - y) < 70)) continue;
+        placed.push({ x, y });
+        const t = c.v.toFixed(2);
+        ctx.lineWidth = 4; ctx.strokeStyle = "#061029"; ctx.strokeText(t, x, y);
+        ctx.fillStyle = isFloor(c.v) ? "#ffb15c" : "#e6f2ff"; ctx.fillText(t, x, y);
+      }
+    }
+  }
+  const contourStyle = v => isFloor(v) ? { stroke: "#ff9a2e", width: 2.2 } : isMajor(v) ? { stroke: "rgba(214,236,255,.85)", width: 1.25 } : { stroke: "rgba(160,200,240,.42)", width: 0.8 };
+
   const CT_LEVELS = d3.range(0, 15).map(i => +(1.05 + 0.025 * i).toFixed(3));
   function drawContourLook(g, toS, w, h, labels = true) {
     const f = lit();
@@ -604,7 +750,7 @@
         ctx.drawImage(ovl, ax + ox, ay, bx - ax, by - ay);
       }
     } else if (current && CHART_LOOK(S.look)) {
-      for (const dx of wraps) { const path = d3.geoPath(proj(dx), ctx); if (landGeo) { ctx.beginPath(); path(landGeo); ctx.fillStyle = "rgba(150,175,215,.10)"; ctx.fill(); } }
+      if (landGeo) { const lf = basePath("landFill", landGeo); for (const dx of wraps) inBase(dx, () => { ctx.fillStyle = "rgba(150,175,215,.10)"; ctx.fill(lf); }); }
     } else if (current) {
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
       requestViewport();
@@ -631,16 +777,18 @@
         }
       }
     }
+    if (current) drawSurface(wraps);
     const onPhoto = SAT_LOOK(S.look);
-    for (const dx of wraps) {
-      const path = d3.geoPath(proj(dx), ctx);
+    const pg = basePath("grat", d3.geoGraticule10()), pb = borders && basePath("borders", borders), pl = land && basePath("coast", land);
+    const cGrat = css("--grat"), cBord = onPhoto ? "rgba(255,255,255,.22)" : css("--border-c"), cCoast = onPhoto ? "rgba(255,255,255,.38)" : css("--coast");
+    for (const dx of wraps) inBase(dx, s => {
       ctx.lineJoin = "round";
-      ctx.beginPath(); path(d3.geoGraticule10()); ctx.strokeStyle = css("--grat"); ctx.lineWidth = 1; ctx.stroke();
-      if (borders) { ctx.beginPath(); path(borders); ctx.strokeStyle = onPhoto ? "rgba(255,255,255,.22)" : css("--border-c"); ctx.lineWidth = 0.6; ctx.stroke(); }
-      if (land) { ctx.beginPath(); path(land); ctx.strokeStyle = onPhoto ? "rgba(255,255,255,.38)" : css("--coast"); ctx.lineWidth = onPhoto ? 0.7 : 0.9; ctx.stroke(); }
-    }
-    if (current && S.look === "contour") for (const dx of wraps) drawContourLook(ctx, shifted(dx), W, H);
-    if (current && onPhoto) for (const dx of wraps) strokeContours(ctx, shifted(dx), [lit()], () => ({ stroke: "#ff9a2e", width: 1.6 }), W, H);
+      ctx.strokeStyle = cGrat; ctx.lineWidth = s; ctx.stroke(pg);
+      if (pb) { ctx.strokeStyle = cBord; ctx.lineWidth = 0.6 * s; ctx.stroke(pb); }
+      if (pl) { ctx.strokeStyle = cCoast; ctx.lineWidth = (onPhoto ? 0.7 : 0.9) * s; ctx.stroke(pl); }
+    });
+    if (current && S.look === "contour") drawContoursMain(wraps, CT_LEVELS.filter(v => v >= lit() - 1e-9), contourStyle, true);
+    if (current && onPhoto) drawContoursMain(wraps, [lit()], () => ({ stroke: "#ff9a2e", width: 1.6 }), false);
     if (current && S.look === "rose") {
       const [lonA, latA] = toLonLat(0, 0), [lonB, latB] = toLonLat(W, H);
       drawRoseLook(ctx, toScreen, S.t.k * W0 / 360, lonA, lonB, latA, latB);
@@ -749,6 +897,7 @@
     const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
     const d = g.getImageData(0, 0, ZNX, ZNY).data, z = new Uint8Array(ZNX * ZNY);
     for (let i = 0; i < z.length; i++) z[i] = d[i * 4];
+    addInternalWaters(z);
     zone = z;
     // soft dimming of open ocean: fades in from the edge of the zone (36 nm) to 56 nm
     dimCanvas = document.createElement("canvas"); dimCanvas.width = RNX; dimCanvas.height = RNY;
@@ -759,6 +908,26 @@
       di.data[o] = 6; di.data[o + 1] = 16; di.data[o + 2] = 41; di.data[o + 3] = a;
     }
     dg.putImageData(di, 0, 0);
+  }
+  // internal waters the distance-to-land grid misses: water a state claims as its own territory, where the same
+  // overland rule applies. Canada: Hudson Bay complex (historic internal waters) and the Arctic Archipelago inside its
+  // 1985 straight baselines (the United States disputes the Northwest Passage; counted as regulated, the cautious side).
+  // Rough outlines (~0.5°); the boom-carpet buffer is added by stroking the outline 2.4° wide.
+  const INTERNAL_WATERS = [
+    [[-95.5, 58.5], [-94.5, 61], [-93, 62.5], [-90.5, 63.8], [-87, 64.5], [-86, 66.5], [-85, 68.5], [-82, 70], [-78.5, 70.3], [-76, 68.8], [-73.5, 67], [-71, 66],
+     [-65.5, 62], [-64.4, 60.3], [-67, 58.3], [-69.5, 58.6], [-72, 60.5], [-77.5, 62.5], [-78.5, 60.5], [-77.5, 58], [-76.5, 56], [-79, 54.5], [-78.8, 51.3],
+     [-80.5, 51.2], [-82.3, 52.8], [-85.5, 55.3], [-88, 56.5], [-92.5, 57], [-95.5, 58.5]],
+    [[-126, 70], [-125.5, 72], [-123.5, 74.5], [-121, 76.2], [-118, 77.5], [-112, 78.8], [-105, 80.2], [-96, 81.3], [-88, 82.3], [-75, 83.1], [-62, 82.6],
+     [-61, 82], [-66, 80.8], [-71, 79.3], [-75, 78.2], [-78, 76.3], [-79.5, 74.6], [-80, 73.7], [-78, 72.8], [-75, 72.1], [-71.5, 71], [-68, 70], [-66.5, 68.8],
+     [-64, 67], [-62.5, 66.5], [-70, 66], [-80, 69], [-90, 68.5], [-100, 67.5], [-110, 68], [-118, 69], [-126, 70]],
+  ];
+  function addInternalWaters(z) {
+    const c = document.createElement("canvas"); c.width = ZNX; c.height = ZNY;
+    const g = c.getContext("2d"), X = lon => (lon + 180) * 10, Y = lat => (90 - lat) * 10;
+    g.fillStyle = "#fff"; g.strokeStyle = "#fff"; g.lineWidth = 24; g.lineJoin = "round";
+    for (const poly of INTERNAL_WATERS) { g.beginPath(); poly.forEach(([lo, la], k) => k ? g.lineTo(X(lo), Y(la)) : g.moveTo(X(lo), Y(la))); g.closePath(); g.fill(); g.stroke(); }
+    const d = g.getImageData(0, 0, ZNX, ZNY).data;
+    for (let i = 0; i < z.length; i++) if (d[i * 4 + 3] > 127) z[i] = 0;
   }
   function zoneNm(lon, lat) {
     if (!zone) return null;
@@ -1043,13 +1212,15 @@
     const notes = {
       mach: S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.",
       sat: `Cyan: a corridor, brighter with more Mach. Orange line: the M ${fl} edge.` + credit,
+      earth: `Cyan: a corridor, brighter with more Mach. Orange line: the M ${fl} edge.` + credit,
       night: `Cyan: a corridor, brighter with more Mach. Orange line: the M ${fl} edge.` + credit,
       contour: `Lines every 0.025 Mach, labelled every 0.05. Orange: the M ${fl} edge; outside it there is no corridor.`,
       flow: `Streaks follow the wind at FL${S.fl}. Colour: boomless Mach where they pass, grey where there is no corridor.`,
       rose: "Each petal is a direction of travel; longer and brighter means more boomless Mach that way. Grey: no corridor that way.",
     };
-    $("legendNote").textContent = (isHigh() ? `FL${S.fl} is an estimate: GFS only, not yet checked against balloons; margin 1.5x. ` : "") + notes[S.look] + (S.dis && S.man.models && S.man.models.disagreement && S.look === "mach" ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "");
-    $("legendTitle").textContent = { mach: "Boomless cruise Mach", sat: "Corridors over satellite", night: "Corridors over night lights", contour: "Boomless Mach contours", flow: `Wind at FL${S.fl}, coloured by Mach`, rose: "Boomless Mach by direction" }[S.look];
+    const surfNote = surfaceLegend();
+    $("legendNote").textContent = (isHigh() ? `FL${S.fl} is an estimate: GFS only, not yet checked against balloons; margin 1.5x. ` : "") + notes[S.look] + (S.dis && S.man.models && S.man.models.disagreement && S.look === "mach" ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "") + surfNote;
+    $("legendTitle").textContent = { mach: "Boomless cruise Mach", sat: "Corridors over satellite", earth: "Corridors over a cloud-free Earth", night: "Corridors over night lights", contour: "Boomless Mach contours", flow: `Wind at FL${S.fl}, coloured by Mach`, rose: "Boomless Mach by direction" }[S.look];
     $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
     $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");
     $("marginSlider").disabled = !!(S.auto && sigma);
@@ -1134,6 +1305,10 @@
     $("disShow").onchange = e => { S.dis = e.target.checked; disCanvasFor(); updateKpis(); schedule(); };
     $("relief").checked = S.relief;
     $("relief").onchange = e => { S.relief = e.target.checked; schedule(); emit("texture"); };
+    for (const [id, k] of [["landShow", "land"], ["snowShow", "snow"], ["mtnShow", "mtn"]]) {
+      $(id).checked = S[k];
+      $(id).onchange = e => { S[k] = e.target.checked; if (S[k] && SURF[k]) surfImg(k); updateKpis(); schedule(); writeHash(); };
+    }
     $("threshSel").value = [...$("threshSel").options].find(o => +o.value === (S.thresh || 0))?.value ?? "0";
     $("threshSel").onchange = e => { S.thresh = +e.target.value; refresh(); };
     $("playBtn").onclick = togglePlay;
@@ -1179,6 +1354,7 @@
     const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.auto && sigma ? "auto" : S.margin, v: S.view });
     if (S.thresh) p.set("th", S.thresh);
     if (S.look !== "mach") p.set("lk", S.look);
+    const sf = ["land", "snow", "mtn"].filter(k => S[k]); if (sf.length) p.set("sf", sf.join(","));
     for (const [k, v] of Object.entries(hashExtra)) if (v != null) p.set(k, v);
     history.replaceState(null, "", "#" + p.toString());
   }
@@ -1193,6 +1369,7 @@
     if (p.get("v") === "3d") S.view = "3d";
     if (p.get("th")) S.thresh = +p.get("th");
     if (LOOKS.includes(p.get("lk"))) S.look = p.get("lk");
+    for (const k of (p.get("sf") || "").split(",")) if (["land", "snow", "mtn"].includes(k)) { S[k] = true; if (SURF[k]) surfImg(k); }
     return p;
   }
 
@@ -1212,7 +1389,7 @@
     get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, AIR_DATA_SD, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
     // map styles (site/looks.js)
-    LOOKS, setLook, isHigh, HI_FL, get look() { return S.look; }, satGlobal, get satStatus() { return sat.status; }, get ovl() { paintOverlay(); return ovl; },
+    LOOKS, setLook, isHigh, HI_FL, isPhoto: SAT_LOOK, get look() { return S.look; }, satGlobal, get satStatus() { return sat.status; }, get ovl() { paintOverlay(); return ovl; },
     mGrid, corridorColor, drawContourLook, strokeContours, drawRoseLook, toLonLat, toScreen, lit,
     get view() { return { W, H, k: S.t.k, W0, dpr }; }, get canvas() { return canvas; },
   };

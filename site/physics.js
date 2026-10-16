@@ -38,7 +38,7 @@
     if (sel) {
       let o = [...sel.options].find(o => o.value === "custom");
       if (!o) { o = document.createElement("option"); o.value = "custom"; sel.appendChild(o); }
-      o.textContent = c.name;
+      o.textContent = `${c.name} · M${c.design.toFixed(2)}, ${Math.round(c.design * 573.6).toLocaleString("en-US")} kt`;
       if (select) { sel.value = "custom"; sel.dispatchEvent(new Event("change")); }
     }
     if (MC) { MC.hashExtra.cust = packP(p); MC.writeHash(); }

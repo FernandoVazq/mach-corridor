@@ -217,6 +217,12 @@ Inside national territory, plus 12 nm of territorial sea, plus a 24 nm boom-carp
 distance on a 0.1° grid), flight must be boomless or subsonic. Beyond it, design Mach is allowed. Every
 country is treated as restricted unless its rule says otherwise (`docs/RULES.md`).
 
+Internal waters (model 2.12): water a state claims as territory is regulated like land. The distance-to-land grid
+misses it, so the app adds Canada's Hudson Bay complex and the Arctic Archipelago inside the 1985 straight baselines
+(rough outlines, stroked 2.4° wide for the carpet buffer). The United States disputes the Northwest Passage; counting it
+as regulated is the cautious side. Routing: by default full Mach over open sea is allowed only within a 10% detour from
+the great circle (each extra nm beyond it costs ten times its own time or cost), so routes do not run far out to sea.
+
 ### 4.1 Secondary booms (`engine/secondary.py`)
 The proposed rule's 0.11 psf applies to primary, secondary direct and secondary indirect booms. Rays of the upper
 half of the Mach cone travel along e = heading + α with trace velocity V_t = M c_a cos α + w·e; the stratosphere
