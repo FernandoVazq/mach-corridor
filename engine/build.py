@@ -23,7 +23,7 @@ import requests
 import pygrib
 from PIL import Image
 
-from physics import mmax_grid, footprint_max, virtual_temperature, sound_speed, H_BUF_DEFAULT
+from physics import isa_pressure_hpa, mmax_grid, footprint_max, virtual_temperature, sound_speed, H_BUF_DEFAULT
 import secondary
 import ecmwf
 
@@ -31,10 +31,14 @@ BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
         450, 400, 350, 300, 250, 200, 150, 100, 70, 50]
 FLS = [300, 350, 400, 450, 500, 550, 600]
+# high altitude (issue #53): FL700-FL1000 (21-30 km), an ESTIMATE: GFS only (ECMWF open data stops at 50 hPa), the
+# GFS stratosphere levels below, and no balloon validation yet; the app labels them and inflates the margin
+FLS_HI = [700, 800, 900, 1000]
+PLEV_HI = [40, 30, 20, 15, 10, 7, 5]
 HEADINGS = list(range(0, 360, 10))
 FHOURS = list(range(0, 49, 6))
 M_STEP = 0.0025
-MODEL_VERSION = "2.10"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
+MODEL_VERSION = "2.11"     # docs/CHANGELOG.md: bump when the map or the router can give a different answer
 COLS, ROWS = 6, 7
 NX, NY = 360, 181
 
@@ -229,6 +233,7 @@ def build(run, out_dir):
     ssb_done, ssb_top = [], None
     IFS, ifs_run, ifs_lag, ifs_note = load_ifs(run)
     ifs_diff = {}
+    hi_missing = set()
     for fh in FHOURS:
         t0 = time.time()
         F = fetch_fields(run, fh)
@@ -274,10 +279,31 @@ def build(run, out_dir):
             sti = lambda v: np.stack([Fi[(v, f"{p} mb")] for p in lvi])
             RHi = sti("RH") if all(("RH", f"{p} mb") in Fi for p in lvi) else None
             Xi = (np.array(lvi, float), sti("TMP"), sti("UGRD"), sti("VGRD"), sti("HGT"))
-        for fl in FLS:
-            r = mmax_grid(np.array(PLEV, float), T, U, V, Z, zground, fl, HEADINGS, RH=RH)
+        # high-altitude levels: the stratosphere above 50 hPa, every forecast hour; dry (RH 0) above the map's levels
+        hi = None
+        try:
+            Fu = fetch(run, fh, {(v, f"{p} mb") for v in ("TMP", "UGRD", "VGRD", "HGT") for p in PLEV_HI})
+            lvh = PLEV + [p for p in PLEV_HI if all((v, f"{p} mb") in Fu for v in ("TMP", "UGRD", "VGRD", "HGT"))]
+            Gh = lambda v: np.stack([(F if p in PLEV else Fu)[(v, f"{p} mb")] for p in lvh])
+            RHh = np.concatenate([RH, np.zeros((len(lvh) - len(PLEV),) + RH.shape[1:], np.float32)]) if RH is not None else None
+            hi = (np.array(lvh, float), Gh("TMP"), Gh("UGRD"), Gh("VGRD"), Gh("HGT"), RHh)
+        except Exception as ex:
+            print(f"high-altitude levels f{fh:03d} failed: {ex}", flush=True)
+
+        for fl in FLS + FLS_HI:
+            high = fl in FLS_HI
+            if high:
+                p_fl = float(isa_pressure_hpa(fl * 100 * 0.3048))
+                if hi is not None and hi[0].min() < p_fl:
+                    r = mmax_grid(hi[0], hi[1], hi[2], hi[3], hi[4], zground, fl, HEADINGS, RH=hi[5])
+                else:                                  # no data above the level: no corridor shown (fail-closed)
+                    z0 = np.zeros_like(zground, dtype=np.float32)
+                    r = {"M": np.full((len(HEADINGS),) + zground.shape, np.nan, np.float32), "c_a": z0, "U_a": z0, "V_a": z0}
+                    hi_missing.add(fl)
+            else:
+                r = mmax_grid(np.array(PLEV, float), T, U, V, Z, zground, fl, HEADINGS, RH=RH)
             M = r["M"]
-            if IFS:
+            if IFS and not high:
                 Mi = mmax_grid(*Xi, zground, fl, HEADINGS, RH=RHi)["M"]
                 lm = stat_mask[None] & np.isfinite(M)
                 both = lm & np.isfinite(Mi)
@@ -339,7 +365,10 @@ def build(run, out_dir):
                     "virtual_temperature": have_rh, "surface_layer_used": False},
         "forecast_hours": FHOURS,
         "valid_times": [iso(run_t + dt.timedelta(hours=h)) for h in FHOURS],
-        "flight_levels": FLS,
+        "flight_levels": FLS + FLS_HI,
+        "high_altitude": {"fls": FLS_HI, "levels_hpa": PLEV_HI, "estimate": True, "models": "GFS only",
+                          "note": "FL700-FL1000: GFS stratosphere levels to 5 hPa, dry above 50 hPa; no second model and no balloon validation yet",
+                          "missing": sorted(hi_missing)},
         "headings": HEADINGS,
         "plev": PLEV,
         "grid": {"nx": NX, "ny": NY, "lon0": -180, "lat0": 90, "dlon": 1, "dlat": -1},

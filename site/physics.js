@@ -310,7 +310,47 @@
       `about ${Math.abs(Math.round(1000 * SE.enso.slope_us_per_oni) / 10)} points less per unit of the ENSO index. The index is now ${SE.enso.oni_latest.replace(" (NOAA CPC)", "")}, a strong El Niño, so this winter may run a few points below the table; five years is too short to be sure (Method §6.6).`;
   }
 
+  // live: the current run's land statistics at every level, FL300-FL1000 (FL700+ an estimate, GFS only), against
+  // the calm standard atmosphere (c 1 km above sea level over c at cruise): the stratosphere warms above 20 km, so a
+  // calm sky gives less boomless Mach up there; real winds and the cold tropical tropopause move it
+  function drawLiveAlt() {
+    const MC = window.MC, man = MC && MC.S.man; if (!man) return;
+    const fi = MC.S.fi, rows = man.flight_levels.map(fl => ({ fl, s: man.stats[String(fl)]?.[fi] })).filter(r => r.s);
+    if (!rows.length) return;
+    const svg = d3.select("#chLiveAlt"); svg.selectAll("*").remove();
+    const W = 1060, H = 300, m = { l: 48, r: 18, t: 16, b: 32 }, hiFl = MC.HI_FL || 600;
+    const isaT = h => h < 11000 ? 288.15 - 0.0065 * h : h < 20000 ? 216.65 : 216.65 + 0.001 * (h - 20000), cS = T => Math.sqrt(1.4 * 287.05 * T);
+    const isa = d3.range(300, 1001, 25).map(fl => ({ fl, m: cS(isaT(1000)) / cS(isaT(fl * 30.48)) }));
+    const x = d3.scaleLinear([300, d3.max(rows, r => r.fl)], [m.l, W - m.r]);
+    const lo = d3.min(rows, r => r.s.land_any_p10), hi = d3.max(rows, r => r.s.land_best_p90);
+    const y = d3.scaleLinear([Math.min(lo, 1.0) - 0.01, Math.max(hi, 1.2) + 0.01], [H - m.b, m.t]);
+    if (rows.some(r => r.fl > hiFl)) {
+      svg.append("rect").attr("x", x(hiFl + 50)).attr("width", W - m.r - x(hiFl + 50)).attr("y", m.t).attr("height", H - m.t - m.b).attr("fill", "var(--low-soft)");
+      svg.append("text").attr("x", x(hiFl + 50) + 8).attr("y", m.t + 14).style("font-size", "11.5px").style("fill", "var(--ink-2)").text("estimate: GFS only, not yet checked against balloons");
+    }
+    svg.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(rows.map(r => r.fl)).tickFormat(d => "FL" + d)).call(axisStyle);
+    svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(d3.format(".2f"))).call(axisStyle);
+    svg.append("line").attr("class", "lim").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(1.05)).attr("y2", y(1.05));
+    svg.append("text").attr("x", m.l + 6).attr("y", y(1.05) + 14).style("font-size", "11px").style("fill", "var(--ink-2)").text("M1.05 floor");
+    svg.append("path").datum(rows).attr("class", "band").attr("fill", "var(--accent)").attr("d", d3.area().x(r => x(r.fl)).y0(r => y(r.s.land_any_p10)).y1(r => y(r.s.land_best_p90)));
+    svg.append("path").datum(isa).attr("fill", "none").attr("stroke", "var(--ink-3)").attr("stroke-width", 1.5).attr("stroke-dasharray", "5 4").attr("d", d3.line().x(r => x(r.fl)).y(r => y(r.m)));
+    const lastI = isa.at(-1);
+    svg.append("text").attr("x", x(lastI.fl) - 4).attr("y", y(lastI.m) + 16).attr("text-anchor", "end").style("font-size", "11px").style("fill", "var(--ink-3)").text("standard atmosphere, no wind");
+    svg.append("path").datum(rows).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2.2).attr("d", d3.line().x(r => x(r.fl)).y(r => y(r.s.land_any_median)));
+    svg.append("g").selectAll("circle").data(rows).join("circle").attr("cx", r => x(r.fl)).attr("cy", r => y(r.s.land_any_median)).attr("r", 4)
+      .attr("fill", r => r.fl > hiFl ? "var(--surface)" : "var(--accent)").attr("stroke", "var(--accent)").attr("stroke-width", 2)
+      .append("title").text(r => `FL${r.fl}${r.fl > hiFl ? " (estimate)" : ""}: median M${r.s.land_any_median.toFixed(3)} in any direction; 10th percentile ${r.s.land_any_p10.toFixed(3)}; best direction 90th ${r.s.land_best_p90.toFixed(3)}`);
+    const best = rows.reduce((b, r) => r.s.land_any_median > b.s.land_any_median ? r : b);
+    svg.append("text").attr("x", x(best.fl)).attr("y", y(best.s.land_any_median) - 10).attr("text-anchor", "middle").style("font-size", "12px").style("font-weight", 600).style("fill", "var(--ink)").text(`M${best.s.land_any_median.toFixed(3)}`);
+    const vt = d3.utcFormat("%a %d %b %HZ")(new Date(man.valid_times[fi]));
+    const hiRows = rows.filter(r => r.fl > hiFl);
+    $("liveAltNote").innerHTML = `Valid ${vt}. Highest median over land in any direction: <b>FL${best.fl}</b> (M${best.s.land_any_median.toFixed(3)}). ` +
+      (hiRows.length ? `Above FL${hiFl} the standard atmosphere loses boomless Mach because the air warms again above 20 km (sound is faster at the aircraft); the forecast at FL1000 has M${hiRows.at(-1).s.land_any_median.toFixed(3)}. ` : "High-altitude levels appear after the next forecast build. ") +
+      "Margins and the aircraft's cushion come off these values on the map.";
+  }
+
   async function open() {
+    drawLiveAlt();
     if (drawn) return;
     if (!P) P = await fetch("geo/physics.json").then(r => r.json());
     drawn = true;
@@ -344,5 +384,6 @@
     if (c) installCustom(c, false);
   });
   window.addEventListener("mc-tab", e => { if (e.detail === "physics") open().catch(err => console.warn("physics", err)); });
+  window.addEventListener("mc-ready", () => { if (window.MC) window.MC.on("refresh", () => { if (!$("tab-physics").hidden) drawLiveAlt(); }); });
   window.MCPHYS = { makeCustom, installCustom };
 })();

@@ -34,6 +34,7 @@
   <main class="mapview" id="tab-map">
     <section class="stage" id="mapWrap">
       <canvas id="map" aria-label="World map of boomless cruise Mach. Arrow keys pan, plus and minus zoom, Enter inspects the centre."></canvas>
+      <canvas id="flow" class="flow" hidden aria-hidden="true"></canvas>
       <div id="globe" class="globe" hidden></div>
       <div class="tip" id="tip" hidden></div>
 
@@ -42,6 +43,10 @@
         <div class="row">
           <span class="k">Flight level</span>
           <div class="seg" id="flSeg" role="radiogroup" aria-label="Flight level"></div>
+        </div>
+        <div class="row" id="flHiRow" hidden>
+          <span class="k" title="70,000 to 100,000 ft: an estimate from GFS alone, not yet validated">High, est.</span>
+          <div class="seg" id="flHiSeg" role="radiogroup" aria-label="High flight level, estimated"></div>
         </div>
         <div class="row">
           <span class="k">Direction</span>
@@ -82,11 +87,13 @@
       </div>
 
       <div class="float legend" id="legend">
-        <div class="lt">Boomless cruise Mach</div>
+        <div class="lt" id="legendTitle">Boomless cruise Mach</div>
         <canvas id="legendBar" width="240" height="10"></canvas>
         <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
         <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
       </div>
+
+      <div class="float lens" id="lens" role="radiogroup" aria-label="Map style" hidden></div>
 
       <div class="float timeline">
         <button class="play" id="playBtn" aria-label="Play forecast">
@@ -257,6 +264,11 @@
         <svg id="chVal" viewBox="0 0 520 300" role="img" aria-label="Forecast error against balloons"></svg>
       </figure>
     </div>
+    <figure class="panel" tabindex="0" id="liveAltFig">
+      <figcaption><b>From airliners to 100,000 ft, this forecast</b><span id="liveAltSub">Boomless Mach over land by cruise altitude, before the margin: median in any direction, band from the 10th percentile to the best direction's 90th.</span></figcaption>
+      <svg id="chLiveAlt" viewBox="0 0 1060 300" role="img" aria-label="Boomless Mach over land by flight level up to FL1000, current forecast"></svg>
+      <p class="fine" id="liveAltNote"></p>
+    </figure>
     <h2 class="h2">Where and when corridors work <span class="muted">Climatology for network planners: a year of weekly analyses.</span></h2>
     <div class="pctl">
       <div class="seg" id="clFl" role="radiogroup" aria-label="Climatology flight level"></div>
@@ -338,7 +350,7 @@
       </ul>
       <h2>Sanity check</h2>
       <p>A standard atmosphere with no wind gives M 1.15 at FL400 without the buffer and M 1.14 with it, within the range Boom's XB-1 flew without an audible boom in 2025 (M 1.12–1.18). This is a sanity check, not validation.</p>
-      <p class="fine">Data: NOAA GFS and GEFS via AWS Open Data, checked hourly and rebuilt within an hour of each new GFS run; ECMWF IFS open data (© ECMWF, CC BY 4.0). Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
+      <p class="fine">Data: NOAA GFS and GEFS via AWS Open Data, checked hourly and rebuilt within an hour of each new GFS run; ECMWF IFS open data (© ECMWF, CC BY 4.0). Satellite and night-lights images: we acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS). Terrain: GFS orography and AWS Terrain Tiles (SRTM, GMTED2010, ETOPO1). Coastlines: Natural Earth. Code, red-team review and sources: <a href="https://github.com/FernandoVazq/mach-corridor">github.com/FernandoVazq/mach-corridor</a>.</p>
     </article>
   </main>
 
@@ -400,6 +412,7 @@
 <script src="boom.js"></script>
 <script src="physics.js"></script>
 <script src="app.js"></script>
+<script src="looks.js"></script>
 <script src="route.js"></script>
 <script src="plan.js"></script>
 <script src="econ.js"></script>

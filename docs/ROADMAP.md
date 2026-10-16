@@ -170,6 +170,14 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | Feature scan (ForeFlight & co.) | Shipped: boom navlog (CSV), ICAO Item 15 string, data-age chip, level advisory. Next: vertical profile (#45), briefing PDF (#46), alerts (#47) |
 | Fix | IFS run selection checks every step and falls back to an older run |
 
+### Sprint 8 · 16 Oct 2026 · see it in new ways, fly higher
+| Item | Result |
+|---|---|
+| Map styles | Style switcher with live thumbnails: Mach, Satellite (NASA GIBS VIIRS true colour of yesterday, corridors as a cyan wash, M1.05 edge in orange), Night (Black Marble), Contours (every 0.025 Mach), Wind flow (animated, coloured by Mach; still frame under reduced motion), Directions (36-petal roses). Globe wraps the satellite image |
+| High altitude | FL700–FL1000 in the build (estimate, GFS only); Physics tab plots the run's corridor from FL300 to FL1000 against the standard atmosphere (#53) |
+| Value-of-Mach study | +10% Mach = −4.7 to −7.2% block time on oceanic flights; +0.01 corridor Mach = 1.5 min per corridor flight; margin −0.02 without a better forecast = 37× the booming flights (`study/mach_value_eval.py`) |
+| Next | Rocket booms: launch ascent and booster landing (#50); radiosonde validation to 10 hPa (#53) |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.

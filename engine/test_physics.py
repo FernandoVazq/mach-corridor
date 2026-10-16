@@ -128,7 +128,28 @@ def test_humid_sound_speed():
     print("humid sound speed: 0.51 q shortcut within 0.05 m/s of the mixture value (0.608 q overstated it ~0.3 m/s)")
 
 
+def test_high_altitude_isa():
+    """FL700-FL1000 (issue #53): extended ISA above 20 km (+1 K/km). Calm ISA: cutoff Mach = c(surface) / c(cruise);
+    the stratosphere warms above 20 km, so the cutoff Mach falls with height: ~1.153 to FL650, 1.126 at FL1000."""
+    from physics import isa_pressure_hpa, sound_speed
+    assert abs(float(isa_pressure_hpa(30480)) - 10.9) < 0.1 and abs(float(isa_pressure_hpa(21336)) - 44.4) < 0.2
+    plev = np.concatenate([PLEV, [40, 30, 20, 15, 10, 7, 5]]).astype(float)
+    h = np.where(plev > 226.32, (1 - (plev / 1013.25) ** (1 / 5.25588)) / 2.25577e-5,
+                 np.where(plev > 54.7489, 11000 - 6341.62 * np.log(plev / 226.32),
+                          20000 + 216.65 * ((plev / 54.7489) ** (-1 / 34.1632) - 1) / 0.001))
+    T = np.where(h < 11000, 288.15 - 0.0065 * h, np.where(h < 20000, 216.65, 216.65 + 0.001 * (h - 20000)))
+    sh = lambda a: np.asarray(a, float)[:, None, None]
+    out = {}
+    for fl in (550, 700, 1000):
+        r = mmax_grid(plev, sh(T), sh(0 * T), sh(0 * T), sh(h), np.zeros((1, 1)), fl, [90], h_buf=0.0)
+        out[fl] = float(r["M"][0, 0, 0])
+    expect = float(sound_speed(288.15) / sound_speed(216.65 + 0.001 * (30480 - 20000)))
+    assert abs(out[1000] - expect) < 0.006, (out, expect)
+    assert out[1000] < out[700] <= out[550] + 1e-3, out
+    print("ISA high altitude:", {k: round(v, 3) for k, v in out.items()}, "expected FL1000", round(expect, 3))
+
+
 if __name__ == "__main__":
     test_isa(); test_jet_heading(); test_lateral_rays_crosswind(); test_terrain(); test_no_corridor_is_below_one(); test_haglund_buffer()
-    test_two_model_mean(); test_humid_sound_speed()
+    test_two_model_mean(); test_humid_sound_speed(); test_high_altitude_isa()
     print("all physics tests passed")

@@ -9,14 +9,26 @@ const RAD = Math.PI / 180, FT = 0.3048, H_BUF = 1000;
 let G = null;
 function paintTexture(cnv) {
   const MC = window.MC, w = cnv.width, h = cnv.height, g = cnv.getContext("2d");
-  g.fillStyle = MC.css("--ocean"); g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = true;
-  g.drawImage(MC.off, -w / 720, -h / 362, w, h * 181 / 180);
+  // map styles: the satellite looks wrap the globe in the NASA image (needs CORS) under the cyan corridor wash;
+  // contours draw their lines on the Mach colours; flow and directions show the Mach colours on the globe
+  const look = MC.look, photo = (look === "sat" || look === "night") ? MC.satGlobal(look) : null, onPhoto = !!(photo && photo.cors);
+  if (onPhoto) {
+    g.fillStyle = "#01040b"; g.fillRect(0, 0, w, h);
+    g.drawImage(photo, 0, 0, w, h);
+    g.drawImage(MC.ovl, -w / 720, -h / 362, w, h * 181 / 180);
+  } else {
+    g.fillStyle = MC.css("--ocean"); g.fillRect(0, 0, w, h);
+    g.drawImage(MC.off, -w / 720, -h / 362, w, h * 181 / 180);
+  }
   const proj = d3.geoEquirectangular().scale(w / (2 * Math.PI)).translate([w / 2, h / 2]);
   const path = d3.geoPath(proj, g);
   g.beginPath(); path(d3.geoGraticule10()); g.strokeStyle = MC.css("--grat"); g.lineWidth = 1; g.stroke();
-  if (MC.S.relief && MC.shade) { g.save(); g.globalCompositeOperation = "soft-light"; g.globalAlpha = 0.95; g.drawImage(MC.shade, 0, 0, w, h); g.restore(); }
-  if (MC.landMesh) { g.beginPath(); path(MC.landMesh); g.strokeStyle = MC.css("--coast"); g.lineWidth = 1.6; g.stroke(); }
+  if (!onPhoto && MC.S.relief && MC.shade) { g.save(); g.globalCompositeOperation = "soft-light"; g.globalAlpha = 0.95; g.drawImage(MC.shade, 0, 0, w, h); g.restore(); }
+  if (MC.landMesh) { g.beginPath(); path(MC.landMesh); g.strokeStyle = onPhoto ? "rgba(255,255,255,.4)" : MC.css("--coast"); g.lineWidth = onPhoto ? 1.1 : 1.6; g.stroke(); }
+  const toTex = (lon, lat) => proj([lon, lat]);
+  if (onPhoto) MC.strokeContours(g, toTex, [MC.lit()], () => ({ stroke: "#ff9a2e", width: 2.2 }), w, h);
+  if (look === "contour") MC.drawContourLook(g, toTex, w, h, true);
   const R = window.MCPLAN?.getRoute?.();
   if (R && R.opt) {
     const col = { boomless: MC.css("--route-boomless"), super: MC.css("--route-super"), sub: MC.css("--route-sub"), climb: MC.css("--route-sub") };
@@ -670,7 +682,7 @@ async function openColumn() {
   const MC = window.MC; if (!MC.S.sel) return;
   state.route = null; $("c3Route").hidden = true;
   const [lon, lat] = MC.S.sel;
-  state.fl = MC.S.fl;
+  state.fl = Math.min(MC.S.fl, MC.HI_FL || 600);      // column profiles stop at 50 hPa: high levels open at FL600
   state.hd = MC.S.hd === "hd" ? MC.S.hdDeg : (() => {
     const ms = MC.S.man.headings.map((h, i) => MC.mAt(MC.current, i, lon, lat));
     const i = MC.S.hd === "max" ? ms.indexOf(Math.max(...ms)) : ms.indexOf(Math.min(...ms)); return MC.S.man.headings[i];
@@ -843,7 +855,7 @@ function drawStrip() {
 }
 function syncInputs() {
   const MC = window.MC;
-  $("c3Fl").innerHTML = MC.S.man.flight_levels.map(f => `<option value="${f}"${f === state.fl ? " selected" : ""}>FL${f}</option>`).join("");
+  $("c3Fl").innerHTML = MC.S.man.flight_levels.filter(f => f <= (MC.HI_FL || 600)).map(f => `<option value="${f}"${f === state.fl ? " selected" : ""}>FL${f}</option>`).join("");
   $("c3Mach").value = state.M; $("c3Hd").value = Math.round(state.hd / 10) * 10;
   $("c3Ve").value = String(state.ve);
 }

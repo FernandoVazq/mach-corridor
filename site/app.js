@@ -29,7 +29,17 @@
   const APT = Object.fromEntries(AIRPORTS.map(a => [a[0], a]));
 
   const S = { man: null, fl: 400, hd: "hd", hdDeg: 100, fi: 2, margin: 0.05, auto: true, fade: false, view: "2d", thresh: 0, relief: true, dis: false,
-              t: d3.zoomIdentity, sel: null, playing: null };
+              look: "mach", t: d3.zoomIdentity, sel: null, playing: null };
+  // map styles ("looks", site/looks.js draws the switcher and the wind animation):
+  //   mach     the boomless-Mach raster (navy -> white)
+  //   sat      NASA GIBS true-colour satellite image of yesterday, corridors as a cyan wash, floor as an orange line
+  //   night    NASA Black Marble night lights, same overlay
+  //   contour  isolines every 0.025 Mach on a plain chart
+  //   flow     the wind at the flight level as moving streaks, coloured by boomless Mach (looks.js)
+  //   rose     per-point petals: boomless Mach for each of the 36 directions of travel
+  const LOOKS = ["mach", "sat", "night", "contour", "flow", "rose"];
+  const SAT_LOOK = l => l === "sat" || l === "night";
+  const CHART_LOOK = l => l === "contour" || l === "flow" || l === "rose";
   const cache = new Map();
   const $ = id => document.getElementById(id);
   const canvas = $("map"), ctx = canvas.getContext("2d");
@@ -38,7 +48,7 @@
   const off = document.createElement("canvas"); off.width = NX * UP; off.height = NY * UP;
   const offCtx = off.getContext("2d");
   let colorKey = "", current = null;
-  const listeners = { refresh: [], select: [], shiftSelect: [], texture: [], ready: [] };
+  const listeners = { refresh: [], select: [], shiftSelect: [], texture: [], ready: [], look: [], draw: [] };
   const emit = (ev, ...a) => listeners[ev].forEach(f => f(...a));
 
   // ---------- color: diverging red (no corridor) -> pale -> green (corridor), midpoint at FLOOR ----------
@@ -272,6 +282,7 @@
       for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = ensMargin(fl, mx ? mx[j * NX + i] : sdAt(ga, tile, lo, la), lo, la); }
     } else if (S.auto && sigma) { const kk = kAt(fl), sg = sigmaGrid(fl); g = new Float32Array(NY * NX); for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const [lo, la] = nodeLL(i, j); g[j * NX + i] = staticMtn(sg[j * NX + i], kk, lo, la); } }
     else g = new Float32Array(NY * NX).fill(S.margin);
+    if (S.auto && HI_F(fl) !== 1) for (let n = 0; n < g.length; n++) g[n] *= HI_F(fl);
     mgCache[fl] = { k, g }; return g;
   }
   const bil = (f, lon, lat) => {
@@ -281,8 +292,15 @@
   };
   // brg (deg): direction of travel of a route leg; without it, the map's direction tile
   // validMs: when the aircraft is there (route legs); default the map's time
+  // high altitude (FL700-FL1000, an estimate: GFS only, no balloon validation yet): the Auto margin of the nearest
+  // validated level, inflated 1.5x until the stratosphere is validated against radiosondes (they reach ~10 hPa)
+  const HI_FL = 600, HI_F = fl => fl > HI_FL ? 1.5 : 1;
+  const isHigh = (fl = S.fl) => fl > HI_FL;
   function marginAt(lon, lat, fl = S.fl, brg = null, validMs = null) {
     if (!S.auto) return S.margin;
+    return HI_F(fl) * marginAtBase(lon, lat, fl, brg, validMs);
+  }
+  function marginAtBase(lon, lat, fl, brg, validMs) {
     const ga = gefsNow(fl, S.fi, validMs);       // no spread for that hour -> static map below, never another hour's spread
     if (ga && brg != null) {
       const h = ((brg % 360) + 360) % 360 / 10, t0 = Math.floor(h) % 36, t1 = (t0 + 1) % 36;
@@ -293,7 +311,7 @@
     const g = marginGrid(fl);
     return bil((i, j) => g[j * NX + i], lon, lat);
   }
-  const marginTypical = () => S.auto && sigma ? kAt(S.fl) * nearest(sigma.landMedian, S.fl) : S.margin;
+  const marginTypical = () => S.auto && sigma ? HI_F(S.fl) * kAt(S.fl) * nearest(sigma.landMedian, S.fl) : S.margin;
 
   // Colour is applied after interpolating Mach (not before), so contours and the threshold edge stay smooth
   // at any zoom instead of showing the 1° grid as blocks.
@@ -311,12 +329,51 @@
     }
     lutCache = { k, lut }; return lut;
   }
+  // corridor colour for the satellite, flow and rose looks: no corridor = slate (or clear on a photo), corridor = cyan
+  // brightening to white over 0.25 Mach above the floor (or the highlight threshold when one is set)
+  const CYAN = d3.interpolateRgbBasis(["#1d8fd6", "#3fc6f5", "#a8ecff", "#ffffff"]);
+  const lit = () => S.thresh || FLOOR;
+  function corridorColor(M) {
+    const f = lit();
+    if (!(M >= f)) return [118, 132, 158, 0.32];
+    const t = Math.min(1, (M - f) / 0.25), c = d3.rgb(CYAN(t));
+    return [c.r, c.g, c.b, 0.55 + 0.45 * t];
+  }
+  // RGBA lookup for the wash laid over satellite images: clear below the floor, a smooth 0.008-Mach edge, then cyan
+  let ovlLutCache = null;
+  function ovlLut() {
+    const k = String(lit());
+    if (ovlLutCache && ovlLutCache.k === k) return ovlLutCache.lut;
+    const lut = new Uint8ClampedArray(LUT_N * 4), f = lit();
+    for (let n = 0; n < LUT_N; n++) {
+      const M = LUT_M0 + (LUT_M1 - LUT_M0) * n / (LUT_N - 1), t = Math.max(0, Math.min(1, (M - f) / 0.25));
+      const e = Math.max(0, Math.min(1, (M - (f - 0.004)) / 0.008)), s = e * e * (3 - 2 * e), c = d3.rgb(CYAN(t));
+      lut[n * 4] = c.r; lut[n * 4 + 1] = c.g; lut[n * 4 + 2] = c.b; lut[n * 4 + 3] = Math.round(255 * s * (0.16 + 0.36 * t));
+    }
+    ovlLutCache = { k, lut }; return lut;
+  }
   // fill an ImageData; px(x, y) -> [fi, fj] fractional grid coordinates (fi along longitude, fj from the north pole)
-  function rasterize(img, w, h, px) {
+  // mode "ovl": the translucent cyan wash for the satellite looks instead of the opaque Mach colours
+  function rasterize(img, w, h, px, mode = "mach") {
     const a = current, tile = curTile(), cols = A().cols, aw = AW();
     const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX;
     const lt = A().tile_land, lbase = Math.floor(lt / cols) * NY * aw + (lt % cols) * NX;
     const lut = colorLut(), m0 = enc().M0, ms = enc().M_step, nz = 0.98, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0), g = marginGrid();
+    if (mode === "ovl") {
+      const ol = ovlLut(), d = img.data;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
+        if (fj0 < -0.5 || fj0 > 180.5) { d[o + 3] = 0; continue; }
+        const fi = ((fi0 % 360) + 360) % 360, fj = Math.min(180, Math.max(0, fj0));
+        const i0 = Math.floor(fi), j0 = Math.min(179, Math.floor(fj)), di = fi - i0, dj = fj - j0, i1 = (i0 + 1) % NX;
+        const r0 = base + j0 * aw, r1 = r0 + aw, g0 = j0 * NX, g1 = g0 + NX;
+        const v00 = a[r0 + i0], v10 = a[r0 + i1], v01 = a[r1 + i0], v11 = a[r1 + i1];
+        const M = ((v00 ? m0 + ms * v00 : nz) - g[g0 + i0]) * (1 - di) * (1 - dj) + ((v10 ? m0 + ms * v10 : nz) - g[g0 + i1]) * di * (1 - dj) + ((v01 ? m0 + ms * v01 : nz) - g[g1 + i0]) * (1 - di) * dj + ((v11 ? m0 + ms * v11 : nz) - g[g1 + i1]) * di * dj;
+        const n = Math.max(0, Math.min(LUT_N - 1, Math.round((M - LUT_M0) * sc))) * 4;
+        d[o] = ol[n]; d[o + 1] = ol[n + 1]; d[o + 2] = ol[n + 2]; d[o + 3] = ol[n + 3];
+      }
+      return;
+    }
     const fadeOcean = S.fade && !(restricted || zone), d = img.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
@@ -343,34 +400,212 @@
     const w = NX * UP, h = NY * UP, img = offCtx.createImageData(w, h);
     rasterize(img, w, h, (x, y) => [(x + 0.5) / UP - 0.5, (y + 0.5) / UP - 0.5]);
     offCtx.putImageData(img, 0, 0);
+    gridCache = null; ovlKey = "";
     drawLegend();
     return true;
+  }
+  // the cyan wash for the satellite looks, on the same 4-pixels-per-degree raster as the Mach colours
+  const ovl = document.createElement("canvas"); ovl.width = NX * UP; ovl.height = NY * UP;
+  let ovlKey = "";
+  function paintOverlay() {
+    if (!current || ovlKey === colorKey + lit()) return;
+    ovlKey = colorKey + lit();
+    const g = ovl.getContext("2d"), w = NX * UP, h = NY * UP, img = g.createImageData(w, h);
+    rasterize(img, w, h, (x, y) => [(x + 0.5) / UP - 0.5, (y + 0.5) / UP - 0.5], "ovl");
+    g.putImageData(img, 0, 0);
+  }
+  // displayed Mach (forecast minus margin) on the 1-degree nodes for the map's direction; 0.98 = no corridor
+  let gridCache = null;
+  function mGrid() {
+    if (gridCache && gridCache.k === colorKey) return gridCache.g;
+    const g = new Float32Array(NX * NY), mg = marginGrid(), tile = curTile();
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const v = raw(current, tile, i, j); g[j * NX + i] = (v ? toM(v) : 0.98) - mg[j * NX + i]; }
+    gridCache = { k: colorKey, g }; return g;
   }
   // when zoomed in, re-render just the visible window at screen resolution (after the view settles)
   let vp = null, vpTimer = null;
   const vpCanvas = document.createElement("canvas"), vpCtx = vpCanvas.getContext("2d");
-  function viewportKey() { return [colorKey, S.t.x.toFixed(1), S.t.y.toFixed(1), S.t.k.toFixed(4), W, H].join("|"); }
+  const rasterMode = () => SAT_LOOK(S.look) ? "ovl" : "mach";
+  function viewportKey() { return [colorKey, rasterMode(), lit(), S.t.x.toFixed(1), S.t.y.toFixed(1), S.t.k.toFixed(4), W, H].join("|"); }
   function requestViewport() {
-    if (S.t.k < 2 || !current) { vp = null; return; }
+    if (S.t.k < 2 || !current || CHART_LOOK(S.look)) { vp = null; return; }
     if (vp && vp.key === viewportKey()) return;
     clearTimeout(vpTimer);
     vpTimer = setTimeout(() => {
       const r = Math.min(2, dpr), w = Math.ceil(W * r / 1.5), h = Math.ceil(H * r / 1.5);
       vpCanvas.width = w; vpCanvas.height = h;
       const img = vpCtx.createImageData(w, h);
-      rasterize(img, w, h, (x, y) => { const [lon, lat] = toLonLat((x + 0.5) * W / w, (y + 0.5) * H / h); return [lon + 180, 90 - lat]; });
+      rasterize(img, w, h, (x, y) => { const [lon, lat] = toLonLat((x + 0.5) * W / w, (y + 0.5) * H / h); return [lon + 180, 90 - lat]; }, rasterMode());
       vpCtx.putImageData(img, 0, 0);
       vp = { key: viewportKey() }; schedule();
     }, 160);
   }
+
+  // ---------- satellite base images: NASA GIBS WMS in EPSG:4326, the same plate carree as this map ----------
+  // GIBS imagery is NASA's (no copyright, attribution requested). sat = VIIRS NOAA-20 corrected reflectance of
+  // yesterday (UTC; today's swaths are still filling in), falling back to Suomi NPP; night = Black Marble 2016.
+  const GIBS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+  const yday = () => new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const SAT_SRC = {
+    sat: { layers: ["VIIRS_NOAA20_CorrectedReflectance_TrueColor", "VIIRS_SNPP_CorrectedReflectance_TrueColor"], time: yday, fmt: "image/jpeg",
+           credit: d => `Satellite: NASA GIBS, VIIRS true colour, ${d}` },
+    night: { layers: ["VIIRS_Black_Marble"], time: () => "2016-01-01", fmt: "image/jpeg", credit: () => "Night lights: NASA Black Marble 2016 (GIBS)" },
+  };
+  const wmsUrl = (look, layer, b, w, h) => `${GIBS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=${layer}&STYLES=&SRS=EPSG:4326&BBOX=${b.map(v => v.toFixed(4)).join(",")}&WIDTH=${w}&HEIGHT=${h}&FORMAT=${encodeURIComponent(SAT_SRC[look].fmt)}&TIME=${SAT_SRC[look].time()}`;
+  // load with CORS first (needed to paint the 3D globe); if refused, without (the 2D map can still draw it)
+  function loadImg(url) {
+    const once = cors => new Promise((res, rej) => { const i = new Image(); if (cors) i.crossOrigin = "anonymous"; i.onload = () => res(Object.assign(i, { cors })); i.onerror = rej; i.src = url; });
+    return once(true).catch(() => once(false));
+  }
+  async function loadSatLayers(look, b, w, h) {
+    let err;
+    for (const layer of SAT_SRC[look].layers) { try { return await loadImg(wmsUrl(look, layer, b, w, h)); } catch (e) { err = e; } }
+    throw err || new Error("no imagery");
+  }
+  const sat = { global: {}, view: null, timer: null, status: {} };
+  // small = 1024 x 512 for the style thumbnails; the full 4096 x 2048 only once the style is chosen
+  // (until it arrives the small one stands in)
+  function satGlobal(look, small = false) {
+    if (!SAT_LOOK(look)) return null;
+    const key = look + (small ? "s" : "");
+    if (!sat.global[key]) {
+      const p = loadSatLayers(look, [-180, -90, 180, 90], small ? 1024 : 4096, small ? 512 : 2048);
+      sat.global[key] = { img: null };
+      if (!small) sat.status[look] = "loading";
+      p.then(img => { sat.global[key].img = img; if (!small) sat.status[look] = "ok"; schedule(); emit("texture"); })
+       .catch(e => { if (!small) { sat.status[look] = "failed"; updateKpis(); } console.info("satellite imagery unavailable", look, e && e.type); });
+    }
+    return sat.global[key].img || (small ? null : (sat.global[look + "s"] && sat.global[look + "s"].img)) || null;
+  }
+  // sharper image of just the visible window once zoomed in (after the view settles); skipped across the dateline
+  function requestSatView() {
+    if (!SAT_LOOK(S.look) || S.t.k < 1.8) { sat.view = null; return; }
+    const [lonA, latA] = toLonLat(0, 0), [lonB, latB] = toLonLat(W, H);
+    const b = [Math.max(-180, lonA), Math.max(-90, latB), Math.min(180, lonB), Math.min(90, latA)];
+    if (lonA < -180 || lonB > 180 || b[2] - b[0] < 1 || b[3] - b[1] < 1) { sat.view = null; return; }
+    const key = S.look + b.map(v => v.toFixed(2)).join(",");
+    if (sat.view && sat.view.key === key) return;
+    clearTimeout(sat.timer);
+    sat.timer = setTimeout(async () => {
+      const pw = Math.min(2048, Math.ceil((b[2] - b[0]) / (lonB - lonA) * W * Math.min(2, dpr))), ph = Math.min(2048, Math.ceil(pw * (b[3] - b[1]) / (b[2] - b[0])));
+      try { const img = await loadSatLayers(S.look, b, pw, ph); sat.view = { key, img, b, look: S.look }; schedule(); } catch (e) { /* keep the global image */ }
+    }, 350);
+  }
+  function drawSat(dxs) {
+    const img = satGlobal(S.look);
+    if (img) for (const dx of dxs) {
+      const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90), ox = dx * S.t.k;
+      if (ux + ox < 0 || tx + ox > W) continue;
+      ctx.drawImage(img, tx + ox, ty, ux - tx, uy - ty);
+    }
+    requestSatView();
+    const v = sat.view;
+    if (v && v.look === S.look) { const [ax, ay] = toScreen(v.b[0], v.b[3]), [bx, by] = toScreen(v.b[2], v.b[1]); ctx.drawImage(v.img, ax, ay, bx - ax, by - ay); }
+  }
+
+  // ---------- isolines (contour look; also the floor edge on the satellite looks) ----------
+  // marching squares on the 1-degree grid upsampled 2x (bilinear), so lines stay smooth when zoomed in
+  const CT_UP = 2, CW = (NX - 1) * CT_UP + 1, CH = (NY - 1) * CT_UP + 1;
+  let ctCache = null;
+  function contourSet(levels) {
+    const key = colorKey + "|" + levels.join(",");
+    if (ctCache && ctCache.key === key) return ctCache.c;
+    const g = mGrid(), v = new Float64Array(CW * CH);
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+      const fi = x / CT_UP, fj = y / CT_UP, i0 = Math.min(NX - 2, Math.floor(fi)), j0 = Math.min(NY - 2, Math.floor(fj)), di = fi - i0, dj = fj - j0;
+      v[y * CW + x] = (g[j0 * NX + i0] * (1 - di) + g[j0 * NX + i0 + 1] * di) * (1 - dj) + (g[(j0 + 1) * NX + i0] * (1 - di) + g[(j0 + 1) * NX + i0 + 1] * di) * dj;
+    }
+    const c = d3.contours().size([CW, CH]).thresholds(levels)(v);
+    ctCache = { key, c }; return c;
+  }
+  // grid point (d3 pixel corner coordinates) -> lon/lat; edges of the grid are not contour lines and are skipped
+  const ctLL = ([x, y]) => [(x - 0.5) / CT_UP - 180, 90 - (y - 0.5) / CT_UP];
+  const ctEdge = ([x, y]) => x <= 0.6 || x >= CW - 0.6 || y <= 0.6 || y >= CH - 0.6;
+  // draw contour lines through toS(lon, lat) -> [x, y]; style(value) -> {stroke, width, label}; returns label anchors
+  function strokeContours(g, toS, levels, style, w, h) {
+    const anchors = [];
+    for (const ct of contourSet(levels)) {
+      const st = style(ct.value); if (!st) continue;
+      g.beginPath();
+      for (const poly of ct.coordinates) for (const ring of poly) {
+        let pen = false, best = null;
+        for (let n = 1; n < ring.length; n++) {
+          const a = ring[n - 1], b = ring[n];
+          if (ctEdge(a) && ctEdge(b)) { pen = false; continue; }
+          const pa = toS(...ctLL(a)), pb = toS(...ctLL(b));
+          if (!pen) { g.moveTo(pa[0], pa[1]); pen = true; }
+          g.lineTo(pb[0], pb[1]);
+        }
+        if (st.label && ring.length > 40) { const m = ring[Math.floor(ring.length / 2)]; if (!ctEdge(m)) best = toS(...ctLL(m)); }
+        if (best && best[0] > 30 && best[0] < w - 30 && best[1] > 20 && best[1] < h - 20) anchors.push({ x: best[0], y: best[1], v: ct.value });
+      }
+      g.strokeStyle = st.stroke; g.lineWidth = st.width; g.lineJoin = "round"; g.lineCap = "round"; g.stroke();
+    }
+    return anchors;
+  }
+  const CT_LEVELS = d3.range(0, 15).map(i => +(1.05 + 0.025 * i).toFixed(3));
+  function drawContourLook(g, toS, w, h, labels = true) {
+    const f = lit();
+    const anchors = strokeContours(g, toS, CT_LEVELS.filter(v => v >= f - 1e-9), v => {
+      const major = Math.abs((v * 1000) % 50) < 1e-6 || Math.abs((v * 1000) % 50 - 50) < 1e-6;
+      if (Math.abs(v - f) < 1e-9) return { stroke: "#ff9a2e", width: 2.2, label: true };
+      return { stroke: major ? "rgba(214,236,255,.85)" : "rgba(160,200,240,.42)", width: major ? 1.25 : 0.8, label: major };
+    }, w, h);
+    if (!labels) return;
+    const placed = [];
+    g.font = "600 11px 'IBM Plex Sans', system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    for (const a of anchors) {
+      if (placed.some(p => Math.hypot(p.x - a.x, p.y - a.y) < 70)) continue;
+      placed.push(a);
+      const t = a.v.toFixed(2);
+      g.lineWidth = 4; g.strokeStyle = "#061029"; g.strokeText(t, a.x, a.y);
+      g.fillStyle = Math.abs(a.v - f) < 1e-9 ? "#ffb15c" : "#e6f2ff"; g.fillText(t, a.x, a.y);
+      if (placed.length > 60) break;
+    }
+  }
+
+  // ---------- direction petals (rose look) ----------
+  // at grid points spaced >= 46 px: one petal per direction of travel, length = boomless Mach above 1.0 (to 1.30)
+  function drawRoseLook(g, toS, pxPerDeg, lonA, lonB, latA, latB, minPx = 46) {
+    const step = Math.max(2, Math.ceil(minPx / pxPerDeg)), R = Math.min(22, step * pxPerDeg * 0.46), mg = marginGrid(), f = lit();
+    for (let lat = Math.floor(Math.min(78, latA) / step) * step; lat >= Math.max(-70, latB); lat -= step) {
+      for (let lon = Math.ceil(lonA / step) * step; lon <= lonB; lon += step) {
+        const L = normLon(lon), i = ((Math.round(L) + 180) % 360 + 360) % 360, j = Math.round(90 - lat), [cx, cy] = toS(lon, lat);
+        const cl = Math.max(0.2, Math.cos(lat * Math.PI / 180));
+        for (let k = 0; k < 36; k++) {
+          const v = raw(current, k, i, j), M = (v ? toM(v) : 0.98) - mg[j * NX + i];
+          const len = R * Math.max(0.06, Math.min(1, (M - 1.0) / 0.3));
+          const th = k * 10 * Math.PI / 180, dir = (a) => { let dx = Math.sin(a) / cl, dy = -Math.cos(a); const n = Math.hypot(dx, dy); return [dx / n, dy / n]; };
+          const [ax, ay] = dir(th - 0.075), [bx, by] = dir(th + 0.075);
+          const c = corridorColor(M);
+          g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + ax * len, cy + ay * len); g.lineTo(cx + bx * len, cy + by * len); g.closePath();
+          g.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${M >= f ? c[3] : 0.38})`; g.fill();
+        }
+        g.beginPath(); g.arc(cx, cy, 1.3, 0, 2 * Math.PI); g.fillStyle = "rgba(230,240,255,.8)"; g.fill();
+      }
+    }
+  }
   function draw() {
     rafPending = false;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = css("--ocean"); ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = SAT_LOOK(S.look) ? "#01040b" : css("--ocean"); ctx.fillRect(0, 0, W, H);
     const changed = paintData();
     if (changed) emit("texture");
     const wraps = [-W0, 0, W0];
-    if (current) {
+    const shifted = dx => (lon, lat) => { const p = toScreen(lon, lat); return [p[0] + dx * S.t.k, p[1]]; };
+    if (current && SAT_LOOK(S.look)) {
+      drawSat(wraps); paintOverlay(); requestViewport();
+      const sharp = vp && vp.key === viewportKey();
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      if (sharp) ctx.drawImage(vpCanvas, 0, 0, W, H);
+      else for (const dx of wraps) {
+        const [ax, ay] = toScreen(-180.5, 90.5), [bx, by] = toScreen(179.5, -90.5), ox = dx * S.t.k;
+        if (bx + ox < 0 || ax + ox > W) continue;
+        ctx.drawImage(ovl, ax + ox, ay, bx - ax, by - ay);
+      }
+    } else if (current && CHART_LOOK(S.look)) {
+      for (const dx of wraps) { const path = d3.geoPath(proj(dx), ctx); if (landGeo) { ctx.beginPath(); path(landGeo); ctx.fillStyle = "rgba(150,175,215,.10)"; ctx.fill(); } }
+    } else if (current) {
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
       requestViewport();
       const sharp = vp && vp.key === viewportKey();
@@ -396,15 +631,23 @@
         }
       }
     }
+    const onPhoto = SAT_LOOK(S.look);
     for (const dx of wraps) {
       const path = d3.geoPath(proj(dx), ctx);
       ctx.lineJoin = "round";
       ctx.beginPath(); path(d3.geoGraticule10()); ctx.strokeStyle = css("--grat"); ctx.lineWidth = 1; ctx.stroke();
-      if (borders) { ctx.beginPath(); path(borders); ctx.strokeStyle = css("--border-c"); ctx.lineWidth = 0.6; ctx.stroke(); }
-      if (land) { ctx.beginPath(); path(land); ctx.strokeStyle = css("--coast"); ctx.lineWidth = 0.9; ctx.stroke(); }
+      if (borders) { ctx.beginPath(); path(borders); ctx.strokeStyle = onPhoto ? "rgba(255,255,255,.22)" : css("--border-c"); ctx.lineWidth = 0.6; ctx.stroke(); }
+      if (land) { ctx.beginPath(); path(land); ctx.strokeStyle = onPhoto ? "rgba(255,255,255,.38)" : css("--coast"); ctx.lineWidth = onPhoto ? 0.7 : 0.9; ctx.stroke(); }
     }
-    if (S.hd === "max" && current) drawBestArrows();
+    if (current && S.look === "contour") for (const dx of wraps) drawContourLook(ctx, shifted(dx), W, H);
+    if (current && onPhoto) for (const dx of wraps) strokeContours(ctx, shifted(dx), [lit()], () => ({ stroke: "#ff9a2e", width: 1.6 }), W, H);
+    if (current && S.look === "rose") {
+      const [lonA, latA] = toLonLat(0, 0), [lonB, latB] = toLonLat(W, H);
+      drawRoseLook(ctx, toScreen, S.t.k * W0 / 360, lonA, lonB, latA, latB);
+    }
+    if (S.hd === "max" && current && S.look !== "rose") drawBestArrows();
     for (const f of overlays) f(ctx, toScreen, S.t.k * W0);
+    emit("draw");
     if (S.sel) {
       const [sx, sy] = toScreen(S.sel[0], S.sel[1]);
       ctx.beginPath(); ctx.arc(sx, sy, 6, 0, 2 * Math.PI);
@@ -442,9 +685,14 @@
 
   function drawLegend() {
     const c = $("legendBar"), g = c.getContext("2d");
+    g.clearRect(0, 0, c.width, c.height);
+    if (S.look !== "mach") { g.fillStyle = "#061029"; g.fillRect(0, 0, c.width, c.height); }
     for (let x = 0; x < c.width; x++) {
       const M = 1.0 + (x / (c.width - 1)) * 0.30;
-      g.fillStyle = `rgb(${colorFor(M)})`; g.fillRect(x, 0, 1, c.height);
+      if (S.look === "mach") g.fillStyle = `rgb(${colorFor(M)})`;
+      else if (S.look === "contour") { const on = Math.abs(((M - 1.05) / 0.025) - Math.round((M - 1.05) / 0.025)) < 0.06 && M >= lit() - 1e-6; g.fillStyle = on ? (Math.abs(M - lit()) < 0.004 ? "#ff9a2e" : "rgba(214,236,255,.9)") : "#061029"; }
+      else { const k = corridorColor(M); g.fillStyle = `rgba(${k[0]},${k[1]},${k[2]},${k[3]})`; }
+      g.fillRect(x, 0, 1, c.height);
     }
     const fx = Math.round(c.width * Math.min(0.3, (S.thresh || 1.05) - 1.0) / 0.30);
     g.fillStyle = "#ff8c1a"; g.fillRect(fx - 1, 0, 2, c.height);
@@ -790,9 +1038,18 @@
     $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC`;
     $("hdLbl").textContent = S.hd === "hd" ? `${String(S.hdDeg).padStart(3, "0")}°` : "";
     $("hdRow").hidden = S.hd !== "hd";
-    $("layersSummary").textContent = `FL${S.fl}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
-    $("legendNote").textContent = (S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.")
-      + (S.dis && S.man.models && S.man.models.disagreement ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "");
+    $("layersSummary").textContent = `FL${S.fl}${isHigh() ? " (est.)" : ""}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
+    const fl = lit().toFixed(2), credit = SAT_LOOK(S.look) ? (sat.status[S.look] === "failed" ? " Satellite image unavailable right now." : " " + SAT_SRC[S.look].credit(SAT_SRC[S.look].time()) + ".") : "";
+    const notes = {
+      mach: S.thresh ? `Only Mach ${S.thresh.toFixed(2)} and above is lit; everything below stays dark.` : "Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.",
+      sat: `Cyan: a corridor, brighter with more Mach. Orange line: the M ${fl} edge.` + credit,
+      night: `Cyan: a corridor, brighter with more Mach. Orange line: the M ${fl} edge.` + credit,
+      contour: `Lines every 0.025 Mach, labelled every 0.05. Orange: the M ${fl} edge; outside it there is no corridor.`,
+      flow: `Streaks follow the wind at FL${S.fl}. Colour: boomless Mach where they pass, grey where there is no corridor.`,
+      rose: "Each petal is a direction of travel; longer and brighter means more boomless Mach that way. Grey: no corridor that way.",
+    };
+    $("legendNote").textContent = (isHigh() ? `FL${S.fl} is an estimate: GFS only, not yet checked against balloons; margin 1.5x. ` : "") + notes[S.look] + (S.dis && S.man.models && S.man.models.disagreement && S.look === "mach" ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "");
+    $("legendTitle").textContent = { mach: "Boomless cruise Mach", sat: "Corridors over satellite", night: "Corridors over night lights", contour: "Boomless Mach contours", flow: `Wind at FL${S.fl}, coloured by Mach`, rose: "Boomless Mach by direction" }[S.look];
     $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
     $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");
     $("marginSlider").disabled = !!(S.auto && sigma);
@@ -856,7 +1113,11 @@
     mark(); return mark;
   }
   function buildControls() {
-    seg($("flSeg"), S.man.flight_levels.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft`]), () => S.fl, v => { S.fl = v; refresh(); });
+    const flLo = S.man.flight_levels.filter(f => f <= HI_FL), flHi = S.man.flight_levels.filter(f => f > HI_FL), marks = [];
+    const setFl = v => { S.fl = v; marks.forEach(m => m()); refresh(); };
+    marks.push(seg($("flSeg"), flLo.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft`]), () => S.fl, setFl));
+    $("flHiRow").hidden = !flHi.length;
+    if (flHi.length) marks.push(seg($("flHiSeg"), flHi.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft: an estimate (GFS only, not yet validated)`]), () => S.fl, setFl));
     seg($("hdSeg"), null, () => S.hd, v => { S.hd = v; $("hdSlider").disabled = v !== "hd"; refresh(); });
     $("hdSlider").value = S.hdDeg; $("hdSlider").disabled = S.hd !== "hd";
     $("hdSlider").oninput = e => { S.hdDeg = +e.target.value; refresh(); };
@@ -887,6 +1148,7 @@
     const g = S.view === "3d";
     $("globe").hidden = !g; canvas.style.visibility = g ? "hidden" : "visible";
     $("hint").textContent = g ? "Drag to rotate. Click to inspect, shift-click to route." : "Click to inspect a point. Shift-click a second point to plan a route.";
+    emit("draw");
     if (g && window.MC3D) window.MC3D.showGlobe($("globe"));
     writeHash();
   }
@@ -903,12 +1165,20 @@
     S.playing = setInterval(() => { S.fi = (S.fi + 1) % fhs().length; $("timeSlider").value = S.fi; refresh(); }, 900);
   }
 
+  function setLook(l) {
+    if (!LOOKS.includes(l) || l === S.look) return;
+    S.look = l; vp = null; sat.view = null;
+    if (SAT_LOOK(l)) satGlobal(l);
+    drawLegend(); updateKpis(); schedule(); emit("texture"); emit("look", l); writeHash();
+  }
+
   // ---------- URL state ----------
   const hashExtra = {};
   function writeHash() {
     if (!S.man) return;
     const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.auto && sigma ? "auto" : S.margin, v: S.view });
     if (S.thresh) p.set("th", S.thresh);
+    if (S.look !== "mach") p.set("lk", S.look);
     for (const [k, v] of Object.entries(hashExtra)) if (v != null) p.set(k, v);
     history.replaceState(null, "", "#" + p.toString());
   }
@@ -922,6 +1192,7 @@
     if (p.get("mg") === "auto") S.auto = true; else if (p.get("mg") != null && !isNaN(+p.get("mg"))) { S.auto = false; S.margin = Math.max(0, +p.get("mg")); }
     if (p.get("v") === "3d") S.view = "3d";
     if (p.get("th")) S.thresh = +p.get("th");
+    if (LOOKS.includes(p.get("lk"))) S.look = p.get("lk");
     return p;
   }
 
@@ -940,6 +1211,10 @@
     disagreementAt, disagreementSync, preloadDis, disText, DIS_HIGH,
     get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, AIR_DATA_SD, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
+    // map styles (site/looks.js)
+    LOOKS, setLook, isHigh, HI_FL, get look() { return S.look; }, satGlobal, get satStatus() { return sat.status; }, get ovl() { paintOverlay(); return ovl; },
+    mGrid, corridorColor, drawContourLook, strokeContours, drawRoseLook, toLonLat, toScreen, lit,
+    get view() { return { W, H, k: S.t.k, W0, dpr }; }, get canvas() { return canvas; },
   };
 
   // ---------- boot ----------

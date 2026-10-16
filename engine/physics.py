@@ -57,11 +57,13 @@ def virtual_temperature(T, rh, p_hpa, k=ACOUSTIC_Q):
 
 
 def isa_pressure_hpa(h_m):
-    """ISA pressure (hPa) at pressure altitude h_m (valid to 20 km)."""
+    """ISA pressure (hPa) at pressure altitude h_m: troposphere, isothermal layer 11-20 km, and the +1 K/km layer
+    20-32 km (ICAO 7488; FL700-FL1000 are 21.3-30.5 km)."""
     h_m = np.asarray(h_m, dtype=float)
-    tropo = 1013.25 * (1.0 - 2.25577e-5 * h_m) ** 5.25588
+    tropo = 1013.25 * np.maximum(1.0 - 2.25577e-5 * h_m, 1e-6) ** 5.25588
     strato = 226.32 * np.exp(-(h_m - 11000.0) / 6341.62)
-    return np.where(h_m < 11000.0, tropo, strato)
+    upper = 54.7489 * ((216.65 + 0.001 * (h_m - 20000.0)) / 216.65) ** (-34.1632)
+    return np.where(h_m < 11000.0, tropo, np.where(h_m < 20000.0, strato, upper))
 
 
 def cruise_interp(plev, p_a):

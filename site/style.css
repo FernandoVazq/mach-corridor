@@ -392,3 +392,20 @@ dialog.efb[open] { gap: 10px; }
 .btn.sm { padding: 2px 10px; font-size: 12px; min-height: 24px; }
 
 .age.ok { color: var(--good); } .age.warn { color: var(--warn); font-weight: 600; } .age.bad { color: var(--bad); font-weight: 600; }
+
+/* map styles: the switcher of live thumbnails (looks.js) and the wind-flow layer */
+.flow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.lens { right: 12px; bottom: 76px; padding: 8px; display: flex; gap: 6px; }
+.lens button { appearance: none; border: 0; background: none; padding: 0; margin: 0; display: grid; gap: 4px; justify-items: center; cursor: pointer;
+  color: var(--ink-3); font: 500 11.5px/1.2 inherit; font-family: inherit; }
+.lens canvas { width: 64px; height: 40px; border-radius: 6px; display: block; box-shadow: 0 0 0 1px var(--rule); transition: box-shadow .15s; }
+.lens button:hover canvas { box-shadow: 0 0 0 1px var(--ink-3); }
+.lens button.on { color: var(--ink); }
+.lens button.on canvas { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px #3fc6f5; }
+.lens button:focus-visible { outline: none; }
+.lens button:focus-visible canvas { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+@media (max-width: 1180px) { .lens canvas { width: 52px; height: 33px; } .lens { gap: 4px; padding: 6px; } .lens button { font-size: 10.5px; } }
+@media (max-width: 900px) {
+  .lens { left: 10px; right: 10px; bottom: 64px; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; padding: 6px 8px; }
+  .lens button { flex: none; min-height: 0; }
+}

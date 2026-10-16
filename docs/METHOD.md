@@ -201,6 +201,17 @@ is no more accurate than GFS (RMSE 0.008–0.009 vs the analysis).
   that water vapour also lowers γ and overstated c by up to 0.35 m/s in hot humid air (CI test against the mixture
   value from R, c_p, c_v).
 
+### 3.5 High altitude, FL700–FL1000 (an estimate; issue #53)
+The map also shows FL700, 800, 900 and 1000 (21.3–30.5 km). Same cutoff calculation (§3.1–3.3) with the GFS
+stratosphere added above 50 hPa (40, 30, 20, 15, 10, 7, 5 hPa), dry above the map's humidity levels, and ISA pressure
+altitude extended through the +1 K/km layer from 20 to 32 km (FL1000 = 10.9 hPa). It is labelled an estimate because:
+ECMWF open data stops at 50 hPa, so it is GFS only; no balloon validation yet (radiosondes reach ~10 hPa, so it is
+possible: #53); the Auto margin is the nearest validated level's, inflated 1.5×. Physics: in a calm standard atmosphere
+the boomless Mach holds at 1.153 through the isothermal layer (to ~FL650) and then falls (1.148 at FL700, 1.125 at
+FL1000), because the air warms again above 20 km and sound is faster at the aircraft (`test_physics.py`); the cold
+tropical tropopause and stratospheric winds move it in real weather. The Physics tab plots every level of the current run.
+The 3D column view stops at FL600 (its profiles end at 50 hPa).
+
 ## 4. Regulated zone
 Inside national territory, plus 12 nm of territorial sea, plus a 24 nm boom-carpet half-width (great-circle
 distance on a 0.1° grid), flight must be boomless or subsonic. Beyond it, design Mach is allowed. Every
@@ -406,6 +417,7 @@ samples); spread = GEFS 24 h member sd at the station.
 | Manoeuvre focusing | superbooms in turns and acceleration | flagged later (#18) |
 | Turbulence | spikier or rounder booms | psf distribution (#19) |
 | Buffer not calibrated on flight data | the caustic may be closer than safe | margin keeps it above ΔZ_S in the hindcast; XB-1 data (#21) |
+| FL700–FL1000 not validated (§3.5) | GFS only, no balloon comparison, margin of the nearest validated level ×1.5 | radiosonde validation to 10 hPa (#53) |
 
 ## 8. Change control and reproducibility
 - Physics and data changes go through the CI test suite (`.github/workflows/forecast.yml`) before a build ships.
