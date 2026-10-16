@@ -10,7 +10,7 @@ for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 8
   const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme });
   const errs = [];
   p.on('pageerror', e => errs.push(e.message));
-  p.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g/.test(m.text())) errs.push(m.text()); });
+  p.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g/.test(m.text()) && !/gibs\.earthdata\.nasa\.gov/.test((m.location() || {}).url || '')) errs.push(m.text()); });   // NASA imagery is third-party: its outages must not block a deploy
   const t0 = Date.now();
   await p.goto(base + '#fl=550&mg=auto&r=OMDB-EGLL&ac=overture&o=time');
   await p.waitForFunction(() => window.MC && window.MC.S && window.MC.S.man, null, { timeout: 30000 });

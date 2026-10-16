@@ -739,7 +739,7 @@ let posToken = 0;
 async function setRoutePos(x, waitDem = false) {
   stopPlay();
   const my = ++posToken, q = routeAt(x), R = window.MCPLAN.getRoute();
-  state.routeX = x; state.hd = q.hd; state.M = q.M; state.fl = R.fl;
+  state.routeX = x; state.hd = q.hd; state.M = q.M; state.fl = Math.min(R.fl, window.MC.HI_FL || 600);   // column profiles stop at 50 hPa
   const { demP } = await loadAt(q.lon, q.lat, q.fhIndex);
   if (my !== posToken) return;
   posLabel(x, q); syncInputs(); header();

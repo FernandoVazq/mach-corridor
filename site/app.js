@@ -450,7 +450,7 @@
   const SAT_SRC = {
     sat: { layers: ["VIIRS_NOAA20_CorrectedReflectance_TrueColor", "VIIRS_SNPP_CorrectedReflectance_TrueColor"], time: yday, fmt: "image/jpeg",
            credit: d => `Satellite: NASA GIBS, VIIRS true colour, ${d}` },
-    earth: { layers: ["BlueMarble_ShadedRelief_Bathymetry", "BlueMarble_NextGeneration"], time: () => "", fmt: "image/jpeg", credit: () => "Satellite without clouds: NASA Blue Marble (GIBS)" },
+    earth: { layers: ["BlueMarble_NextGeneration", "BlueMarble_ShadedRelief_Bathymetry"], time: () => "", fmt: "image/jpeg", credit: () => "Satellite without clouds: NASA Blue Marble (GIBS)" },
     night: { layers: ["VIIRS_Black_Marble"], time: () => "2016-01-01", fmt: "image/jpeg", credit: () => "Night lights: NASA Black Marble 2016 (GIBS)" },
   };
   const wmsUrl = (look, layer, b, w, h) => `${GIBS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=${layer}&STYLES=&SRS=EPSG:4326&BBOX=${b.map(v => v.toFixed(4)).join(",")}&WIDTH=${w}&HEIGHT=${h}&FORMAT=${encodeURIComponent(SAT_SRC[look].fmt)}${SAT_SRC[look].time() ? "&TIME=" + SAT_SRC[look].time() : ""}`;
@@ -922,12 +922,19 @@
      [-64, 67], [-62.5, 66.5], [-70, 66], [-80, 69], [-90, 68.5], [-100, 67.5], [-110, 68], [-118, 69], [-126, 70]],
   ];
   function addInternalWaters(z) {
-    const c = document.createElement("canvas"); c.width = ZNX; c.height = ZNY;
-    const g = c.getContext("2d"), X = lon => (lon + 180) * 10, Y = lat => (90 - lat) * 10;
+    // rasterise only the outlines' bounding box (+ the stroke), not the whole 3600 x 1800 grid
+    const pts = INTERNAL_WATERS.flat(), pad = 1.5;
+    const lo0 = Math.min(...pts.map(p => p[0])) - pad, lo1 = Math.max(...pts.map(p => p[0])) + pad;
+    const la0 = Math.max(-90, Math.min(...pts.map(p => p[1])) - pad), la1 = Math.min(90, Math.max(...pts.map(p => p[1])) + pad);
+    const i0 = Math.floor((lo0 + 180) * 10), j0 = Math.floor((90 - la1) * 10), w = Math.ceil((lo1 - lo0) * 10), h = Math.ceil((la1 - la0) * 10);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d", { willReadFrequently: true }), X = lon => (lon + 180) * 10 - i0, Y = lat => (90 - lat) * 10 - j0;
     g.fillStyle = "#fff"; g.strokeStyle = "#fff"; g.lineWidth = 24; g.lineJoin = "round";
     for (const poly of INTERNAL_WATERS) { g.beginPath(); poly.forEach(([lo, la], k) => k ? g.lineTo(X(lo), Y(la)) : g.moveTo(X(lo), Y(la))); g.closePath(); g.fill(); g.stroke(); }
-    const d = g.getImageData(0, 0, ZNX, ZNY).data;
-    for (let i = 0; i < z.length; i++) if (d[i * 4 + 3] > 127) z[i] = 0;
+    const d = g.getImageData(0, 0, w, h).data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 127) {
+      const i = ((i0 + x) % ZNX + ZNX) % ZNX, j = j0 + y; if (j >= 0 && j < ZNY) z[j * ZNX + i] = 0;
+    }
   }
   function zoneNm(lon, lat) {
     if (!zone) return null;
