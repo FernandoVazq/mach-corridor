@@ -1,7 +1,7 @@
 // Fail-closed and evidence-file check: plan on the local (old) data, corridors must be off, then on in study mode. Usage: node evid.mjs
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
+const p = await b.newPage({ viewport: { width: 1400, height: 900 } }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => { const n = Date.now; Date.now = () => n() + 2 * 86400e3; });   // pretend the data is 2 days old
 await p.goto('http://localhost:8765/#fl=550&mg=auto&r=KJFK-KLAX&ac=overture&o=time');

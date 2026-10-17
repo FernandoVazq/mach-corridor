@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 const route = process.argv[2] || 'KJFK-EGLL', base = process.argv[3] || 'http://localhost:8765/';
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
+const p = await b.newPage({ viewport: { width: 1400, height: 900 } }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => { if (location.hash.includes('nossb') || window.name === 'nossb') window.__noSsb = true; }); await p.goto(base + `#fl=550&mg=auto&r=${route}&ac=overture&o=time`);
 await p.waitForFunction(() => /psf/.test(document.getElementById('routeKpis')?.innerText || ''), null, { timeout: 90000 });

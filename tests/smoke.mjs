@@ -7,7 +7,7 @@ const axe = fs.readFileSync(new URL('./node_modules/axe-core/axe.min.js', import
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const fail = [], report = {};
 for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 844, 'light']]) {
-  const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme });
+  const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
   const errs = [];
   p.on('pageerror', e => errs.push(e.message));
   p.on('console', m => { if (m.type() === 'error' && !/ERR_TUNNEL|ERR_NAME|fonts\.g/.test(m.text()) && !/gibs\.earthdata\.nasa\.gov|googlesyndication|doubleclick|google\.com\/(pagead|adsense)|adtrafficquality/.test((m.location() || {}).url || '')) errs.push(m.text()); });   // NASA imagery is third-party: its outages must not block a deploy

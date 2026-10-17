@@ -1,7 +1,7 @@
 // Cockpit view: plan JFK-LAX, open the cockpit view at 600 nm, screenshot; fail on page errors or empty tiles.
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const p = await b.newPage({ viewport: { width: 1280, height: 860 }, colorScheme: process.argv[3] || 'dark' }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+const p = await b.newPage({ viewport: { width: 1280, height: 860 }, colorScheme: process.argv[3] || 'dark' }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */ const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.goto('http://localhost:8765/#fl=550&mg=auto&r=KJFK-KLAX&ac=overture&o=time');
 await p.waitForFunction(() => /psf/.test(document.getElementById('routeKpis')?.innerText || ''), null, { timeout: 90000 });
 await p.click('#efbBtn'); await p.waitForTimeout(500);

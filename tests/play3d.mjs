@@ -1,7 +1,7 @@
 // Regression check for the 3D route view: play a route twice, the position must stay finite. Usage: node play3d.mjs <shot.png> [ROUTE]
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
-const p = await b.newPage({ viewport: { width: 1580, height: 1080 } });
+const p = await b.newPage({ viewport: { width: 1580, height: 1080 } }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
 const errs = [];
 p.on('pageerror', e => errs.push('PAGE ' + e.message));
 await p.goto('http://localhost:8765/#fl=350&r=' + (process.argv[3] || 'KJFK-KBOS') + '&ac=overture&o=time');
