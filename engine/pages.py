@@ -247,7 +247,7 @@ def main():
         save = (r["t_ban_h"] - r["t_corr_h"]) * 60
         items.append(f'    <tr><td><a href="{slug(x, y)}.html">{html.escape(APT[x][0])} – {html.escape(APT[y][0])}</a></td>'
                      f'<td>{r["dist_km"]:,.0f}</td><td>{(r["corr_km"] / r["land_km"] if r["land_km"] > 50 else 1):.0%}</td><td>{save:.0f}</td></tr>')
-    desc = "Which airline routes could fly supersonic without a sonic boom today: corridor coverage over land and minutes saved for 70 city pairs, updated four times a day."
+    desc = f"Which airline routes could fly supersonic without a sonic boom today: corridor coverage over land and minutes saved for {len(rows)} city pairs, updated four times a day."
     idx = [HEAD.format(title="Boomless supersonic routes today · Mach Corridor", desc=desc, path="routes/"),
            "  <h1>Boomless supersonic routes today</h1>",
            f'  <p class="lead">For each city pair: how much of the flight over land has a boomless corridor in today\'s forecast, and how many minutes corridors save against flying subsonic over land. Sorted by minutes saved.</p>',
@@ -265,8 +265,17 @@ def main():
     sm.append("</urlset>")
     with open(os.path.join(a.site, "sitemap.xml"), "w") as f:
         f.write("\n".join(sm) + "\n")
+    try:                                           # status, published with the data branch (CI logs are not always readable)
+        json.dump({"run": run, "pages": len(rows), "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+                  open(os.path.join(a.site, "data", "pages.json"), "w"))
+    except OSError:
+        pass
     print(f"wrote {len(rows)} route pages, index and sitemap ({run})")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as ex:
+        print(f"::warning title=pages.py::{ex}")
+        raise
