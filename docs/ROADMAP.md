@@ -178,6 +178,12 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | Value-of-Mach study | +10% Mach = −4.7 to −7.2% block time on oceanic flights; +0.01 corridor Mach = 1.5 min per corridor flight; margin −0.02 without a better forecast = 37× the booming flights (`study/mach_value_eval.py`) |
 | Next | Rocket booms: launch ascent and booster landing (#50); radiosonde validation to 10 hPa (#53) |
 
+### Sprint 9 · 22 Oct 2026 · rockets
+| Item | Result |
+|---|---|
+| Rocket booms (#50) | `rockets.html`: next launches from Launch Library 2, boom zone traced through the GFS column at liftoff, town table (loud / clear / faint / possible), T+ arrival. Calibration: Falcon Heavy side boosters 1.82 vs 1.65 psf at 8.9 km and 1.26 vs 1.42 psf at 15.1 km; Super Heavy 8.6 vs ~8 psf at ~10 km |
+| Next | AIAA AVIATION 2027 abstract (12 Nov); route and country pages; focus booms; radiosonde check of the boom-zone edge |
+
 ## Outside dates
 
 - SAM Act (House): noise standard by 1 April 2027.

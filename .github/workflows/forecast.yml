@@ -47,10 +47,15 @@ jobs:
         run: pip install -r engine/requirements.txt
       - name: Physics tests
         working-directory: engine
-        run: python test_physics.py && python test_rays.py && python test_boom.py && python test_caustic.py && python test_secondary.py && python test_burgers.py
+        run: python test_physics.py && python test_rays.py && python test_boom.py && python test_caustic.py && python test_secondary.py && python test_burgers.py && python test_rocket.py
       - name: Build forecast atlases from latest GFS
         working-directory: engine
         run: python build.py --out ../site/data
+      - name: Rocket boom forecast (issue #50; never blocks the map)
+        working-directory: engine
+        continue-on-error: true
+        timeout-minutes: 12
+        run: python rocket.py --data ../site/data
       - name: Add the latest GEFS spread (margin per point and direction), if any
         run: |
           git clone -q --depth 1 --single-branch -b gefs-live "https://github.com/${{ github.repository }}" site/data/gefs || echo "no GEFS spread yet"
@@ -69,7 +74,7 @@ jobs:
           cd tests && npm i --no-audit --no-fund --silent && npx playwright install --with-deps chromium > /dev/null
           (cd ../site && python -m http.server 8765 > /dev/null 2>&1 &)
           sleep 2 && node smoke.mjs http://localhost:8765/
-          node evid.mjs && node prob.mjs && node clim.mjs && node efb.mjs && node exportr.mjs && node dis.mjs   # fail-closed + evidence, flight chance, climatology, cockpit, export, two models
+          node rk.mjs && node evid.mjs && node prob.mjs && node clim.mjs && node efb.mjs && node exportr.mjs && node dis.mjs   # fail-closed + evidence, flight chance, climatology, cockpit, export, two models
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

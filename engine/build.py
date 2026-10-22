@@ -25,6 +25,7 @@ from PIL import Image
 
 from physics import isa_pressure_hpa, mmax_grid, footprint_max, virtual_temperature, sound_speed, H_BUF_DEFAULT
 import secondary
+import rocket
 import ecmwf
 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
@@ -233,6 +234,7 @@ def build(run, out_dir):
     ssb_done, ssb_top = [], None
     IFS, ifs_run, ifs_lag, ifs_note = load_ifs(run)
     ifs_diff = {}
+    rocket_cols = {}
     hi_missing = set()
     for fh in FHOURS:
         t0 = time.time()
@@ -289,6 +291,22 @@ def build(run, out_dir):
             hi = (np.array(lvh, float), Gh("TMP"), Gh("UGRD"), Gh("VGRD"), Gh("HGT"), RHh)
         except Exception as ex:
             print(f"high-altitude levels f{fh:03d} failed: {ex}", flush=True)
+
+        # rocket sites (engine/rocket.py, issue #50): one column per launch site and forecast hour, to the data top
+        try:
+            src = hi if hi is not None else (np.array(PLEV, float), T, U, V, Z, RH)
+            lv_, T_, U_, V_, Z_, RH_ = src
+            vt_ = (dt.datetime.strptime(run, "%Y%m%d%H") + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            for k_, s_ in rocket.SITES.items():
+                i_, j_ = int(round(90 - s_["lat"])), int(round(s_["lon"] % 360)) % 360
+                Tc = T_[:, i_, j_]
+                if RH_ is not None:
+                    Tc = virtual_temperature(Tc, RH_[:, i_, j_], lv_)
+                rocket_cols.setdefault(k_, {})[vt_] = {"p": [float(x) for x in lv_], "z": [round(float(x), 1) for x in Z_[:, i_, j_]],
+                                                       "T": [round(float(x), 2) for x in Tc], "u": [round(float(x), 2) for x in U_[:, i_, j_]],
+                                                       "v": [round(float(x), 2) for x in V_[:, i_, j_]]}
+        except Exception as ex:
+            print(f"rocket columns f{fh:03d} failed: {ex}", flush=True)
 
         for fl in FLS + FLS_HI:
             high = fl in FLS_HI
@@ -388,6 +406,9 @@ def build(run, out_dir):
     }
     with open(os.path.join(out_dir, "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=1)
+    with open(os.path.join(out_dir, "columns.json"), "w") as f:
+        json.dump({"run": run, "valid_times": manifest["valid_times"],
+                   "sites": {k: {"by_time": v} for k, v in rocket_cols.items()}}, f, separators=(",", ":"))
     print("wrote", out_dir)
 
 

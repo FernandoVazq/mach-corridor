@@ -251,6 +251,35 @@ above, winds tapered to zero at 70 km. Thermospheric returns (0.1–0.3 Pa) are 
 - **Check:** the vectorised tables match the ray-by-ray integration to 2% (`test_secondary.py`); synthetic
   stratospheric jets land at 150–270 km, inside the Concorde observations' order of magnitude.
 
+### 4.2 Rocket booms: launches and booster landings (`engine/rocket.py`, issue #50; page `rockets.html`)
+
+A separate product on the same ray tracer: which towns near Cape Canaveral, Vandenberg and Starbase hear the boom of
+an upcoming launch or booster landing, about how loud, and when.
+
+- **Cone of a climbing or falling vehicle.** Shock-front normals satisfy n·v = 1/M with v the velocity (heading,
+  flight-path angle γ). Only normals with n_z < 0 can reach the ground, so a rocket climbing steeper than
+  acos(1/M) sends nothing down (checked in `test_rocket.py`); a booster falling at γ ≈ −60…−85° sends its cone
+  down all round. Each normal is traced (vectorised RK4, identical to `rays.py`; tested against it and against the
+  exact cone) until it reaches the ground or turns back up. Those turning rays set the edge of the boom zone, and that
+  edge is what the forecast atmosphere changes.
+- **Atmosphere.** GFS column at the site (1° grid point) for the forecast hour nearest liftoff, virtual-temperature
+  sound speed below 50 hPa, stratosphere to 5 hPa; US Standard Atmosphere shape above (as §4.1). Launches more than
+  ~3 h outside the 48 h forecast use the standard atmosphere with no wind, labelled on the page.
+- **Loudness v0.** dp = K_v √(p_v p_g) (M² − 1)^(1/8) s^(−3/4), with s the ray path length (Carlson TP-1122 form)
+  and one constant K_v per vehicle and phase. Descent K_v are fitted to measured booms: Falcon Heavy side boosters
+  at LZ-1/2 (FAA Final EA, SpaceX Falcon program, appendices: 1.59/1.71 psf at 8.9 km, 1.40/1.44 psf at 15.1 km)
+  give K = 2.05 (model 1.82 and 1.26 psf); Super Heavy Flight 5 (Gee et al., JASA Express Letters 4, 113601,
+  2024: 7.1 psf at 10.5 km) and the FAA tiered EA (~10 psf at Port Isabel) give K = 12 (model 8.6 psf at Port
+  Isabel). Ascent: no land measurement found; Falcon 9 set to ~2 psf in the carpet core, under the EA peaks (3.0
+  psf on the Channel Islands, 4.6 psf offshore at the Cape) that include focus booms; Super Heavy ascent scaled by
+  the descent ratio and unvalidated. `test_rocket.py` fails if a calibration point drifts beyond a factor of 2.
+- **Trajectories** are generic shapes (altitude, Mach, γ against time) of public flights; launch azimuth by site and
+  orbit; booster approach bearing by site; touchdown at T+7:50 (Falcon 9) and T+6:50 (Super Heavy). Launch list:
+  Launch Library 2 (The Space Devs), every build.
+- **Not modelled:** focus booms (pitch-over and deceleration caustics; Apollo 17 measured 1.3–8.8 psf in its focus
+  region), terrain, the landing burn, turbulence (BYU measured up to 8 dB across 150 m and 10 dB launch to launch).
+  Stated uncertainty: about a factor of 2 in level.
+
 ## 5. Routing
 - Time-dependent shortest path on a 1° grid (16 directions), then continuous refinement.
 - The aircraft meets the forecast valid when it arrives. Ground speed comes from the wind triangle.

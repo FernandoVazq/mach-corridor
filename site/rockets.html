@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5654559314082674"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Will I hear the sonic boom? Rocket launch boom forecast · Mach Corridor</title>
+<meta name="description" content="Sonic boom forecast for rocket launches and booster landings at Cape Canaveral, Vandenberg and Starbase: which towns will hear it, how loud, and when, traced through the forecast atmosphere.">
+<link rel="canonical" href="https://machcorridor.com/rockets.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Will I hear the sonic boom? Rocket launch boom forecast">
+<meta property="og:description" content="Which towns hear the boom from the next Falcon 9 or Starship booster landing, how loud and when, through the forecast atmosphere.">
+<meta property="og:url" content="https://machcorridor.com/rockets.html">
+<meta property="og:image" content="https://machcorridor.com/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: auto; }
+  .bar { height: 52px; }
+  .rk { max-width: 1180px; margin: 0 auto; }
+  .rk header.top { margin-bottom: 18px; }
+  .rk h1 { font-size: 30px; }
+  .rk .lead { font-size: 16px; color: var(--ink-2); max-width: 720px; margin: 4px 0 0; }
+  .rk .sites { margin: 18px 0 14px; }
+  .rk .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .rk .grid > div { min-width: 0; }
+  .rk .rkmap { background: var(--stage); border-radius: var(--radius); overflow: hidden; position: relative; aspect-ratio: 4 / 3; }
+  .rk .rkmap svg { width: 100%; height: 100%; display: block; }
+  .rk .rklegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 8px 0 0; }
+  .rk .rklegend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .rk .launches { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
+  .rk .launch { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius); padding: 9px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; }
+  .rk .launch[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
+  .rk .launch .when { font-weight: 600; }
+  .rk .launch .what { color: var(--ink-2); font-size: 12.5px; grid-column: 1; }
+  .rk .launch .tag { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 12px; border-radius: 999px; padding: 2px 9px; background: var(--surface-2); color: var(--ink-2); }
+  .rk .tag.land { background: rgba(196, 43, 58, .12); color: var(--bad); font-weight: 500; }
+  .rk .rkverdict { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .rk .sub { color: var(--ink-2); margin: 0 0 12px; }
+  .rk .lvl { display: inline-flex; align-items: center; gap: 6px; }
+  .rk .lvl i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .rk .tbl td { white-space: normal; }
+  .rk #towns th:nth-child(2), .rk #towns td:nth-child(2) { text-align: left; }
+  .rk section.txt { max-width: 720px; margin-top: 36px; }
+  .rk section.txt h2 { font-size: 18px; font-weight: 600; margin: 26px 0 6px; }
+  .rk section.txt p, .rk section.txt li { color: var(--ink-2); line-height: 1.65; }
+  .rk .scale td:first-child { white-space: nowrap; }
+  .rk .rknote { background: var(--surface-2); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; color: var(--ink-2); margin: 12px 0 0; }
+  @media (max-width: 860px) { .rk .grid { grid-template-columns: minmax(0, 1fr); } .rk h1 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Mach Corridor home">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
+    <span class="name">Mach Corridor</span>
+  </a>
+  <div class="status"><a href="./">Supersonic corridor map</a></div>
+</header>
+<main class="page rk">
+  <header class="top">
+    <h1>Will I hear the sonic boom?</h1>
+    <p class="lead">Rocket launches and booster landings at Cape Canaveral, Vandenberg and Starbase: which towns hear the boom, about how loud, and when. Every ray is traced through the forecast atmosphere for launch time, so wind and temperature move the edge of the boom zone the way they do on the day.</p>
+    <div class="seg sites" role="group" aria-label="Launch site" id="siteSeg"></div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="rkmap" id="stage" role="img" aria-label="Map of where the boom reaches the ground"></div>
+      <div class="rklegend" id="legend"></div>
+      <p class="fine" id="mapNote"></p>
+    </div>
+    <div>
+      <h2 class="h3">Upcoming launches <span class="muted" id="range"></span></h2>
+      <div class="launches" id="launches"></div>
+      <p class="rkverdict" id="verdict"></p>
+      <p class="sub" id="verdictSub"></p>
+      <div class="tblwrap"><table class="tbl" id="towns"><caption class="fine" style="caption-side:bottom;text-align:left;padding-top:6px">Estimates: the loudness can be off by about a factor of 2, and a focus boom can be louder in a narrow strip. Always follow official advisories from the base.</caption>
+        <thead><tr><th scope="col">Town</th><th scope="col">What you would hear</th><th scope="col">Peak, psf</th><th scope="col"><abbr title="Time after liftoff, minutes:seconds">When</abbr></th></tr></thead><tbody></tbody></table></div>
+      <p class="rknote" id="meta"></p>
+    </div>
+  </div>
+
+  <section class="txt">
+    <h2>How loud is a sonic boom?</h2>
+    <p>A boom is measured as the peak overpressure it puts on the ground, in pounds per square foot (psf).</p>
+    <div class="tblwrap"><table class="tbl scale">
+      <thead><tr><th scope="col">Peak</th><th scope="col">What it is like</th></tr></thead>
+      <tbody>
+        <tr><td>under 0.3 psf</td><td>A distant thump or rumble, like thunder a few miles away. Easy to miss indoors.</td></tr>
+        <tr><td>0.3 to 1 psf</td><td>A clear double boom. Windows may rattle.</td></tr>
+        <tr><td>1 to 3 psf</td><td>Loud, like close thunder. It startles people and pets; car alarms can go off.</td></tr>
+        <tr><td>over 3 psf</td><td>Very loud. Rare outside the area right around the landing zone.</td></tr>
+      </tbody></table></div>
+    <p>For comparison, the US rule proposed for quiet supersonic airliners limits the boom to 0.11 psf.</p>
+
+    <h2>Why a booster landing booms on land and a launch usually does not</h2>
+    <p>A rocket climbs almost straight up while it is slow. The boom leaves the vehicle on a cone, and only the part of the cone that points down can reach the ground. While the rocket climbs steeper than the cone's angle, nothing points down, so the launch boom starts late, high and far out over the ocean. A booster coming back falls nose-down toward the landing zone at two to four times the speed of sound, so its cone points down all around it and the boom lands on the towns near the base. That is the double or triple boom people hear a few minutes after liftoff.</p>
+
+    <h2>How the forecast works</h2>
+    <ul>
+      <li><strong>Atmosphere:</strong> NOAA GFS temperature and wind at the site for the forecast hour closest to liftoff, up to about 36 km, with the standard atmosphere above. Launches more than 48 hours away use the standard atmosphere until they come into forecast range; the forecast updates every 6 hours.</li>
+      <li><strong>Rays:</strong> sound rays are traced from every point of the supersonic flight, in every direction on the boom cone, until they reach the ground or the atmosphere bends them back up. That bending sets the edge of the boom zone.</li>
+      <li><strong>Loudness:</strong> the standard far-field scaling for a sonic boom (it falls with distance to the power 3/4), calibrated to published measurements of real Falcon 9 and Super Heavy booms.</li>
+      <li><strong>Flight path:</strong> a typical path for the vehicle (altitude, speed and angle against time), the usual launch direction for the orbit, and the booster's usual approach to the landing zone. Real flights differ.</li>
+    </ul>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>The loudness is an estimate, good to about a factor of 2. Hills, buildings and being indoors change what you hear.</li>
+      <li>Focus booms (a short, louder boom where the rays bunch up during a turn or slow-down) are not computed.</li>
+      <li>Launch times slip. The list comes from <a href="https://thespacedevs.com/llapi">Launch Library 2</a> by The Space Devs.</li>
+      <li>This is an independent research tool, not an official advisory. Follow the advisories from Space Launch Delta 45 (Florida), Space Launch Delta 30 (Vandenberg) and Cameron County (Starbase).</li>
+    </ul>
+    <p class="fine">Method and code: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/rocket.py">engine/rocket.py</a> and <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/docs/METHOD.md">docs/METHOD.md</a>. <a href="privacy.html">Privacy</a>.</p>
+  </section>
+</main>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="rockets.js"></script>
+</body>
+</html>
