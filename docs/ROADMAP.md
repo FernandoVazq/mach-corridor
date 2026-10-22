@@ -182,7 +182,9 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | Item | Result |
 |---|---|
 | Rocket booms (#50) | `rockets.html`: next launches from Launch Library 2, boom zone traced through the GFS column at liftoff, town table (loud / clear / faint / possible), T+ arrival. Calibration: Falcon Heavy side boosters 1.82 vs 1.65 psf at 8.9 km and 1.26 vs 1.42 psf at 15.1 km; Super Heavy 8.6 vs ~8 psf at ~10 km |
-| Next | AIAA AVIATION 2027 abstract (12 Nov); route and country pages; focus booms; radiosonde check of the boom-zone edge |
+| Route pages | `routes/`: 70 city pairs rebuilt with every forecast (`engine/pages.py`): share of the overland distance with a boomless corridor at FL550 today (typical margin 0.05), flight time with corridors vs today's rules vs a subsonic airliner, link to the live router; index sorted by minutes saved; sitemap regenerated |
+| AIAA abstract | Extended abstract drafted for AVIATION 2027 (Sonic Boom joint topic), independently fact-checked; due 12 Nov 2026 |
+| Next | Country pages; focus booms; radiosonde check of the boom-zone edge |
 
 ## Outside dates
 

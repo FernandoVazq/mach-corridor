@@ -331,6 +331,12 @@ def build(run, out_dir):
                                                         "gfs_corridor_removed_share": round(float(1 - both.sum() / max(lm.sum(), 1)), 4)})
                 Image.fromarray(encode_disagreement(M, Mi), "L").save(os.path.join(out_dir, f"dis_f{fh:03d}_FL{fl}.png"), optimize=True)
                 M = combine(M, Mi)
+            if fh == 0 and fl == 550:                     # route pages (engine/pages.py) read today's FL550 field
+                try:
+                    np.savez_compressed(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_cache_fl550_f000.npz"),
+                                        M=M.astype(np.float16), land=land.astype(np.uint8), run=run)
+                except Exception as ex:
+                    print("route-page cache failed:", ex, flush=True)
             Mmin = np.nanmin(np.where(np.isnan(M), 0.0, M), axis=0)
             Mmax = np.nanmax(np.where(np.isnan(M), 0.0, M), axis=0)
             tiles = [encode_M(to_display(m)) for m in M]

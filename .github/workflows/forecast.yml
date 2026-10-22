@@ -56,6 +56,10 @@ jobs:
         continue-on-error: true
         timeout-minutes: 12
         run: python rocket.py --data ../site/data
+      - name: Route pages (today's FL550 along 70 city pairs; never blocks the map)
+        working-directory: engine
+        continue-on-error: true
+        run: python pages.py
       - name: Add the latest GEFS spread (margin per point and direction), if any
         run: |
           git clone -q --depth 1 --single-branch -b gefs-live "https://github.com/${{ github.repository }}" site/data/gefs || echo "no GEFS spread yet"

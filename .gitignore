@@ -7,3 +7,5 @@ study/dashboard/index_doc.json
 study/results_*/
 tests/node_modules
 .claude/
+engine/_cache_*.npz
+site/routes/
