@@ -1,6 +1,7 @@
 // Site smoke test, run in CI before every deploy: no JS errors, map renders, a route plans with psf,
 // and the automated WCAG 2.2 AA audit is clean on every tab. Usage: node smoke.mjs <base url> [chromium path]
 import { chromium } from 'playwright';
+process.on('uncaughtException', (e) => { console.log(`::error title=${process.argv[1].split('/').pop()}::${String(e && e.message || e).replace(/[\r\n]+/g, ' ').slice(0, 900)}`); process.exit(1); });   // readable CI annotation
 import fs from 'fs';
 const [, , base = 'http://localhost:8765/', exe] = process.argv;
 const axe = fs.readFileSync(new URL('./node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
@@ -32,5 +33,5 @@ for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 8
 }
 await b.close();
 console.log(JSON.stringify(report));
-if (fail.length) { console.error(fail.join('\n')); process.exit(1); }
+if (fail.length) { console.error(fail.join('\n')); for (const f of fail) console.log(`::error title=${'smoke.mjs'}::${String(f).replace(/[\r\n]+/g, ' ').slice(0, 900)}`); process.exit(1); }
 console.log('smoke test passed');

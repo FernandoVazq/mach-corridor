@@ -1,5 +1,6 @@
 // Climatology section: open the Physics tab, pick FL550 Dec-Feb, screenshot the figure and table.
 import { chromium } from 'playwright';
+process.on('uncaughtException', (e) => { console.log(`::error title=${process.argv[1].split('/').pop()}::${String(e && e.message || e).replace(/[\r\n]+/g, ' ').slice(0, 900)}`); process.exit(1); });   // readable CI annotation
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage({ viewport: { width: 1400, height: 1000 }, colorScheme: process.argv[3] || 'light' }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */ const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if ((m.type() === 'error' || m.type() === 'warning') && !/gibs\.earthdata\.nasa\.gov|googlesyndication|doubleclick|google\.com\/(pagead|adsense)|adtrafficquality/.test((m.location() || {}).url || '')) errs.push(m.text()); });
 await p.goto('http://localhost:8765/#fl=550');

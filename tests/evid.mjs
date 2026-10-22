@@ -1,5 +1,6 @@
 // Fail-closed and evidence-file check: plan on the local (old) data, corridors must be off, then on in study mode. Usage: node evid.mjs
 import { chromium } from 'playwright';
+process.on('uncaughtException', (e) => { console.log(`::error title=${process.argv[1].split('/').pop()}::${String(e && e.message || e).replace(/[\r\n]+/g, ' ').slice(0, 900)}`); process.exit(1); });   // readable CI annotation
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } }); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
 const errs = []; p.on('pageerror', e => errs.push(e.message));

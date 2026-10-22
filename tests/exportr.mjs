@@ -1,5 +1,6 @@
 // Route export: plan JFK-LAX, check the stretches, the boom navlog and the ICAO Item 15 string are continuous and cover the route.
 import { chromium } from 'playwright';
+process.on('uncaughtException', (e) => { console.log(`::error title=${process.argv[1].split('/').pop()}::${String(e && e.message || e).replace(/[\r\n]+/g, ' ').slice(0, 900)}`); process.exit(1); });   // readable CI annotation
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const p = await b.newPage(); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */ const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.goto('http://localhost:8765/#fl=550&mg=auto&r=KJFK-KLAX&ac=overture&o=time');
