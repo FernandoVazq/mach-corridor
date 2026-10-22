@@ -292,10 +292,15 @@ def classify(rocket_name):
     return None
 
 
+SEEN = []                  # every LL2 result, compact, written to rockets.json for diagnosis (CI logs are not always readable)
+
+
 def parse_ll2(js):
     """Launch Library 2 'detailed' results -> our launch records (only the three sites and the vehicles we model)."""
     out = []
     for L in js.get("results", []):
+        _p = L.get("pad") or {}
+        SEEN.append([L.get("net"), (L.get("name") or "")[:60], (_p.get("name") or "")[:40], _p.get("latitude"), _p.get("longitude")])
         pad = L.get("pad") or {}
         try:
             lat, lon = float(pad.get("latitude")), float(pad.get("longitude"))
@@ -407,7 +412,7 @@ def main():
     res = {"generated": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"), "model": "rocket v0 (issue #50)",
            "gfs_run": (cols or {}).get("run"), "error": err, "k_v": {f"{v}/{p}": K for (v, p), K in K_V.items()},
            "sites": {k: {kk: S[kk] for kk in ("name", "short", "lat", "lon", "tz", "lz")} for k, S in SITES.items()},
-           "launches": out, "examples": examples}
+           "launches": out, "examples": examples, "ll2_seen": SEEN[:60]}
     with open(os.path.join(a.data, "rockets.json"), "w") as f:
         json.dump(res, f, separators=(",", ":"))
     print("wrote rockets.json:", len(out), "launches")
