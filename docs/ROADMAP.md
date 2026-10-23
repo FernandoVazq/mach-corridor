@@ -185,7 +185,8 @@ This file is the working plan: phases, gates, KPIs and the issue for every deliv
 | Route pages | `routes/`: 69 city pairs rebuilt with every forecast (`engine/pages.py`): share of the overland distance with a boomless corridor at FL550 today (typical margin 0.05), flight time with corridors vs today's rules vs a subsonic airliner, link to the live router; index sorted by minutes saved; sitemap regenerated |
 | AIAA abstract | Extended abstract drafted for AVIATION 2027 (Sonic Boom joint topic), independently fact-checked; due 12 Nov 2026 |
 | Atlas FJV | Site restyled to Atlas FJV, the shared visual system of Fernando's public sites (neutrals, accent, status colours, Barlow Condensed / IBM Plex); project page `about/` (EN) and `es/` (ES) in its fixed order: hero, 4 KPIs, 3 insights, chart, tables, money and costs, how I built it (≥ 600 words), sources and licences, notice; `cover.webp` 1200×750 for the hub; accessibility test `tests/about.mjs` in CI |
-| Next | Country pages; focus booms; radiosonde check of the boom-zone edge |
+| Less text on screen | Shared `site/ui.js`: tap ⓘ tooltips hold the detail (KPI sources, table notes, money assumptions) and a standard summary strip under every chart (range, typical value, middle half, reference, verdict in words): project page, route pages, rocket page and the Physics tab. Long sections fold (`details.fold`), tables stack on phones, KPIs two per row; project page on a phone 8,700 → 4,800 px tall |
+| Next | Country pages; focus booms; radiosonde check of the boom-zone edge; summary strip on the Economics charts |
 
 ## Outside dates
 

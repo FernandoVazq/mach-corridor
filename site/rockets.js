@@ -91,7 +91,9 @@
     const tb = $("towns").tBodies[0];
     tb.textContent = "";
     const order = { loud: 0, clear: 1, faint: 2, possible: 3, none: 4 };
-    for (const t of [...cur.towns].sort((a, b) => order[a.level] - order[b.level] || b.psf - a.psf)) {
+    const sorted = [...cur.towns].sort((a, b) => order[a.level] - order[b.level] || b.psf - a.psf);
+    const quiet = sorted.filter((t) => t.level === "none");
+    for (const t of sorted.filter((t) => t.level !== "none")) {
       const tr = el("tr");
       tr.appendChild(el("td", null, t.town));
       const td = el("td"); const sp = el("span", { class: "lvl" }); const i = el("i"); i.style.background = LEVELS[t.level].color;
@@ -100,8 +102,20 @@
       tr.appendChild(el("td", null, t.psf > 0 ? fmtT(t.t_s) : ""));
       tb.appendChild(tr);
     }
+    if (quiet.length) {     // towns that hear nothing stay folded: one line instead of a long list
+      const tr = el("tr"), td = el("td"); td.colSpan = 4;
+      const det = el("details"), sm = el("summary", null, `${quiet.length} ${quiet.length === 1 ? "town" : "more towns"}: not expected to hear it`);
+      det.appendChild(sm); det.appendChild(el("p", { class: "fine" }, quiet.map((t) => t.town).join(", ")));
+      td.appendChild(det); tr.appendChild(td); tb.appendChild(tr);
+    }
     const atm = cur.atm === "standard" ? "standard atmosphere (no forecast yet for this time)" : `GFS forecast valid ${cur.atm.replace("T", " ").replace(":00Z", " UTC")}`;
-    $("meta").textContent = `Atmosphere: ${atm}. GFS run ${state.data.gfs_run || "n/a"}; updated ${state.data.generated.replace("T", " ").replace("Z", " UTC")}.` + (cur.note ? " " + cur.note : "");
+    $("metaTip").setAttribute("data-tip", `Atmosphere: ${atm}. GFS run ${state.data.gfs_run || "n/a"}; updated ${state.data.generated.replace("T", " ").replace("Z", " UTC")}.` + (cur.note ? " " + cur.note : "") + " A focus boom can be louder in a narrow strip.");
+    // standard summary strip: peak psf over the towns that hear the boom
+    const heard = cur.towns.filter((t) => t.psf > 0).map((t) => t.psf).sort((a, b) => a - b);
+    const q = (p) => heard[Math.min(heard.length - 1, Math.floor(p * (heard.length - 1) + 0.5))];
+    if (heard.length > 1) MC_UI.stat($("psfStrip"), { min: heard[0], q1: q(0.25), med: q(0.5), q3: q(0.75), max: heard[heard.length - 1], ref: 1, refLabel: "loud", lo: 0,
+      dec: 1, unit: "psf", n: `${heard.length} of ${cur.towns.length} towns`, label: "Peak boom in towns" });
+    else { $("psfStrip").textContent = ""; }
   }
 
   function map(cur) {
@@ -143,8 +157,9 @@
     for (const [k, txt] of [["faint", "Boom under 0.3 psf"], ["clear", "0.3 to 1 psf"], ["loud", "1 psf or more"]]) {
       const s = el("span"); const i = el("i"); i.style.background = LEVELS[k].color; s.appendChild(i); s.appendChild(document.createTextNode(txt)); lg.appendChild(s);
     }
-    const s2 = el("span", null, "White line: booster path (dashed: ascent). Triangle: pad."); lg.appendChild(s2);
-    $("mapNote").textContent = "Each dot is where one sound ray reaches the ground. Where there are no dots, the atmosphere bends the boom back up before it lands.";
+    const tipEl = document.createElement("button"); tipEl.type = "button"; tipEl.className = "it"; tipEl.setAttribute("aria-label", "How to read the map");
+    tipEl.setAttribute("data-tip", "Each dot is where one sound ray reaches the ground. Where there are no dots, the atmosphere bends the boom back up before it lands. White line: booster path (dashed: ascent). Triangle: pad.");
+    lg.appendChild(tipEl);
   }
 
   function render() {

@@ -132,6 +132,8 @@
     $("impNote").textContent = `These drivers explain ${Math.round(100 * I.r2)}% of the day-to-day variation (±${I.y_sd.toFixed(3)} Mach) at FL${st.fl}. Terrain is fixed for a place, so it is not a day-to-day driver.`;
   }
 
+  const qs = (v) => { const s = [...v].sort((a, b) => a - b), q = (f) => s[Math.min(s.length - 1, Math.floor(f * (s.length - 1) + 0.5))]; return { min: s[0], q1: q(.25), med: q(.5), q3: q(.75), max: s.at(-1) }; };
+  const strip = (id, o) => { if (window.MC_UI) window.MC_UI.stripFor(document.getElementById(id), o); };
   function drawAlt() {
     const svg = d3.select("#chAlt"); svg.selectAll("*").remove();
     const W = 520, H = 300, m = { l: 44, r: 16, t: 14, b: 30 };
@@ -151,6 +153,8 @@
     }
     const lg = svg.append("g").attr("transform", `translate(${m.l + 8},${m.t + 4})`);
     data.forEach((d, i) => { const g = lg.append("g").attr("transform", `translate(0,${i * 16})`); g.append("rect").attr("width", 14).attr("height", 3).attr("y", 4).attr("rx", 1.5).attr("fill", d.c); g.append("text").attr("x", 20).attr("y", 9).style("font-size", "11.5px").style("fill", "var(--ink-2)").text(d.n); });
+    const bal = data.find(d => d.k === "balloon") || data[0];
+    strip("chAlt", { ...qs(bal.r.map(r => r.any_median)), ref: 1.10, refLabel: "usable", better: "", dec: 3, lo: 1.0, unit: "Mach", n: `${bal.r.length} levels`, label: `Median, ${bal.n.split(",")[0].toLowerCase()}` });
   }
 
   function drawVal() {
@@ -171,6 +175,8 @@
       .append("title").text(d => `${d.f}, ${d.n}: RMS error ${d.e.rmse.toFixed(4)} Mach (bias ${d.e.bias >= 0 ? "+" : ""}${d.e.bias.toFixed(4)}), ${d.e.n.toLocaleString()} values`);
     const lg = svg.append("g").attr("transform", `translate(${m.l},12)`);
     keys.forEach((k, i) => { const gg = lg.append("g").attr("transform", `translate(${i * 150},0)`); gg.append("rect").attr("width", 10).attr("height", 10).attr("rx", 2).attr("fill", k[2]); gg.append("text").attr("x", 15).attr("y", 9).style("font-size", "11.5px").style("fill", "var(--ink-2)").text(k[1]); });
+    const da = fls.map(f => v[f].f24_1p00 && v[f].f24_1p00.rmse).filter(Number.isFinite);
+    if (da.length) strip("chVal", { ...qs(da), ref: 0.010, refLabel: "Phase 1 gate", better: "low", dec: 4, lo: 0, unit: "Mach", n: `${da.length} levels`, label: "Day-ahead error, 1°" });
   }
 
   function drawPsf(c, p) {
@@ -341,6 +347,8 @@
       .attr("fill", r => r.fl > hiFl ? "var(--surface)" : "var(--accent)").attr("stroke", "var(--accent)").attr("stroke-width", 2)
       .append("title").text(r => `FL${r.fl}${r.fl > hiFl ? " (estimate)" : ""}: median M${r.s.land_any_median.toFixed(3)} in any direction; 10th percentile ${r.s.land_any_p10.toFixed(3)}; best direction 90th ${r.s.land_best_p90.toFixed(3)}`);
     const best = rows.reduce((b, r) => r.s.land_any_median > b.s.land_any_median ? r : b);
+    const core = rows.filter(r => r.fl <= hiFl).map(r => r.s.land_any_median);
+    if (core.length) strip("chLiveAlt", { ...qs(core), ref: 1.05, refLabel: "floor", better: "", dec: 3, lo: 1.0, unit: "Mach", n: `${core.length} levels, FL300–FL${hiFl}`, label: "Median over land, this forecast hour" });
     svg.append("text").attr("x", x(best.fl)).attr("y", y(best.s.land_any_median) - 10).attr("text-anchor", "middle").style("font-size", "12px").style("font-weight", 600).style("fill", "var(--ink)").text(`M${best.s.land_any_median.toFixed(3)}`);
     const vt = d3.utcFormat("%a %d %b %HZ")(new Date(man.valid_times[fi]));
     const hiRows = rows.filter(r => r.fl > hiFl);

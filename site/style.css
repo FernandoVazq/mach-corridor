@@ -460,3 +460,35 @@ dialog.efb[open] { gap: 10px; }
 .kpi .kv, .sv { font-size: 30px; font-weight: 700; } .efbtiles .v { font-size: 40px; font-weight: 700; }
 .kpi .kl, .tbl th { font-family: var(--font-mono); letter-spacing: .04em; }
 .bar .status a { display: inline-block; padding: 4px 2px; min-height: 24px; }
+
+/* InfoTip (site/ui.js): a 24 px tap target with a 16 px "i"; the popover holds the detail that used to be prose */
+.it { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; margin: 0 0 0 2px; border: 0; background: none; vertical-align: middle; cursor: pointer; color: var(--ink-3); }
+.it::before { content: "i"; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.3px solid currentColor; font: italic 600 11px/1 Georgia, serif; }
+.it:hover, .it[aria-expanded="true"] { color: var(--accent); }
+.itpop { position: absolute; z-index: 1000; background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 19px; box-shadow: 0 6px 24px rgba(15, 27, 37, .18); }
+
+/* StatStrip (site/ui.js): the standard summary under every chart and map */
+.ss { display: grid; gap: 4px; margin: 6px 0 2px; max-width: 560px; }
+.sshead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sslbl { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.ssbar { position: relative; height: 18px; }
+.ssbar svg { width: 100%; height: 18px; display: block; }
+.ssbar .ax { stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ssbar .rg { fill: var(--data-other); opacity: .55; }
+.ssbar .iq { fill: var(--data-1); opacity: .45; }
+.ssbar .rf { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.ssbar .md { position: absolute; top: 5px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--data-1); border: 2px solid var(--surface); }
+.sstxt { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ss .d { font-family: var(--font-mono); font-size: 12px; border-radius: 4px; padding: 1px 6px; }
+.ss .d.good { color: var(--good); background: var(--good-soft); } .ss .d.crit { color: var(--bad); background: var(--bad-soft); }
+
+/* Folded detail: long text stays in the page (search engines, screen readers) but closed until asked */
+details.fold { border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); margin: 8px 0; }
+details.fold > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; color: var(--ink); list-style: none; display: grid; grid-template-columns: 12px 1fr; column-gap: 10px; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before { content: "+"; font-family: var(--font-mono); color: var(--ink-3); width: 12px; flex: none; }
+details.fold[open] > summary::before { content: "–"; }
+details.fold > summary .sm { grid-column: 2; font-weight: 400; color: var(--ink-2); font-size: 14px; }
+details.fold > .fb { padding: 0 14px 12px 36px; }
+details.fold > .fb p { margin: 0 0 10px; }
+.brand .name, .status .badge { white-space: nowrap; }

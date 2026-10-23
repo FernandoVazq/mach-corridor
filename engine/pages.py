@@ -143,11 +143,15 @@ HEAD = """<!doctype html>
   .rt .kpi.hl {{ border-color: var(--accent); }}
   .rt .strip {{ width: 100%; height: 48px; display: block; margin: 6px 0 2px; border-radius: 4px; }}
   .rt .ends {{ display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }}
+  .rt .keyline {{ display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; margin: 6px 0 10px; }}
+  .rt .keyline i {{ display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }}
+  .rt .ss {{ margin: 6px 0 14px; }}
   .rt .cta {{ display: inline-block; margin: 8px 0 0; padding: 8px 14px; border-radius: var(--radius); background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 500; }}
   .rt .tbl td, .rt .tbl th {{ white-space: normal; }}
   .rt ul.routes {{ columns: 2; padding-left: 18px; }}
   @media (max-width: 640px) {{ .rt .kpis {{ grid-template-columns: 1fr; }} .rt ul.routes {{ columns: 1; }} }}
 </style>
+<script src="../ui.js" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -185,6 +189,18 @@ def strip_svg(r):
     return "".join(out)
 
 
+def corridor_strip(r):
+    """The standard summary strip (site/ui.js): usable boomless Mach over the land legs that have a corridor."""
+    v = sorted(l["m"] - MARGIN for l in r["legs"] if l["usable"])
+    if not v:
+        return ""
+    q = lambda f: v[min(len(v) - 1, int(f * (len(v) - 1) + 0.5))]
+    n_land = sum(1 for l in r["legs"] if l["land"])
+    return (f'  <div class="ss" data-min="{v[0]:.3f}" data-q1="{q(.25):.3f}" data-med="{q(.5):.3f}" data-q3="{q(.75):.3f}" data-max="{v[-1]:.3f}" '
+            f'data-ref="{M_MIN}" data-ref-label="floor" data-dec="2" data-lo="1.0" data-unit="Mach" '
+            f'data-n="{len(v)} of {n_land} land legs of {r["seg_km"]:.0f} km" data-label="Corridor speed over land"></div>')
+
+
 def route_page(a, b, A, B, r, run_iso):
     nA, nB = A[0], B[0]
     title = f"Supersonic {nA} to {nB} without a sonic boom: today's forecast · Mach Corridor"
@@ -209,14 +225,15 @@ def route_page(a, b, A, B, r, run_iso):
             f'    <div class="kpi"><b>{hm(r["t_sub_h"])}</b><span>Subsonic airliner, Mach {M_SUB}</span></div>',
             "  </div>",
             strip_svg(r),
-            '  <p class="fine">Green-blue: over water (Mach 1.7). Blue: land with a boomless corridor (darker = faster). Red: land where the boom would reach the ground today, flown subsonic.</p>',
+            '  <p class="keyline"><span><i style="background:var(--route-super);opacity:.5"></i>Water, Mach 1.7</span><span><i style="background:var(--accent)"></i>Land, boomless corridor</span><span><i style="background:var(--bad)"></i>Land, boom would land: subsonic</span></p>',
+            corridor_strip(r),
             f'  <a class="cta" href="../#fl=550&amp;mg=auto&amp;r={a}-{b}&amp;ac=overture&amp;o=time">Plan this route on the live map</a>',
-            "  <h2>How this is worked out</h2>",
-            f"  <p>A supersonic aircraft is boomless when the air below it bends the boom back up before it reaches the ground (Mach cutoff). How fast it can fly that way depends on the temperature and wind on the day and on the direction of flight. This page follows the great circle from {html.escape(nA)} to {html.escape(nB)} at 55,000 ft through today's forecast (NOAA GFS and ECMWF, analysis time), takes the boomless Mach for the route's direction at each point, and keeps a typical safety margin of {MARGIN}. Times assume no wind and add {OVERHEAD_MIN} minutes for climb and descent; the over-water cruise is Mach {M_SUPER}, like Boom Overture.</p>",
-            f"  <p>The great-circle distance is {r['dist_km']:,.0f} km, {land_share:.0%} of it over land. The live map plans the real route: it can detour to find better air, picks the margin point by point from the ensemble forecast, and refuses a corridor when the forecast is too old.</p>",
-            "  <h2>Why it changes from day to day</h2>",
-            "  <p>About half of the variation in the boomless speed is the season and half is the weather of the day. Corridors are widest in summer and narrowest in winter, and flying east into the jet stream is the hardest direction in winter.</p>",
-            f'  <p class="fine">Forecast valid {html.escape(run_iso)}. Updated with every new forecast, four times a day.</p>',
+            f'  <details class="fold"><summary>How this is worked out <span class="sm">Great circle, 55,000 ft, today\'s forecast, margin {MARGIN}.</span></summary><div class="fb">'
+            f"<p>A supersonic aircraft is boomless when the air below it bends the boom back up before it reaches the ground (Mach cutoff). How fast it can fly that way depends on the temperature and wind on the day and on the direction of flight. This page follows the great circle from {html.escape(nA)} to {html.escape(nB)} at 55,000 ft through today's forecast (NOAA GFS and ECMWF, analysis time), takes the boomless Mach for the route's direction at each point, and keeps a typical safety margin of {MARGIN}. Times assume no wind and add {OVERHEAD_MIN} minutes for climb and descent; the over-water cruise is Mach {M_SUPER}, like Boom Overture.</p>"
+            f"<p>The great-circle distance is {r['dist_km']:,.0f} km, {land_share:.0%} of it over land. The live map plans the real route: it can detour to find better air, picks the margin point by point from the ensemble forecast, and refuses a corridor when the forecast is too old.</p></div></details>",
+            '  <details class="fold"><summary>Why it changes from day to day <span class="sm">Half season, half the weather of the day.</span></summary><div class="fb">'
+            "<p>About half of the variation in the boomless speed is the season and half is the weather of the day. Corridors are widest in summer and narrowest in winter, and flying east into the jet stream is the hardest direction in winter.</p></div></details>",
+            f'  <p class="fine">Forecast valid {html.escape(run_iso)}. Updated four times a day.</p>',
             FOOT]
     return "\n".join(body), desc
 
