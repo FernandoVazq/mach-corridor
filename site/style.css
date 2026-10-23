@@ -1,34 +1,45 @@
 /* Mach Corridor — UI. Chart-room aesthetic: light instrument chrome around a night-blue map. */
 :root {
-  --paper: #f4f6f9; --surface: #ffffff; --surface-2: #eef1f5; --ink: #0f1b2d; --ink-2: #46546a; --ink-3: #5f6b81;
-  --rule: #e2e7ee; --accent: #1f4fd8; --good: #0f7553; --bad: #c42b3a; --warn: #965a00; --mach: #17408f; --dis: #a21caf;
-  --low-soft: rgba(10, 31, 92, .07); --float: rgba(255, 255, 255, .95);
+  /* Atlas FJV (the shared visual system of Fernando J. Vazquez's sites): neutrals, accent and status from its tokens.json;
+     map colours (stage, coast, routes) stay Mach Corridor's own. Signature colour of this project: --p-mach. */
+  --paper: #eef2f5; --surface: #fbfcfd; --surface-2: #f3f6f8; --ink: #0f1b25; --ink-2: #45535f; --ink-3: #5f6c77;
+  --rule: #c6d0d8; --grid: #dfe5ea; --accent: #1d5bab; --accent-soft: #e3edf9; --good: #11753a; --good-soft: #e2f3e8;
+  --bad: #bb2f28; --bad-soft: #fbe6e4; --warn: #9a5f00; --warn-soft: #fdf0dc; --mach: #17408f; --dis: #a21caf; --p-mach: #3a4cc0;
+  --data-1: #2a78d6; --data-2: #e2622b; --data-other: #a4b0ba;
+  --low-soft: rgba(10, 31, 92, .07); --float: rgba(251, 252, 253, .95);
   --stage: #061029; --coast: rgba(226, 235, 252, .62); --border-c: rgba(226, 235, 252, .2); --grat: rgba(226, 235, 252, .06); --casing: #061029;
   --route-boomless: #e0218a; --route-super: #13a89e; --route-sub: #f08a24;
   --text: var(--ink); --text-2: var(--ink-2); --muted: var(--ink-3); --line: var(--rule); --ocean: var(--stage);
-  --radius: 8px;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 8px; --radius-l: 14px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0a0f18; --surface: #111824; --surface-2: #182131; --ink: #e8eef7; --ink-2: #a6b2c4; --ink-3: #8492a8;
-    --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0; --dis: #f0abfc;
-    --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 24, 36, .94);
+    --paper: #0b1117; --surface: #111a22; --surface-2: #16212b; --ink: #e6edf2; --ink-2: #a9b6c1; --ink-3: #8593a0;
+    --rule: #2f3d48; --grid: #1f2b35; --accent: #6faaf0; --accent-soft: #16283d; --good: #4cc77f; --good-soft: #15301f;
+    --bad: #f27d74; --bad-soft: #3a1a18; --warn: #f2b443; --warn-soft: #33270f; --mach: #9fbdf0; --dis: #f0abfc; --p-mach: #8c9cff;
+    --data-1: #4a90e8; --data-2: #f0844f; --data-other: #4b5a66;
+    --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 26, 34, .94);
     --route-boomless: #ff4fa8; --route-super: #2fd3c4; --route-sub: #ffa040;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #0a0f18; --surface: #111824; --surface-2: #182131; --ink: #e8eef7; --ink-2: #a6b2c4; --ink-3: #8492a8;
-  --rule: #1f2a3b; --accent: #7ca2ff; --good: #3ccb8f; --bad: #ff6b78; --warn: #f0a33a; --mach: #9fbdf0; --dis: #f0abfc;
-  --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 24, 36, .94);
+  --paper: #0b1117; --surface: #111a22; --surface-2: #16212b; --ink: #e6edf2; --ink-2: #a9b6c1; --ink-3: #8593a0;
+  --rule: #2f3d48; --grid: #1f2b35; --accent: #6faaf0; --accent-soft: #16283d; --good: #4cc77f; --good-soft: #15301f;
+  --bad: #f27d74; --bad-soft: #3a1a18; --warn: #f2b443; --warn-soft: #33270f; --mach: #9fbdf0; --dis: #f0abfc; --p-mach: #8c9cff;
+  --data-1: #4a90e8; --data-2: #f0844f; --data-other: #4b5a66;
+  --low-soft: rgba(159, 189, 240, .08); --float: rgba(17, 26, 34, .94);
   --route-boomless: #ff4fa8; --route-super: #2fd3c4; --route-sub: #ffa040;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--paper); color: var(--ink); font: 14px/1.5 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+body { background: var(--paper); color: var(--ink); font: 14px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
 [hidden] { display: none !important; }
 a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 button, input, select { font: inherit; color: inherit; }
@@ -441,3 +452,11 @@ dialog.efb[open] { gap: 10px; }
 .badge.support svg { color: var(--bad); flex: none; }
 .adslot .adhead { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-3); margin-bottom: 8px; }
 .adslot .adbody { min-height: 100px; }
+
+/* Atlas FJV type: Barlow Condensed for titles and big numbers, IBM Plex Mono for labels */
+.page h1, .sec h2, .h2, .h3, .method h2, .d3head h2, .brand .name, .sv, .kpi .kv, .efbtiles .v { font-family: var(--font-display); letter-spacing: 0; }
+.page h1 { font-size: 36px; line-height: 40px; font-weight: 700; }
+.sec h2, .h3 { font-size: 18px; } .h2, .method h2 { font-size: 22px; } .brand .name { font-size: 19px; font-weight: 700; }
+.kpi .kv, .sv { font-size: 30px; font-weight: 700; } .efbtiles .v { font-size: 40px; font-weight: 700; }
+.kpi .kl, .tbl th { font-family: var(--font-mono); letter-spacing: .04em; }
+.bar .status a { display: inline-block; padding: 4px 2px; min-height: 24px; }

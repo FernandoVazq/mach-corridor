@@ -3,6 +3,8 @@
 **Forecast map of where a supersonic aircraft can fly faster than sound without the sonic boom reaching the ground.**
 
 Live map: https://machcorridor.com/ (updated every 6 hours from NOAA GFS)
+About (EN/ES): https://machcorridor.com/about/ · https://machcorridor.com/es/
+Routes today: https://machcorridor.com/routes/
 Rocket booms: https://machcorridor.com/rockets.html (will I hear the sonic boom from the next launch or booster landing?)
 
 ![physics](https://img.shields.io/badge/physics-Mach%20cutoff-2a78d6) ![data](https://img.shields.io/badge/data-NOAA%20GFS%201%C2%B0-1baf7a)

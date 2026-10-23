@@ -126,7 +126,7 @@ HEAD = """<!doctype html>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../style.css">
 <style>
   html, body {{ height: auto; }}
@@ -155,7 +155,7 @@ HEAD = """<!doctype html>
     <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
     <span class="name">Mach Corridor</span>
   </a>
-  <div class="status"><a href="index.html">All routes</a><a href="../rockets.html">Rocket booms</a><a href="../">Live map</a></div>
+  <div class="status"><a href="../about/">About</a><a href="index.html">All routes</a><a href="../rockets.html">Rocket booms</a><a href="../">Live map</a></div>
 </header>
 <main class="page rt">
 """
@@ -251,14 +251,14 @@ def main():
     idx = [HEAD.format(title="Boomless supersonic routes today · Mach Corridor", desc=desc, path="routes/"),
            "  <h1>Boomless supersonic routes today</h1>",
            f'  <p class="lead">For each city pair: how much of the flight over land has a boomless corridor in today\'s forecast, and how many minutes corridors save against flying subsonic over land. Sorted by minutes saved.</p>',
-           '  <div class="tblwrap"><table class="tbl"><thead><tr><th scope="col">Route</th><th scope="col">Distance, km</th><th scope="col">Land with a corridor</th><th scope="col">Minutes saved</th></tr></thead><tbody>',
+           '  <div class="tblwrap" tabindex="0" role="region" aria-label="Routes"><table class="tbl"><thead><tr><th scope="col">Route</th><th scope="col">Distance, km</th><th scope="col">Land with a corridor</th><th scope="col">Minutes saved</th></tr></thead><tbody>',
            *items, "  </tbody></table></div>",
            f'  <p class="fine">Forecast valid {html.escape(run_iso)}. FL550, typical margin {MARGIN}, no wind; the live map plans each route in full.</p>',
            FOOT]
     with open(os.path.join(a.site, "routes", "index.html"), "w", encoding="utf8") as f:
         f.write("\n".join(idx))
     # sitemap
-    urls = [("", "hourly", "1.0"), ("rockets.html", "hourly", "0.9"), ("routes/", "daily", "0.8")] + \
+    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("routes/", "daily", "0.8")] + \
            [(f"routes/{slug(x, y)}.html", "daily", "0.6") for x, y, _ in rows] + [("privacy.html", "yearly", "0.2")]
     sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     sm += [f"  <url><loc>https://machcorridor.com/{u}</loc><changefreq>{c}</changefreq><priority>{p}</priority></url>" for u, c, p in urls]
