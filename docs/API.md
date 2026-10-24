@@ -24,6 +24,17 @@ python engine/client.py 39.5 -98 270 550        # lat lon heading flight-level [
 | `geo/zone.png` | Regulated zone | 0.1° grid; 0 = territory, 1–64 = distance to it in nm, 255 = farther |
 | `geo/clim.png`, `geo/clim.json` | Seasonal climatology (Method §6.5) | grayscale, 5 periods × 3 levels of 360×181; share = byte / 250 |
 | `geo/physics.json`, `geo/rules.json` | Study results and rules by country | JSON |
+| `data/rockets.json` | Rocket launches, booster landings and capsule returns (Dragon, Orion off California): boom carpet hits `[lat, lon, psf, t_s]` and town verdicts | JSON (Method §4.2–4.3) |
+| `data/fireballs.json` | NASA JPL CNEOS fireballs with the traced boom carpet `[lat, lon, Pa, t_s after the flash]` and a summary | JSON (Method §4.4) |
+| `data/carry_f{HHH}.png` | How far sound carries: critical trapping angle of the lowest 1.5 km toward 8 directions, all-around minimum and best direction | grayscale, 5 × 2 tiles of 360×181; angle = 0.1° × byte (`manifest.carry`) |
+
+## For operators and simulators
+
+- **Route files**: the route planner exports GeoJSON and KML (one line per constant-Mach stretch), a navlog CSV, an
+  evidence file (JSON + CSV) and, for simulators, Microsoft Flight Simulator `.pln` and X-Plane 11/12 `.fms` (v1100)
+  with a user waypoint at every change of leg or Mach (`B118` = boomless M1.18, `S170` = supersonic, `U085` = subsonic).
+- **Automation**: everything above is static; `engine/client.py` answers point queries offline. A dispatch system
+  can poll `data/manifest.json` (its `run` changes within an hour of each GFS run) and fetch only what changed.
 
 ## How the site combines them
 

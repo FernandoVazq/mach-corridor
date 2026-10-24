@@ -11,6 +11,14 @@ console.log(JSON.stringify({ n: r.n, first: { type: r.first.type, mach: r.first.
 const nv = await p.evaluate(() => ({ rows: window.MCPLAN.navRows(), i15: window.MCPLAN.item15() }));
 const nGaps = nv.rows.slice(1).filter((x, i) => x.from_nm !== nv.rows[i].to_nm).length;
 console.log(JSON.stringify({ navlog_rows: nv.rows.length, item15: nv.i15.slice(0, 60) }));
+// flight simulator files: well-formed MSFS XML with airports at both ends, X-Plane v1100 with NUMENR matching
+const sim = await p.evaluate(() => { const f = window.MCPLAN.simFiles(); const x = new DOMParser().parseFromString(f.pln, 'application/xml');
+  const wps = [...x.querySelectorAll('ATCWaypoint')]; const lines = f.fms.trim().split('\n');
+  return { err: !!x.querySelector('parsererror'), n: wps.length, first: wps[0]?.getAttribute('id'), last: wps.at(-1)?.getAttribute('id'), alt: x.querySelector('CruisingAlt')?.textContent,
+           pos: wps[1]?.querySelector('WorldPosition')?.textContent, numenr: +lines[5].split(' ')[1], enr: lines.length - 6, head: lines[1] }; });
+console.log(JSON.stringify(sim));
+const simBad = sim.err || sim.first !== 'KJFK' || sim.last !== 'KLAX' || sim.alt !== '55000' || sim.n < 3 || sim.numenr !== sim.enr || sim.head !== '1100 Version' || !/^[NS]\d+° \d+' [\d.]+",[EW]\d+° \d+' [\d.]+",\+\d{6}\.\d{2}$/.test(sim.pos || '');
 await b.close();
+if (simBad) { console.error('flight sim export failed'); process.exit(1); }
 if (errs.length || r.gaps || Math.abs(r.last - r.dist) > 1 || nGaps || !nv.rows.length || nv.rows.at(-1).to_nm !== r.last || !/^[MN]\d{3,4}F\d{3}( DCT|$)/.test(nv.i15)) { console.error('export test failed', errs.join(' | '), nGaps); process.exit(1); }
 console.log('export test passed');

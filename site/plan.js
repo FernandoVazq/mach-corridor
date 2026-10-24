@@ -445,6 +445,66 @@
     }
     return parts.join(" ") + " DCT";
   }
+  // ---------- flight simulators (issue #63): MSFS .pln and X-Plane 11/12 .fms v1100 ----------
+  // One user waypoint at every change of leg or Mach (merged ramps), at least 30 nm apart; the waypoint name carries
+  // the Mach to hold from there (B118 = boomless M1.18, S170 = supersonic M1.70, U085 = subsonic M0.85).
+  function simPoints(r) {
+    const st = mergeRamps(stretches(r)), nl = (v) => ((v + 540) % 360) - 180, pts = [];
+    const tag = { boomless: "B", super: "S", sub: "U", climb: "C" };
+    let lastNm = -1e9;
+    st.forEach((x, i) => {
+      if (i === 0 || x.from_nm - lastNm < 30) return;
+      const M = x.ramp ? x.ramp[x.ramp.length - 1] : x.mach;
+      pts.push({ id: `${tag[x.type] || "W"}${String(Math.round(M * 100)).padStart(3, "0")}`.slice(0, 5) + String(pts.length + 1).padStart(2, "0"),
+                 lat: x.coords[0][1], lon: nl(x.coords[0][0]) });
+      lastNm = x.from_nm;
+    });
+    const a = st[0].coords[0], lastSt = st[st.length - 1], b = lastSt.coords[lastSt.coords.length - 1];
+    return { dep: { id: r.names[0], lat: a[1], lon: nl(a[0]) }, arr: { id: r.names[1], lat: b[1], lon: nl(b[0]) }, wps: pts.slice(0, 98) };
+  }
+  function msfsPos(lat, lon, altFt) {
+    const f = (v, pos, neg) => { const a = Math.abs(v), d = Math.floor(a), mf = (a - d) * 60, m = Math.floor(mf), sec = ((mf - m) * 60).toFixed(2);
+      return `${v >= 0 ? pos : neg}${d}° ${m}' ${sec}"`; };
+    return `${f(lat, "N", "S")},${f(lon, "E", "W")},${altFt >= 0 ? "+" : "-"}${Math.abs(altFt).toFixed(2).padStart(9, "0")}`;
+  }
+  function simFiles(r) {
+    const R = r, P = simPoints(R), alt = R.fl * 100;
+    const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const wp = (id, type, lat, lon, a, icao) => `    <ATCWaypoint id="${esc(id)}">\n      <ATCWaypointType>${type}</ATCWaypointType>\n      <WorldPosition>${msfsPos(lat, lon, a)}</WorldPosition>\n${icao ? `      <ICAO>\n        <ICAOIdent>${esc(id)}</ICAOIdent>\n      </ICAO>\n` : ""}    </ATCWaypoint>`;
+    const pln = `<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="AceXML" version="1,0">
+  <Descr>AceXML Document</Descr>
+  <FlightPlan.FlightPlan>
+    <Title>${esc(`${P.dep.id} to ${P.arr.id}, Mach Corridor FL${R.fl}`)}</Title>
+    <FPType>IFR</FPType>
+    <RouteType>Direct</RouteType>
+    <CruisingAlt>${alt}</CruisingAlt>
+    <DepartureID>${esc(P.dep.id)}</DepartureID>
+    <DepartureLLA>${msfsPos(P.dep.lat, P.dep.lon, 0)}</DepartureLLA>
+    <DestinationID>${esc(P.arr.id)}</DestinationID>
+    <DestinationLLA>${msfsPos(P.arr.lat, P.arr.lon, 0)}</DestinationLLA>
+    <Descr>${esc(`Boomless supersonic route from today's forecast (GFS ${MC.S.man.run_time}). Waypoint names give the Mach to hold: B = boomless, S = supersonic over water, U = subsonic. Research prototype, not for real flight.`)}</Descr>
+    <AppVersion>
+      <AppVersionMajor>11</AppVersionMajor>
+      <AppVersionBuild>282174</AppVersionBuild>
+    </AppVersion>
+${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => wp(w.id, "User", w.lat, w.lon, alt)), wp(P.arr.id, "Airport", P.arr.lat, P.arr.lon, 0, true)].join("\n")}
+  </FlightPlan.FlightPlan>
+</SimBase.Document>
+`;
+    const n6 = (v) => v.toFixed(6);
+    const fms = ["I", "1100 Version", "CYCLE 2610", `ADEP ${P.dep.id}`, `ADES ${P.arr.id}`, `NUMENR ${P.wps.length + 2}`,
+      `1 ${P.dep.id} ADEP 0.000000 ${n6(P.dep.lat)} ${n6(P.dep.lon)}`,
+      ...P.wps.map((w) => `28 ${w.id} DRCT ${alt.toFixed(6)} ${n6(w.lat)} ${n6(w.lon)}`),
+      `1 ${P.arr.id} ADES 0.000000 ${n6(P.arr.lat)} ${n6(P.arr.lon)}`].join("\n") + "\n";
+    return { pln, fms, n: P.wps.length };
+  }
+  function exportSim() {
+    if (!R) return;
+    const f = simFiles(R), base = `mach-corridor_${R.names.join("-")}_FL${R.fl}`;
+    download(base + ".pln", f.pln, "application/xml");
+    download(base + ".fms", f.fms, "text/plain");
+  }
   function exportNavlog() {
     if (!R) return;
     const rows = navRows(R), cols = Object.keys(rows[0]), man = MC.S.man;
@@ -656,6 +716,7 @@
     $("efbBtn").onclick = efbOpen;
     $("routeExportBtn").onclick = exportRoute;
     $("navlogBtn").onclick = exportNavlog;
+    $("simBtn").onclick = exportSim;
     $("item15Copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText($("item15").textContent).then(() => { $("item15Copy").textContent = "Copied"; setTimeout(() => $("item15Copy").textContent = "Copy", 1500); }).catch(() => {}); };
     $("routeSummary").addEventListener("click", ev => {
       if (ev.target.id !== "staleBtn" || !R) return;
@@ -706,5 +767,5 @@
       if (pts.length === 2) planRoute(pts[0][0], pts[1][0], [ptName(pts[0][0]), ptName(pts[1][0])]);
     }
   });
-  window.MCPLAN = { navRows: () => R && navRows(R), item15: () => R && item15(R), planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R) };
+  window.MCPLAN = { navRows: () => R && navRows(R), item15: () => R && item15(R), planRoute, getRoute: () => R, evidence: () => R && evidence(R), evidenceSigned: async () => { if (!R) return null; await MC.preloadDis(R.fl); return withIntegrity(evidence(R)); }, stretches: () => R && stretches(R), simFiles: () => R && simFiles(R) };
 })();
