@@ -47,7 +47,7 @@ jobs:
         run: pip install -r engine/requirements.txt
       - name: Physics tests
         working-directory: engine
-        run: python test_physics.py && python test_rays.py && python test_boom.py && python test_caustic.py && python test_secondary.py && python test_burgers.py && python test_rocket.py && python test_sound.py
+        run: python test_physics.py && python test_rays.py && python test_boom.py && python test_caustic.py && python test_secondary.py && python test_burgers.py && python test_rocket.py && python test_sound.py && python test_bolide.py
       - name: Build forecast atlases from latest GFS
         working-directory: engine
         run: python build.py --out ../site/data
@@ -56,6 +56,11 @@ jobs:
         continue-on-error: true
         timeout-minutes: 12
         run: python rocket.py --data ../site/data
+      - name: Fireball booms from NASA JPL CNEOS (issue #61; never blocks the map)
+        working-directory: engine
+        continue-on-error: true
+        timeout-minutes: 15
+        run: python bolide.py --data ../site/data
       - name: Route pages (today's FL550 along 69 city pairs; never blocks the map)
         working-directory: engine
         continue-on-error: true

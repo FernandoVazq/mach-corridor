@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5654559314082674"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Was that boom a fireball? Meteor sonic boom map · Mach Corridor</title>
+<meta name="description" content="Bright fireballs seen by US Government sensors (NASA JPL CNEOS) and where their sonic booms could reach the ground, how long after the flash and how strong, traced through the atmosphere.">
+<link rel="canonical" href="https://machcorridor.com/fireballs.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Was that boom a fireball?">
+<meta property="og:description" content="Where the sonic boom of each bright fireball could be heard, and how long after the flash.">
+<meta property="og:url" content="https://machcorridor.com/fireballs.html">
+<meta property="og:image" content="https://machcorridor.com/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: auto; }
+  .bar { height: 52px; }
+  .fb2 { max-width: 1180px; margin: 0 auto; }
+  .fb2 h1 { font-size: 30px; }
+  .fb2 .lead { font-size: 16px; color: var(--ink-2); max-width: 720px; margin: 4px 0 0; }
+  .fb2 .kp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+  .fb2 .kp div { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 2px; }
+  .fb2 .kp b { font: 700 28px/30px var(--font-display); font-variant-numeric: tabular-nums; }
+  .fb2 .kp span { color: var(--ink-2); font-size: 13px; }
+  .fb2 .grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .fb2 .grid > div { min-width: 0; }
+  .fb2 .fbmap { background: var(--stage); border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 10; position: relative; }
+  .fb2 .fbmap svg { width: 100%; height: 100%; display: block; }
+  .fb2 .fbkey { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 8px 0 0; }
+  .fb2 .fbkey i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .fb2 .evs { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+  .fb2 .ev { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius); padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; min-height: 44px; }
+  .fb2 .ev[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
+  .fb2 .ev .w { font-weight: 600; }
+  .fb2 .ev .s { color: var(--ink-2); font-size: 12.5px; }
+  .fb2 .ev .t { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 12px; border-radius: 999px; padding: 2px 9px; background: var(--surface-2); color: var(--ink-2); }
+  .fb2 .ev .t.h { background: var(--warn-soft); color: var(--warn); font-weight: 500; }
+  .fb2 .fbverdict { font-size: 18px; font-weight: 600; margin: 14px 0 4px; }
+  .fb2 .sub { color: var(--ink-2); margin: 0 0 8px; }
+  .fb2 .fbchk { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-l); padding: 16px; margin: 28px 0 0; max-width: 760px; }
+  .fb2 .fbchk h2 { margin: 0 0 6px; font-size: 20px; }
+  .fb2 .fbchk form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .fb2 .fbchk label { display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+  .fb2 .fbchk input { font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); min-height: 36px; }
+  .fb2 .fbchk ul { margin: 10px 0 0; padding-left: 18px; }
+  .fb2 section.txt { max-width: 760px; margin-top: 30px; }
+  .fb2 section.txt p, .fb2 section.txt li { color: var(--ink-2); line-height: 1.65; }
+  .fb2 .empty { color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
+  @media (max-width: 860px) { .fb2 .grid { grid-template-columns: minmax(0, 1fr); } .fb2 h1 { font-size: 24px; } .fb2 .kp b { font-size: 22px; } .fb2 .fbmap { aspect-ratio: 4 / 3; } }
+</style>
+<script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Mach Corridor home">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
+    <span class="name">Mach Corridor</span>
+  </a>
+  <div class="status"><a href="rockets.html">Rocket booms</a><a href="sound.html">Sound tonight</a><a href="./">Supersonic map</a></div>
+</header>
+<main class="page fb2">
+  <h1>Was that boom a fireball?</h1>
+  <p class="lead">The bright fireballs US Government sensors saw, and where each one's sonic boom could reach the ground.<button type="button" class="it" aria-label="Which fireballs" data-tip="NASA JPL CNEOS lists the largest fireballs, about one a week worldwide, usually a few days to weeks after they happen. Small meteors that also boom are not in it."></button></p>
+  <div class="kp" id="kp"></div>
+
+  <div class="grid">
+    <div>
+      <div class="fbmap" id="stage"></div>
+      <div class="fbkey" id="key"></div>
+      <div id="carpetStrip"></div>
+    </div>
+    <div>
+      <h2 class="h3">Fireballs, last two years <span class="muted" id="cnt"></span></h2>
+      <div class="evs" id="evs"></div>
+      <p class="fbverdict" id="verdict"></p>
+      <p class="sub" id="vsub"></p>
+    </div>
+  </div>
+
+  <section class="fbchk" aria-labelledby="chkH">
+    <h2 id="chkH">Heard a boom? Check it</h2>
+    <p class="sub">Enter when and where. We look for a listed fireball and for rocket launches that could explain it.</p>
+    <form id="chkForm">
+      <label>When (your local time)<input type="datetime-local" id="chkWhen" required></label>
+      <label>Latitude<input type="number" id="chkLat" step="0.01" min="-90" max="90" required inputmode="decimal"></label>
+      <label>Longitude<input type="number" id="chkLon" step="0.01" min="-180" max="180" required inputmode="decimal"></label>
+      <button type="button" class="linkish" id="chkGeo">use my location</button>
+      <button type="submit" class="btn main">Check</button>
+    </form>
+    <div id="chkOut" aria-live="polite"></div>
+  </section>
+
+  <section class="txt">
+    <details class="fold"><summary>Why fireballs boom <span class="sm">Mach 40 to 200, low enough for the shock to reach the ground.</span></summary><div class="fb">
+    <p>A meteoroid enters the air at 11 to 72 km/s, forty to two hundred times the speed of sound. Most burn up above 60 km, where the air is too thin for a boom to be heard. Larger ones survive deeper, below about 50 km, and their shock wave reaches the ground as a sharp boom or a rumble, one to several minutes after the flash: sound needs that long to come down from 20 to 50 km.</p></div></details>
+    <details class="fold"><summary>How the map works <span class="sm">Rays traced from the luminous path; strength from weak-shock theory.</span></summary><div class="fb">
+    <p>For every fireball with a known speed and direction, shock rays leave the luminous path below 60 km almost at right angles to it and are traced through the standard atmosphere until they reach the ground or turn back up. The coloured dots are where they land. Strength comes from ReVelle's weak-shock theory for a line source, sized from the impact energy; it is good to a factor of about 3, checked against the 2013 Chelyabinsk fireball.</p></div></details>
+    <details class="fold"><summary>Limits <span class="sm">No wind, no hills; only the big fireballs are listed.</span></summary><div class="fb">
+    <ul>
+      <li>The atmosphere is the standard one, with no wind: the real edge of the zone moves with the weather of that night.</li>
+      <li>The fireball's end height is assumed a little below its brightest point; fragmentation and the terminal burst are not modelled.</li>
+      <li>CNEOS lists only the largest events. For the rest, report what you saw and heard to the American Meteor Society.</li>
+    </ul></div></details>
+    <p class="fine">Data: <a href="https://cneos.jpl.nasa.gov/fireballs/">NASA JPL CNEOS fireball data</a> (US Government sensors, public). Method and code: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/bolide.py">engine/bolide.py</a>. <a href="privacy.html">Privacy</a>.</p>
+  </section>
+</main>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="ui.js"></script>
+<script src="fireballs.js"></script>
+</body>
+</html>

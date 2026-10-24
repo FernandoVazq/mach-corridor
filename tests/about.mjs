@@ -6,12 +6,13 @@ const [, , base = 'http://localhost:8765/', exe] = process.argv;
 const axe = fs.readFileSync(new URL('./node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const fail = [];
-const paths = ['about/', 'es/', 'sound.html'].concat(fs.existsSync(new URL('../site/routes/index.html', import.meta.url)) ? ['routes/', 'routes/kjfk-klax.html'] : []);
+const paths = ['about/', 'es/', 'sound.html', 'fireballs.html'].concat(fs.existsSync(new URL('../site/routes/index.html', import.meta.url)) ? ['routes/', 'routes/kjfk-klax.html'] : []);
 for (const path of paths) for (const [w, h, scheme] of [[1280, 900, 'light'], [390, 844, 'dark']]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme });
   await p.route(/fernando-vazquez\.netlify\.app|googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)|fonts\.g/, r => r.abort());
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(base + path);
+  if (path === 'fireballs.html') { await p.waitForTimeout(1500); const ev = await p.$('.ev'); if (ev) { await ev.click(); await p.waitForTimeout(800); } }
   if (path === 'sound.html') { await p.waitForTimeout(1500); const c = await p.$('#map'); const bb = await c.boundingBox(); await p.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2); await p.waitForTimeout(1500); }
   const sw = await p.evaluate(() => document.documentElement.scrollWidth);
   if (sw > w) fail.push(`${path} ${w}: page scrolls sideways (${sw}px)`);
