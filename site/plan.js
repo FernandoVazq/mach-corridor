@@ -15,6 +15,10 @@
     sl.disabled = !base.supersonic;
     if (reset || !base.supersonic) sl.value = base.supersonic ? base.design : 1.0;
     const v = +sl.value, kts = Math.round(v * 573.6).toLocaleString("en-US");
+    const kt = m => Math.round(m * 573.6).toLocaleString("en-US");
+    $("acStats").innerHTML = `<div><b>M ${base.design.toFixed(2)}</b><span>${base.supersonic ? "top speed" : "cruise"} · ${kt(base.design)} kt</span></div>` +
+      `<div><b>${base.rangeNm.toLocaleString("en-US")} nm</b><span>range</span></div><div><b>${base.seats}</b><span>seats</span></div>` +
+      (base.supersonic ? `<div><b>M ${base.sub.toFixed(2)}</b><span>subsonic cruise</span></div>` : "");
     $("machMaxLbl").textContent = base.supersonic ? `M ${v.toFixed(2)} · ${kts} kt${Math.abs(v - base.design) < 1e-6 ? " (design)" : ` (design M${base.design.toFixed(2)})`}` : `subsonic, M${base.design.toFixed(2)}`;
   }
   // over the ocean: "full" = design Mach beyond the regulated zone; a detour cap keeps the route from running far out to
@@ -37,6 +41,9 @@
     if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) return { p: [+m[2], +m[1]], name: ptName([+m[2], +m[1]]) };
     return null;
   }
+  // a disclaimer or method note as an InfoTip (ui.js): a small (i) that opens on hover or tap, instead of a paragraph
+  const tipEsc = t => String(t).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const tip = (text, label = "More") => text ? `<button type="button" class="it" aria-label="${tipEsc(label)}" data-tip="${tipEsc(text)}"></button>` : "";
   const ptName = p => { const a = Object.values(MC.APT).find(a => Math.abs(a[2] - p[1]) < 0.05 && Math.abs(a[3] - p[0]) < 0.05); return a ? a[0] : `${MC.fmtLat(p[1])} ${MC.fmtLon(p[0])}`; };
   const colors = () => ({ boomless: MC.css("--route-boomless"), super: MC.css("--route-super"), sub: MC.css("--route-sub"), climb: MC.css("--route-sub") });
 
@@ -46,6 +53,12 @@
   // screen point -> {p: [lon, lat], name}: the nearest airport within SNAP_PX, else the clicked point
   function snapAt(sx, sy) {
     const worldW = MC.view.k * MC.view.W0;
+    if ($("snapApt") && $("snapApt").checked) {           // lock on to the nearest airport, however far
+      const [lon, lat] = MC.toLonLat(sx, sy), p = [MC.normLon(lon), Math.max(-89, Math.min(89, lat))];
+      let a = null, d = Infinity;
+      for (const x of MC.AIRPORTS) { const h = RT.hav(p, [x[3], x[2]]); if (h < d) { d = h; a = x; } }
+      if (a) return { p: [a[3], a[2]], name: a[0] };
+    }
     let best = null, bd = SNAP_PX;
     for (const a of MC.AIRPORTS) {
       const [x, y] = MC.toScreen(a[3], a[2]);
@@ -336,17 +349,21 @@
     const dBan = { t: o.block - r.ban.block, s: o.perSeat - r.ban.perSeat };
     const good = dBan.t < -1 / 60;
     const brg = routeBrg(r), skip = Math.round(o.dSkip || 0);
+    const inf = o.path.info, objTxt = $("objSel").selectedOptions[0].text;
+    const notes = [
+      sup && inf ? `Route search: a time-dependent grid search, then continuous refinement from two starting routes${inf.startsAgree < 0.002 ? ", which agree" : ` (they differ by ${(100 * inf.startsAgree).toFixed(1)}%; the better is shown)`}. Best for this forecast and cost model; not a proof of the global optimum. Weather is taken at the time the aircraft reaches each point.` : "",
+      sup && MC.S.thresh > 1.05 ? `The map lights up M ${MC.S.thresh.toFixed(2)} and above only; the plan flies every corridor from M 1.05.` : "",
+      sup && skip > 20 ? `A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${objTxt}”. Choose “Time” to fly every corridor at its full Mach.` : "",
+    ].filter(Boolean).join(" ");
     $("routeSummary").innerHTML = `<b>${r.names[0]} → ${r.names[1]}</b>, flying ${compass(brg)} (${String(brg).padStart(3, "0")}°). ${r.ac.name}, FL${MC.S.fl}.
-      ${Math.round(o.dist).toLocaleString()} nm (${o.dist >= r.gc.dist ? "+" : ""}${Math.round(o.dist - r.gc.dist)} nm vs great circle), ${Math.round(100 * o.dLand / o.dist)}% over land or coast.
+      ${Math.round(o.dist).toLocaleString()} nm (${o.dist >= r.gc.dist ? "+" : ""}${Math.round(o.dist - r.gc.dist)} nm vs great circle), ${Math.round(100 * o.dLand / o.dist)}% over land or coast. ${tip(notes, "How this route was found")}
       ${!o.inRange ? `<br><span class="warn">Longer than the ${r.ac.rangeNm.toLocaleString()} nm range: needs a fuel stop.</span>` : ""}
       ${sup && !(o.dHold && o.dHold.stale) ? `<div class="verdict ${good ? "" : "neg"}">${good ? `Boomless corridors save <b>${fmtMin(-dBan.t).replace("+", "")}</b> against today's overland ban and change the cost per seat by <b>${dMoney(dBan.s)}</b>.` : "Boomless corridors add nothing on this route at this altitude and time."}</div>` : ""}
-      ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Flying subsonic over land on the direct line beats every corridor route here for “${$("objSel").selectedOptions[0].text}”, so that is what is shown. Choose “Time” to see the fastest corridor route.</p>` : ""}
-      ${sup ? holdNote(o) : ""}
-      ${sup && MC.S.thresh > 1.05 ? `<p class="fine">The map lights up M ${MC.S.thresh.toFixed(2)} and above only; the plan flies every corridor from M 1.05.</p>` : ""}
-      ${sup && skip > 20 ? `<p class="fine">A corridor was available on ${skip.toLocaleString()} nm of land but subsonic was cheaper there for “${$("objSel").selectedOptions[0].text}”. Choose “Time” to fly every corridor at its full Mach.</p>` : ""}`;
+      ${sup && o.path.info && o.path.info.subBetter ? `<p class="fine">Subsonic on the direct line beats every corridor route for “${objTxt}”, so that is shown. ${tip("Flying subsonic over land on the direct line beats every corridor route here for this objective. Choose “Time” to see the fastest corridor route.", "Why subsonic")}</p>` : ""}
+      ${sup ? holdNote(o) : ""}`;
     const k = (v, l, cls = "") => `<div><div class="kv ${cls}">${v}</div><div class="kl">${l}</div></div>`;
     const bm = sup ? BOOM.route(o, MC.S.fl) : null;
-    if (sup) $("routeSummary").insertAdjacentHTML("beforeend", `<p class="fine">${bm.sea ? `Boom at sea ${bm.sea.toFixed(1)} psf. ` : ""}Flown supersonic over land it would be ${bm.overland.toFixed(1)} psf, ${Math.round(bm.overland / BOOM.LIMIT)}× the proposed FAA limit (about ${Math.round(bm.overlandPldb)} PLdB).${bm.landPldb ? ` Loudest boomless leg on the ground: ${bm.landPldb <= 45.05 ? "model 45 PLdB or less" : `model about ${Math.round(bm.landPldb)} PLdB`}; NASA's X-59 aims for ${BOOM.X59_GOAL}, and FaINT measured up to 69 dB PLSEL below the turning point (turbulence, background).` : ""}</p>`);
+    const boomTip = sup ? `${bm.sea ? `Boom at sea ${bm.sea.toFixed(1)} psf. ` : ""}Flown supersonic over land it would be ${bm.overland.toFixed(1)} psf, ${Math.round(bm.overland / BOOM.LIMIT)}× the proposed FAA limit (about ${Math.round(bm.overlandPldb)} PLdB).${bm.landPldb ? ` Loudest boomless leg on the ground: ${bm.landPldb <= 45.05 ? "model 45 PLdB or less" : `model about ${Math.round(bm.landPldb)} PLdB`}; NASA's X-59 aims for ${BOOM.X59_GOAL}, and FaINT measured up to 69 dB PLSEL below the turning point (turbulence, background).` : ""}` : "";
     const tv = o.block - r.base.block, sv = o.perSeat - r.base.perSeat;
     $("routeKpis").innerHTML = [
       k(fmtT(o.block), "Block time"),
@@ -354,31 +371,30 @@
       k(dMoney(sv), "Cost per seat vs 787-9", sv <= 0 ? "pos" : "neg"),
       k(`${Math.round(Math.abs(o.windAvg))} kt`, o.windAvg >= 0 ? "Average tailwind" : "Average headwind", o.windAvg >= 0 ? "pos" : "neg"),
       k(o.dLand ? Math.round(100 * o.dBoomless / o.dLand) + "%" : "–", "Land legs flown boomless"),
-      sup ? k(bm.land ? `${bm.land <= BOOM.SHADOW_ENVELOPE + 1e-9 && bm.landModel < BOOM.SHADOW_ENVELOPE ? "≤ " : ""}${bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}${o.pFlight > 0 ? ` · ${o.pFlight < 0.001 ? "< 0.1" : (100 * o.pFlight).toFixed(1)}% chance over` : ""}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
+      sup ? k(bm.land ? `${bm.land <= BOOM.SHADOW_ENVELOPE + 1e-9 && bm.landModel < BOOM.SHADOW_ENVELOPE ? "≤ " : ""}${bm.land.toFixed(2)} psf` : "0 psf", `Boom on land · limit ${BOOM.LIMIT}${o.pFlight > 0 ? ` · ${o.pFlight < 0.001 ? "< 0.1" : (100 * o.pFlight).toFixed(1)}% chance over` : ""} ${tip(boomTip, "About the boom")}`, bm.land <= BOOM.LIMIT ? "pos" : "neg")
           : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
     drawLadder(r); drawProfile(o); navlog();
     $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>"; $("lvlNote").textContent = "";
     $("depTable").innerHTML = "<tr><td class='muted'>Computing departures…</td></tr>";
-    const inf = o.path.info;
-    $("optNote").textContent = sup && inf ? `Route search: time-dependent grid search, then continuous refinement from two starting routes${inf.startsAgree < 0.002 ? ", which agree" : ` (they differ by ${(100 * inf.startsAgree).toFixed(1)}%; the better is shown)`}. Best for this forecast and cost model; not a proof of the global optimum. Weather is taken at the time the aircraft reaches each point.` : "";
+    $("optNote").textContent = "";
   }
 
   const HOLD = { stale: "the forecast is too old", beyond: "the flight runs past the end of the forecast", nomargin: "no forecast-error margin was available" };
   function holdNote(o) {
     const h = Object.entries(o.dHold || {}).filter(([, d]) => d > 1);
     let ssbTxt = "";
-    if (o.dReach > 1) ssbTxt += `<p class="fine">Approach: ${Math.round(o.dReach).toLocaleString()} nm over water flown at the cutoff Mach because a boom just above it would land up to ${RT.REACH_KM} km ahead, on regulated ground.</p>`;
+    if (o.dReach > 1) ssbTxt += ` Approach: ${Math.round(o.dReach).toLocaleString()} nm over water flown at the cutoff Mach because a boom just above it would land up to ${RT.REACH_KM} km ahead, on regulated ground.`;
     const sp = window.BOOM ? BOOM.secondaryPsf(o.ac, o.ac.design, MC.S.fl) : null;
-    if (o.dSsb > 1 && sp) ssbTxt += `<p class="fine">Each secondary boom would be about ${sp.typical.toFixed(2)} psf, up to ${sp.upper.toFixed(2)} psf (Concorde measurements scaled to this aircraft), so landing on land is avoided.</p>`;
-    if (o.dSsb > 1) ssbTxt += `<p class="fine">Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.</p>`;
+    if (o.dSsb > 1 && sp) ssbTxt += ` Each secondary boom would be about ${sp.typical.toFixed(2)} psf, up to ${sp.upper.toFixed(2)} psf (Concorde measurements scaled to this aircraft), so landing on land is avoided.`;
+    if (o.dSsb > 1) ssbTxt += ` Secondary booms: ${Math.round(o.dSsb).toLocaleString()} nm over water flown at the cutoff Mach because the stratosphere would bring the boom down on land ${o.ssbNoData ? "(no stratosphere data: assumed 125–420 km in every direction)" : "(red dots on the map)"}.`;
     const age = RT.dataAgeH();
     let out = "";
     if (age > RT.STALE_H) out += `<div class="verdict neg">Forecast run is ${Math.round(age)} h old (limit ${RT.STALE_H} h). ${MC.S.allowStale
       ? "Corridors are shown anyway because you chose a <b>study with old data</b>; not for flight."
       : "Corridors are switched off (fail-closed)."} <button class="btn" id="staleBtn">${MC.S.allowStale ? "Back to fail-closed" : "Use it anyway (study only)"}</button></div>`;
     for (const [k, d] of h) if (k !== "stale") out += `<p class="fine warn">Fail-closed: ${Math.round(d).toLocaleString()} nm over land flown subsonic because ${HOLD[k]}.</p>`;
-    return out + ssbTxt;
+    return out + (ssbTxt ? `<p class="fine">Slowed over water near land ${tip(ssbTxt, "Why the route slows over water")}</p>` : "");
   }
 
   // ---- evidence file: everything behind the plan, leg by leg (operational assurance, issue #43) ----
@@ -658,39 +674,58 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
   function axisLight(g) { g.select(".domain").attr("stroke", "var(--rule)"); g.selectAll("text").style("font-size", "13px").style("fill", "var(--ink-2)"); g.selectAll("line").attr("stroke", "var(--rule)"); }
 
   function drawLadder(r) {
-    const rows = [["787-9 today", r.base, MC.css("--ink-3")]];
-    if (r.ac.supersonic) rows.push(["Overland ban, direct", r.ban, MC.css("--route-sub")], ["Corridors, direct", r.gc, MC.css("--route-super")], ["Corridors, optimised", r.opt, MC.css("--route-boomless")]);
+    const rows = [["Today: 787-9", r.base, MC.css("--ink-3")]];
+    // grey for the alternatives, the accent for the plan shown on the map (the route colours mean leg types elsewhere)
+    if (r.ac.supersonic) rows.push(["No corridors", r.ban, MC.css("--ink-3")], ["Corridors, straight", r.gc, MC.css("--ink-3")], ["Corridors, best path", r.opt, MC.css("--ink")]);
+    const TIPS = { "Today: 787-9": "A Boeing 787-9 flying the same trip subsonic, as airlines do now",
+      "No corridors": "This aircraft on the straight line: supersonic only over water, subsonic over all land (today's US rule)",
+      "Corridors, straight": "The same straight line, but supersonic over land wherever the boom would not reach the ground",
+      "Corridors, best path": "The line bent to reach faster corridors and tailwinds: the route on the map" };
     const svg = d3.select("#rLadder").attr("viewBox", `0 0 340 ${rows.length * 28 + 6}`); svg.selectAll("*").remove();
     const x = d3.scaleLinear([0, d3.max(rows, d => d[1].block)], [128, 290]);
     rows.forEach(([lbl, e, c], i) => {
       const y = i * 28 + 4;
-      svg.append("text").attr("x", 0).attr("y", y + 13).text(lbl).style("font-size", "11px");
+      svg.append("text").attr("x", 0).attr("y", y + 13).text(lbl).style("font-size", "11px").append("title").text(TIPS[lbl]);
       svg.append("rect").attr("x", 128).attr("y", y + 3).attr("height", 14).attr("rx", 3).attr("width", x(e.block) - 128).attr("fill", c);
       svg.append("text").attr("x", x(e.block) + 6).attr("y", y + 14).text(fmtT(e.block)).style("font-size", "11px").style("fill", "var(--ink)");
     });
     strip("rLadder", { values: rows.map(d => d[1].block * 60), unit: "min", dec: 0, lo: 0, n: `${rows.length} options`,
-      hl: rows[rows.length - 1][1].block * 60, hlLabel: rows.length > 1 ? "optimised" : "787-9", label: "Block time" });
+      hl: rows[rows.length - 1][1].block * 60, hlLabel: rows.length > 1 ? "best path" : "787-9", label: "Block time" });
   }
 
   function drawProfile(e) {
     const svg = d3.select("#rprof"); svg.selectAll("*").remove();
-    const m = { l: 34, r: 8 }, w = 340 - m.l - m.r, h1 = 110, h2 = 50, gap = 14;
+    $("ssbKey").hidden = !(e.dSsb > 1 && !e.ssbNoData);
+    const m = { l: 34, r: 8 }, w = 340 - m.l - m.r, h1 = 96, h2 = 44, gap = 24;
     const x = d3.scaleLinear([0, e.dist], [0, w]);
     const g = svg.append("g").attr("transform", `translate(${m.l},6)`);
-    const yMax = Math.max(e.ac.design, 1.3) + 0.05, y = d3.scaleLinear([0.7, yMax], [h1, 0]);
+    // the Mach axis covers what is drawn (flown Mach and the forecast limit), not the aircraft's design Mach
+    const mc = e.segs.filter(s => s.landish && s.mcut != null && Number.isFinite(s.mcut));
+    const top = s => s.mcut + (s.margin > 0 ? s.margin : 0);
+    const hiV = d3.max([...e.segs.map(s => s.M), ...mc.map(top)]), loV = d3.min(e.segs.map(s => s.M));
+    const yMax = Math.ceil((Math.max(1.1, hiV) + 0.02) * 20) / 20, yMin = Math.floor((Math.min(0.95, loV) - 0.02) * 20) / 20;
+    const y = d3.scaleLinear([yMin, yMax], [h1, 0]).clamp(true);
     g.append("g").selectAll("rect").data(e.segs.filter(s => s.landish)).join("rect")
       .attr("x", s => x(s.x0)).attr("width", s => Math.max(0.5, x(s.x1) - x(s.x0) + 0.3)).attr("y", 0).attr("height", h1).attr("fill", "var(--surface-2)");
     g.append("g").selectAll("line").data(y.ticks(4)).join("line").attr("class", "gridl").attr("x1", 0).attr("x2", w).attr("y1", y).attr("y2", y);
-    g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(5).tickFormat(d3.format(".1f"))).call(s => s.select(".domain").remove());
-    g.append("text").attr("x", 0).attr("y", -1).text("Mach (shaded: over land or coast)");
-    const mc = e.segs.filter(s => s.landish && s.mcut != null);
+    g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(5).tickFormat(d3.format(".2f"))).call(s => s.select(".domain").remove());
+    g.append("text").attr("x", 0).attr("y", -1).text("Mach");
+    // the margin: from the forecast boomless Mach (top) down to the limit flown (dashed)
+    if (!svg.select("defs").size()) svg.append("defs").html(`<pattern id="mgHatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--warn-soft)"/><line x1="0" y1="0" x2="0" y2="4" stroke="var(--warn)" stroke-width="1.2" opacity=".55"/></pattern>`);
+    g.append("g").selectAll("rect").data(mc.filter(s => s.margin > 0)).join("rect")
+      .attr("x", s => x(s.x0)).attr("width", s => Math.max(0.5, x(s.x1) - x(s.x0) + 0.3))
+      .attr("y", s => y(top(s))).attr("height", s => Math.max(0, y(s.mcut) - y(top(s)))).attr("fill", "url(#mgHatch)")
+      .append("title").text(s => `Forecast boomless M${top(s).toFixed(3)} − margin ${s.margin.toFixed(3)} = limit M${s.mcut.toFixed(3)}`);
     g.append("g").selectAll("line").data(mc).join("line").attr("x1", s => x(s.x0)).attr("x2", s => x(s.x1))
-      .attr("y1", s => y(Math.max(0.7, Math.min(s.mcut, yMax)))).attr("y2", s => y(Math.max(0.7, Math.min(s.mcut, yMax))))
-      .attr("stroke", "var(--ink-3)").attr("stroke-width", 1).attr("stroke-dasharray", "2 2");
+      .attr("y1", s => y(s.mcut)).attr("y2", s => y(s.mcut))
+      .attr("stroke", "var(--ink-2)").attr("stroke-width", 1).attr("stroke-dasharray", "3 2");
+    // label the margin once, on the longest land stretch where it is tall enough to read
+    const lab = mc.filter(s => s.margin > 0).map(s => ({ s, len: x(s.x1) - x(s.x0) })).sort((a, b) => b.len - a.len)[0];
+    if (lab) { const s = lab.s, cx = Math.min(w - 40, Math.max(0, x((s.x0 + s.x1) / 2) - 18)); g.append("text").attr("x", cx).attr("y", Math.max(9, y(top(s)) - 3)).text(`margin ${s.margin.toFixed(3)}`).style("fill", "var(--warn)").style("font-weight", 600); }
     const col = colors();
     g.append("g").selectAll("line").data(e.segs).join("line").attr("x1", s => x(s.x0)).attr("x2", s => x(s.x1))
       .attr("y1", (s, i) => y(i ? e.segs[i - 1].M : s.M)).attr("y2", s => y(s.M)).attr("stroke", s => col[s.type]).attr("stroke-width", 2.4).attr("stroke-linecap", "round");
-    g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(1)).attr("y2", y(1)).attr("stroke", "var(--ink-3)").attr("stroke-width", .8);
+    if (yMin < 1 && yMax > 1) { g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(1)).attr("y2", y(1)).attr("stroke", "var(--ink-3)").attr("stroke-width", .8); g.append("text").attr("x", w).attr("y", y(1) - 3).attr("text-anchor", "end").text("Mach 1"); }
     // wind panel: tailwind positive (good), headwind negative (bad)
     const g2 = svg.append("g").attr("transform", `translate(${m.l},${6 + h1 + gap})`);
     const wv = e.segs.map(s => ({ x: (s.x0 + s.x1) / 2, w: s.along * RT.KT }));
@@ -700,7 +735,7 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
     g2.append("path").datum(wv).attr("fill", "var(--bad)").attr("opacity", .35).attr("d", d3.area().x(d => x(d.x)).y0(yw(0)).y1(d => yw(Math.min(0, d.w))));
     g2.append("line").attr("x1", 0).attr("x2", w).attr("y1", yw(0)).attr("y2", yw(0)).attr("stroke", "var(--ink-3)").attr("stroke-width", .8);
     g2.append("g").attr("class", "axis").call(d3.axisLeft(yw).ticks(3).tickSize(0).tickPadding(5)).call(s => s.select(".domain").remove());
-    g2.append("text").attr("x", 0).attr("y", -3).text("Wind along track, kt (green tailwind, red headwind)");
+    g2.append("text").attr("x", 0).attr("y", -4).text("Wind along track, kt: green tailwind, red headwind");
     g2.append("g").attr("class", "axis").attr("transform", `translate(0,${h2})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat(d => d3.format(",")(d) + (d === 0 ? " nm" : ""))).call(s => s.select(".domain").attr("stroke", "var(--rule)"));
     svg.attr("viewBox", `0 0 340 ${6 + h1 + gap + h2 + 22}`);
     strip("rprof", { values: e.segs.map(s => s.M), unit: "Mach", dec: 2, ref: 1, refLabel: "Mach 1",
@@ -744,10 +779,11 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
       }
       if (best) adv.push({ k, fl: best.fl, gain: best.m - m0 });
     }
-    el.innerHTML = adv.length ? `<b>Level advisory.</b> On this route another level allows a faster Mach over land in ${adv.length} of ${base.size} 300 nm blocks: ` +
-      adv.map(a => `nm ${(a.k * BLOCK_NM).toLocaleString()}–${((a.k + 1) * BLOCK_NM).toLocaleString()} at FL${a.fl} (+${a.gain.toFixed(3)})`).join("; ") +
-      `. Change level before the block or while subsonic: a 3° descent at the cutoff Mach lowers the limit about 0.03 Mach while it lasts.`
-      : rows.length === MC.S.man.flight_levels.length ? `Level advisory: FL${r.fl} is within ${MIN_GAIN} Mach of the best level on every overland block of this route.` : "";
+    el.innerHTML = adv.length ? `<b>Level advisory:</b> a faster level on ${adv.length} of ${base.size} land blocks ` +
+      tip(`On this route another level allows a faster Mach over land in ${adv.length} of ${base.size} 300 nm blocks: ` +
+        adv.map(a => `nm ${(a.k * BLOCK_NM).toLocaleString()}–${((a.k + 1) * BLOCK_NM).toLocaleString()} at FL${a.fl} (+${a.gain.toFixed(3)})`).join("; ") +
+        `. Change level before the block or while subsonic: a 3° descent at the cutoff Mach lowers the limit about 0.03 Mach while it lasts.`, "Level advisory details")
+      : rows.length === MC.S.man.flight_levels.length ? `<b>Level advisory:</b> FL${r.fl} is already the best level ${tip(`FL${r.fl} is within ${MIN_GAIN} Mach of the best level on every overland block (300 nm) of this route.`, "Level advisory details")}` : "";
   }
 
   function renderFl(rows) {
@@ -776,6 +812,9 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
     };
     $("routeGo").onclick = go;
     $("fly3d").onclick = () => window.MC3D?.openRoute(0);
+    document.querySelectorAll("#dlMenu .dllist button").forEach(b => b.addEventListener("click", () => { $("dlMenu").open = false; }));
+    if (p.get("sn") === "0") $("snapApt").checked = false;
+    $("snapApt").onchange = () => { MC.hashExtra.sn = $("snapApt").checked ? null : "0"; MC.writeHash(); };
     $("evidenceBtn").onclick = exportEvidence;
     $("efbBtn").onclick = efbOpen;
     $("routeExportBtn").onclick = exportRoute;
@@ -786,7 +825,6 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
       if (ev.target.id !== "staleBtn" || !R) return;
       MC.S.allowStale = !MC.S.allowStale; planRoute(R.A, R.B, R.names);
     });
-    $("routeHd").onclick = matchMap;
     $("routeSwap").onclick = () => {
       if (R) planRoute(R.B, R.A, [R.names[1], R.names[0]], { keepView: true });
       else { const f = $("fromIn").value; $("fromIn").value = $("toIn").value; $("toIn").value = f; if ($("fromIn").value && $("toIn").value) go(); }

@@ -1415,7 +1415,10 @@
       rose: "Each petal is a direction of travel; longer and brighter means more boomless Mach that way. Grey: no corridor that way.",
     };
     const surfNote = surfaceLegend();
-    $("legendNote").textContent = (isHigh() ? `FL${S.fl} is an estimate: GFS only, not yet checked against balloons; margin 1.5x. ` : "") + notes[S.look] + (S.dis && S.man.models && S.man.models.disagreement && S.look === "mach" ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "") + surfNote;
+    // the legend says only what is needed to read the colours; the longer explanation is in its (i)
+    $("legendNote").textContent = isHigh() ? `FL${S.fl} is an estimate (GFS only, not yet checked against balloons).` : "";
+    $("legendTip").setAttribute("data-tip", (isHigh() ? `FL${S.fl} is an estimate: GFS only, not yet checked against balloons; margin 1.5x. ` : "") + notes[S.look] + (S.dis && S.man.models && S.man.models.disagreement && S.look === "mach" ? " Hatching: GFS and ECMWF differ by 0.02 or more in some direction, or only one has a corridor." : "") + surfNote);
+    $("legendFloor").textContent = S.look === "mach" ? (S.thresh ? `Lit from M ${S.thresh.toFixed(2)}; below stays dark` : `Lowest usable Mach, ${FLOOR.toFixed(2)}`) : `Corridor edge, M ${fl}`;
     $("legendTitle").textContent = { mach: "Boomless cruise Mach", sat: "Corridors over satellite", earth: "Corridors over a cloud-free Earth", night: "Corridors over night lights", contour: "Boomless Mach contours", flow: `Wind at FL${S.fl}, coloured by Mach`, rose: "Boomless Mach by direction" }[S.look];
     $("marginLbl").textContent = S.auto && sigma ? "≈" + marginTypical().toFixed(3) : S.margin.toFixed(3);
     $("marginAuto").setAttribute("aria-pressed", S.auto && sigma ? "true" : "false");

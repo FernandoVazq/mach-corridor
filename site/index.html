@@ -95,11 +95,12 @@
       </div>
 
       <div class="float legend" id="legend">
-        <div class="lt" id="legendTitle">Boomless cruise Mach</div>
+        <div class="lt"><span id="legendTitle">Boomless cruise Mach</span><button type="button" class="it" id="legendTip" aria-label="How to read the colours" data-tip="Brighter means more Mach without a boom reaching the ground."></button></div>
         <canvas id="legendBar" width="240" height="10"></canvas>
-        <div class="lticks"><span style="left:16.67%">1.05</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
+        <div class="lticks"><span style="left:0%">M 1.00</span><span style="left:33.33%">1.10</span><span style="left:66.67%">1.20</span><span style="left:100%">1.30</span></div>
+        <div class="lfloor"><i></i><span id="legendFloor">Lowest usable Mach, 1.05</span></div>
         <div class="lkey" id="landKey" hidden></div>
-        <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
+        <p class="ln" id="legendNote"></p>
       </div>
 
       <div class="float lens" id="lens" hidden>
@@ -157,40 +158,57 @@
         </div>
         <datalist id="apts"></datalist>
         <div class="routeparams">
-          <label>Aircraft<select id="acSel"></select></label>
-          <label class="span2 machmax">Top speed <output id="machMaxLbl"></output>
+          <label class="span2">Aircraft<select id="acSel"></select></label>
+          <div class="acstats span2" id="acStats" aria-live="polite"></div>
+          <label class="span2 machmax">Top speed for this plan <output id="machMaxLbl"></output>
             <input type="range" id="machMax" min="1.0" max="2.4" step="0.05" value="2.0" aria-label="The aircraft's top cruise Mach">
           </label>
-          <label>Optimise for<select id="objSel">
-            <option value="time" selected>Time</option>
-            <option value="cost">Operating cost</option>
-            <option value="gen">Cost and passenger time</option>
-          </select></label>
-          <label class="span2">Over the ocean<select id="seaSel" title="Full Mach is legal beyond the regulated zone, but a real flight plan does not run far out to sea for it">
-            <option value="full10" selected>Full Mach, detour up to 10%</option>
-            <option value="full">Full Mach, any detour</option>
-            <option value="boomless">Boomless only, like over land</option>
-          </select></label>
+          <div class="fld"><span>Plan for <button type="button" class="it" aria-label="What the choices mean" data-tip="Fastest: the shortest block time; every corridor is flown at its full boomless Mach. Cheapest to fly: the lowest operating cost (fuel and crew); slow legs where supersonic costs more than it saves. Best value: operating cost plus the value of passengers' time, the balance an airline would pick."></button></span>
+            <select id="objSel" aria-label="Plan for">
+              <option value="time" selected>Fastest</option>
+              <option value="cost">Cheapest to fly</option>
+              <option value="gen">Best value (cost + time)</option>
+            </select></div>
+          <div class="fld"><span>Over the ocean <button type="button" class="it" aria-label="What the choices mean" data-tip="Over open water the boom reaches no one, so the aircraft may fly at its top speed there. Up to 10% longer: the route may bend out to sea for that, but never more than 10% beyond the straight line (a real flight plan would not run far offshore). Any detour: no limit. Boomless only: open water is flown like land, at the boomless Mach."></button></span>
+            <select id="seaSel" aria-label="Over the ocean">
+              <option value="full10" selected>Top speed, ≤ 10% longer</option>
+              <option value="full">Top speed, any detour</option>
+              <option value="boomless">Boomless only, as over land</option>
+            </select></div>
+          <label class="chk span2"><input type="checkbox" id="snapApt" checked> Snap route ends to the nearest airport</label>
         </div>
         <div id="routeOut" hidden>
           <div id="routeSummary" class="rsum"></div>
           <div id="routeKpis" class="kgrid"></div>
-          <div class="btnrow"><button class="btn" id="fly3d">Fly this route in 3D</button><button class="btn" id="routeHd" title="Colour the map with the boomless Mach for this route's direction of travel">Map for this direction</button><button class="btn" id="efbBtn" title="Tablet view for the flight deck: the next 300 nm of boomless Mach from any point of the route">Cockpit view</button><button class="btn" id="routeExportBtn" title="The route as GeoJSON and KML (Google Earth), one line per constant-Mach stretch">Export route</button><button class="btn" id="evidenceBtn" title="Every leg with the data, model version, margin and checks behind it (JSON + CSV)">Download evidence</button><button class="btn" id="navlogBtn" title="One line per change of leg or Mach: time, Mach to hold, limit, margin, psf, PLdB, chance over 0.11 psf (CSV)">Navlog CSV</button><button class="btn" id="simBtn" title="Fly it in a simulator: Microsoft Flight Simulator (.pln) and X-Plane 11/12 (.fms); waypoint names give the Mach to hold">Flight sim</button></div>
+          <div class="actions">
+            <button class="act" id="fly3d"><b>Fly it in 3D</b><span>The route over the globe, with the boom</span></button>
+            <button class="act" id="efbBtn"><b>Cockpit view</b><span>The next 300 nm, as a pilot's tablet</span></button>
+            <details class="act dl" id="dlMenu"><summary><b>Download</b><span>Map, navlog, simulator, evidence</span></summary>
+              <div class="dllist">
+                <button id="routeExportBtn"><b>Map file</b><span>GeoJSON and KML for Google Earth</span></button>
+                <button id="navlogBtn"><b>Navlog</b><span>CSV: the Mach to hold at each change</span></button>
+                <button id="simBtn"><b>Flight simulator</b><span>MSFS .pln and X-Plane .fms</span></button>
+                <button id="evidenceBtn"><b>Evidence pack</b><span>Every leg with its data, margin and checks</span></button>
+              </div>
+            </details>
+          </div>
           <details class="navwrap"><summary>Boom navlog <span class="muted">one line per change of leg or Mach</span></summary>
             <div class="tblwrap" tabindex="0" role="region" aria-label="Boom navlog"><table class="tbl navlog" id="navlog"></table></div>
             <p class="fine">ICAO flight plan Item 15 (speed and level changes at each change point; not for filing): <button class="btn sm" id="item15Copy">Copy</button></p>
             <pre class="item15" id="item15"></pre>
           </details>
-          <h3>Block time</h3>
+          <h3>Block time <button type="button" class="it" aria-label="What the four bars mean" data-tip="Today: a Boeing 787-9 flying the same trip subsonic, as airlines do now. No corridors: this aircraft on the straight line, supersonic only over water and subsonic over all land (today's US rule). Corridors, straight line: the same line, but supersonic over land wherever the boom would not reach the ground. Corridors, best path: the line bent to reach faster corridors and tailwinds; this is the route on the map."></button></h3>
           <svg id="rLadder" viewBox="0 0 340 130" role="img" aria-label="Block time comparison"></svg>
-          <h3>Mach and wind along the route <span>Click a point to see it in 3D</span></h3>
-          <svg id="rprof" viewBox="0 0 340 200" role="img" aria-label="Mach and wind along route"></svg>
-          <div class="keyrow">
-            <span><i class="sw" style="background:var(--route-boomless)"></i>Boomless over land</span>
-            <span><i class="sw" style="background:var(--route-super)"></i>Supersonic over water</span>
+          <h3>Mach and wind along the route <button type="button" class="it" aria-label="How to read it" data-tip="Coloured line: the Mach flown, coloured like the route on the map. Grey bands: over land or coast. Hatched band: the safety margin; its top is the forecast boomless Mach, the dashed line under it is the limit actually flown. Below: the wind along the track. Click a point to see it in 3D."></button></h3>
+          <div class="keyrow rkey">
+            <span><i class="sw" style="background:var(--route-boomless)"></i>Boomless, over land</span>
+            <span><i class="sw" style="background:var(--route-super)"></i>Supersonic, over water</span>
             <span><i class="sw" style="background:var(--route-sub)"></i>Subsonic</span>
-            <span><i class="sw" style="background:#ff5c5c;border-radius:50%;width:8px;height:8px"></i>Secondary boom would land on land (map)</span>
+            <span><i class="sw band"></i>Margin</span>
+            <span><i class="sw land"></i>Over land</span>
           </div>
+          <svg id="rprof" viewBox="0 0 340 200" role="img" aria-label="Mach and wind along route"></svg>
+          <p class="fine" id="ssbKey" hidden><i class="sw dot"></i>Red dots on the map: a secondary boom would land on land there.</p>
           <details class="navwrap" id="flFold"><summary>Every altitude <span class="muted">same route, each flight level</span></summary>
             <div class="tblwrap" tabindex="0" role="region" aria-label="Every altitude, same route"><table class="tbl" id="flTable"></table></div>
             <p class="fine" id="lvlNote"></p>
@@ -223,6 +241,7 @@
       </div>
     </div>
     <div class="acchips" id="acChips" role="radiogroup" aria-label="Focus aircraft"></div>
+    <div class="tscroll acspecw" tabindex="0" role="region" aria-label="Aircraft compared"><table class="tbl acspec" id="acSpec"></table></div>
     <div class="progress" id="econProgress"><div class="pbar"><i id="pbarFill"></i></div><span id="econProgText">Run the analysis to compute every route with the current forecast.</span></div>
     <div id="econBody" hidden>
       <div class="plain" id="econPlain"></div>
@@ -268,6 +287,16 @@
         <p>What decides whether the boom reaches the ground, and what your aircraft changes. Measured on a year of weather balloons at six US stations and on every land column of the global forecast.</p>
       </div>
     </div>
+    <figure class="panel bd" tabindex="0">
+      <figcaption><b>Why the boom can stay in the sky</b><span>Sound bends toward slower air. Warm air near the ground carries sound fast, so the boom curves back up before it lands, unless the aircraft is faster still. Move the sliders.</span></figcaption>
+      <svg id="bdSvg" viewBox="0 0 760 360" role="img" aria-label="Side view: an aircraft at 55,000 ft, the path of its boom bending through warm and cold air and wind, and whether it reaches the ground"></svg>
+      <div class="bdctl">
+        <label>Aircraft speed <input type="range" id="bdM" min="1.00" max="1.40" step="0.01" value="1.08"><output id="bdMl"></output></label>
+        <label>Wind at cruise <input type="range" id="bdW" min="-60" max="100" step="5" value="20"><output id="bdWl"></output></label>
+      </div>
+      <p class="bdread" id="bdRead" aria-live="polite"></p>
+      <p class="fine">Illustration with a standard atmosphere and a wind that grows with height; the map uses the real forecast for every place and direction.</p>
+    </figure>
     <div class="plain" id="physPlain"></div>
     <div class="pctl">
       <div class="seg" id="phFl" role="radiogroup" aria-label="Flight level"></div>
@@ -442,6 +471,7 @@
 <script src="boom.js"></script>
 <script src="ui.js"></script>
 <script src="physics.js"></script>
+<script src="boomdiagram.js"></script>
 <script src="app.js"></script>
 <script src="looks.js"></script>
 <script src="route.js"></script>

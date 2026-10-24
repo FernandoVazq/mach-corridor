@@ -64,6 +64,12 @@
   function renderChips() {
     $("acChips").innerHTML = sst().map(a => `<button role="radio" aria-checked="${a.id === focus}" class="${a.id === focus ? "on" : ""}" data-id="${a.id}"><i style="background:${AC_COLOR[a.id]}"></i>${a.name}</button>`).join("");
     $("acChips").querySelectorAll("button").forEach(b => b.onclick = () => { focus = b.dataset.id; if (data.length) renderAll(); else renderChips(); });
+    // the aircraft side by side: top speed against range, the chosen one highlighted (click a row to choose it)
+    const kt = m => Math.round(m * 573.6).toLocaleString("en-US");
+    $("acSpec").innerHTML = `<thead><tr><th scope="col">Aircraft</th><th scope="col">Top speed</th><th scope="col">Range</th><th scope="col">Seats</th><th scope="col">Subsonic cruise</th></tr></thead><tbody>` +
+      ACS.map(a => `<tr class="${a.id === focus ? "hl" : ""}${a.supersonic ? " pick" : ""}" data-id="${a.id}"><td><span class="sw" style="background:${AC_COLOR[a.id]};height:8px;width:8px;border-radius:50%"></span>${a.name}</td>
+        <td>M ${a.design.toFixed(2)} <span class="muted">${kt(a.design)} kt</span></td><td>${a.rangeNm.toLocaleString("en-US")} nm</td><td>${a.seats}</td><td>M ${a.sub.toFixed(2)}</td></tr>`).join("") + "</tbody>";
+    $("acSpec").querySelectorAll("tr.pick").forEach(tr => tr.onclick = () => { focus = tr.dataset.id; if (data.length) renderAll(); else renderChips(); });
   }
   // the whole page in five sentences, for the focus aircraft
   function renderPlain() {
