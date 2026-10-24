@@ -88,8 +88,9 @@ def test_calibration():
         print("calibration: no measurements listed yet (rocket.CAL empty)")
         return
     prof = profile_from_column(None)
+    runs = {}
     for name, site, veh, phase, where, meas, fac in rocket.CAL:
-        r = scenario(site, veh, phase, prof)
+        r = runs.get((site, veh, phase)) or runs.setdefault((site, veh, phase), scenario(site, veh, phase, prof))
         H = np.array(r["hits"])
         la, lo = where
         d = np.hypot((H[:, 0] - la) * 111.32, (H[:, 1] - lo) * 111.32 * math.cos(math.radians(la)))

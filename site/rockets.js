@@ -16,8 +16,10 @@
     const d = new Date(iso);
     return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz, timeZoneName: "short" }).format(d);
   }
+  const isRe = () => state.data && state.data.sites[state.site] && state.data.sites[state.site].kind === "reentry";
   function fmtT(s) {
     if (s == null) return "";
+    if (isRe()) { const a = Math.abs(s), m = Math.floor(a / 60), r = Math.round(a % 60); return `${s < 0 ? "−" : "+"}${m}:${String(r).padStart(2, "0")}`; }
     const m = Math.floor(Math.abs(s) / 60), r = Math.round(Math.abs(s) % 60);
     return `T+${m}:${String(r).padStart(2, "0")}`;
   }
@@ -47,7 +49,8 @@
     const Ls = launchesFor(state.site);
     $("range").textContent = "· next 10 days";
     if (!Ls.length) {
-      box.appendChild(el("p", { class: "fine" }, state.data.error ? "The launch list could not be loaded on the last update. Showing a typical booster landing in today's atmosphere." :
+      box.appendChild(el("p", { class: "fine" }, isRe() ? "No capsule return off California is publicly scheduled in the next 10 days. Showing a typical Dragon or Orion return in today's atmosphere." :
+        state.data.error ? "The launch list could not be loaded on the last update. Showing a typical booster landing in today's atmosphere." :
         `No launches from ${S.short} in the next 10 days. Showing a typical booster landing in today's atmosphere.`));
       return;
     }
@@ -56,7 +59,7 @@
       b.appendChild(el("span", { class: "when" }, fmtWhen(L.net, S.tz)));
       b.appendChild(el("span", { class: "what" }, `${L.name}${L.status ? " · status " + L.status : ""}`));
       const loud = (L.towns || []).some((t) => t.level === "loud" || t.level === "clear");
-      b.appendChild(el("span", { class: "tag" + (L.rtls ? " land" : "") }, L.rtls ? (loud ? "Booster lands here: booms on land" : "Booster lands here") : "Lands at sea: booms mostly offshore"));
+      b.appendChild(el("span", { class: "tag" + (L.rtls ? " land" : "") }, L.capsule ? (loud ? "Capsule return: booms on land" : "Capsule return") : L.rtls ? (loud ? "Booster lands here: booms on land" : "Booster lands here") : "Lands at sea: booms mostly offshore"));
       b.addEventListener("click", () => { state.launch = L.id; save(); render(); });
       box.appendChild(b);
     }
@@ -77,11 +80,16 @@
     if (cur.kind === "launch") {
       const L = cur.L;
       if (!L.rtls) { v = "Probably no boom on land"; s = `The booster lands at sea, so its boom stays offshore. The launch boom starts high and far downrange. ${L.name}, ${fmtWhen(L.net, S.tz)}.`; }
-      else if (loud.length || clear.length) { v = `Booms expected in ${[...loud, ...clear].length} of ${cur.towns.length} nearby towns`; s = `The booster returns to ${S.short}. ${L.name}, ${fmtWhen(L.net, S.tz)}.`; }
+      else if (loud.length || clear.length) { v = `Booms expected in ${[...loud, ...clear].length} of ${cur.towns.length} nearby towns`; s = `${L.capsule ? "The capsule comes back over the coast." : `The booster returns to ${S.short}.`} ${L.name}, ${fmtWhen(L.net, S.tz)}.`; }
       else { v = "Faint booms at most"; s = `${L.name}, ${fmtWhen(L.net, S.tz)}.`; }
     } else {
-      v = `A typical ${cur.E.vehicle === "superheavy" ? "Super Heavy" : "Falcon 9"} booster landing today`;
-      s = "What a booster returning to the landing zone would sound like in today's atmosphere.";
+      if (cur.E.vehicle === "capsule") {
+        v = "A typical Dragon or Orion return today";
+        s = "A capsule coming back from orbit over the coast, splashing down offshore: what each town would hear in today's atmosphere. The splash point is a typical one.";
+      } else {
+        v = `A typical ${cur.E.vehicle === "superheavy" ? "Super Heavy" : "Falcon 9"} booster landing today`;
+        s = "What a booster returning to the landing zone would sound like in today's atmosphere.";
+      }
     }
     $("verdict").textContent = v;
     $("verdictSub").textContent = s;
@@ -124,7 +132,7 @@
     const W = Math.max(300, Math.round(box.clientWidth || 800)), H = Math.round(W * 0.75), small = W < 560;
     const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${W} ${H}`).attr("preserveAspectRatio", "xMidYMid slice");
     const pts = [[S.lon, S.lat], ...cur.towns.map((t) => [t.lon, t.lat])];
-    const near = (la, lo) => Math.hypot((la - S.lat) * 111.32, (lo - S.lon) * 111.32 * Math.cos(S.lat * Math.PI / 180)) < 140;
+    const near = (la, lo) => Math.hypot((la - S.lat) * 111.32, (lo - S.lon) * 111.32 * Math.cos(S.lat * Math.PI / 180)) < (S.kind === "reentry" ? 260 : 140);
     for (const p of cur.parts) for (const h of p.hits) if (h[2] >= 0.05 && near(h[0], h[1])) pts.push([h[1], h[0]]);
     const proj = d3.geoMercator().fitExtent([[small ? 16 : 40, small ? 16 : 40], [W - (small ? 16 : 40), H - (small ? 16 : 40)]], { type: "MultiPoint", coordinates: pts });
     const path = d3.geoPath(proj);
@@ -158,11 +166,14 @@
       const s = el("span"); const i = el("i"); i.style.background = LEVELS[k].color; s.appendChild(i); s.appendChild(document.createTextNode(txt)); lg.appendChild(s);
     }
     const tipEl = document.createElement("button"); tipEl.type = "button"; tipEl.className = "it"; tipEl.setAttribute("aria-label", "How to read the map");
-    tipEl.setAttribute("data-tip", "Each dot is where one sound ray reaches the ground. Where there are no dots, the atmosphere bends the boom back up before it lands. White line: booster path (dashed: ascent). Triangle: pad.");
+    tipEl.setAttribute("data-tip", S.kind === "reentry" ? "Each dot is where one sound ray reaches the ground. White line: the capsule's path while it is supersonic. Triangle: a typical splash point." : "Each dot is where one sound ray reaches the ground. Where there are no dots, the atmosphere bends the boom back up before it lands. White line: booster path (dashed: ascent). Triangle: pad.");
     lg.appendChild(tipEl);
   }
 
   function render() {
+    const ab = document.querySelector("#towns thead abbr");
+    if (ab) ab.title = isRe() ? "Minutes:seconds before (−) or after (+) splashdown" : "Time after liftoff, minutes:seconds";
+    const uh = document.getElementById("upH"); if (uh) uh.firstChild.textContent = isRe() ? "Upcoming returns " : "Upcoming launches ";
     sitesBar(); launchList();
     const cur = current();
     verdict(cur); townTable(cur); map(cur);

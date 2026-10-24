@@ -59,7 +59,28 @@ SITES = {
                   ("Laguna Vista", 26.101, -97.290), ("Brownsville", 25.901, -97.497), ("Los Fresnos", 26.072, -97.476),
                   ("Matamoros", 25.869, -97.502), ("Harlingen", 26.190, -97.696), ("San Benito", 26.133, -97.631),
                   ("Port Mansfield", 26.554, -97.426)]},
+    # capsule returns (issue #62): Crew/Cargo Dragon has splashed down off Southern California since 2025 (recovery from
+    # Long Beach; CRS-32 and CRS-34 off Oceanside, Ax-4 west of Seal Beach, Crew-11 off San Diego) and Orion off San
+    # Diego (Artemis II, Apr 2026). The splash point is a typical one (approximate); the capsule comes in on a
+    # descending ISS-inclination pass from the northwest (Crew-11 was seen over the Bay Area).
+    "socal": {
+        "name": "Southern California coast: Dragon and Orion splashdowns", "short": "Capsule returns, California", "lat": 33.05, "lon": -117.65,
+        "tz": "America/Los_Angeles", "lz": (33.05, -117.65), "booster_from_deg": 312.0, "kind": "reentry",
+        "ascent_az": {"default": 132.0},
+        "towns": [("Santa Barbara", 34.420, -119.698), ("Ventura", 34.275, -119.229), ("Oxnard", 34.198, -119.177),
+                  ("Malibu", 34.026, -118.780), ("Santa Clarita", 34.392, -118.543), ("Santa Monica", 34.019, -118.491),
+                  ("West Hollywood", 34.090, -118.362), ("Los Angeles", 34.052, -118.244), ("Long Beach", 33.770, -118.194),
+                  ("Avalon, Catalina", 33.343, -118.327), ("Huntington Beach", 33.660, -117.999), ("Irvine", 33.684, -117.827),
+                  ("Riverside", 33.953, -117.396), ("San Clemente", 33.427, -117.612), ("Oceanside", 33.196, -117.380),
+                  ("Carlsbad", 33.158, -117.351), ("Escondido", 33.119, -117.086), ("San Diego", 32.716, -117.161)]},
 }
+# capsule descent (distance to splashdown km, altitude km, Mach). The three middle rows are Apollo 15's measured
+# reentry (NASA TN D-6950, Hilton et al. 1972: vehicle altitude and speed above ships at 500, 55.6 and 12.9 km from
+# splashdown; Mach from the standard atmosphere). The last row is an estimate: Mach 1 near 19 km, before the drogue
+# chutes (Crew Dragon: drogues at about 5.5 km, already at Mach 0.5). Dragon, Orion and Apollo are blunt capsules
+# of similar size, so one shape is used for all three.
+CAPSULE = [(500.0, 52.5, 15.7), (55.6, 33.1, 4.5), (12.9, 25.2, 2.1), (6.0, 19.0, 1.0)]
+Z_EMIT_CAPSULE = 56000.0
 
 # ---------------------------------------------------------------- generic trajectories
 # ascent: (t s, altitude km, downrange km, Mach, flight-path angle deg up)
@@ -79,6 +100,7 @@ DESCENT = {
 LANDING_T = {"falcon9": 470.0, "superheavy": 410.0}   # touchdown / catch, seconds after liftoff (typical public flights)
 Z_EMIT_MAX = 45000.0       # above this the air is too thin for an audible boom (p_v^1/2 < 0.1 of sea level)
 
+# Capsule reentry: K fitted to Apollo 15's three ship measurements (TN D-6950); see CAL.
 # K_v: one constant per vehicle and phase (absorbs body/plume length, shape factor and ground reflection).
 # Descent, fitted to MEASURED booms (standard atmosphere, median of rays within 3 km of the station):
 #   Falcon 9 / Falcon Heavy side booster at LZ-1/2 (FAA Final EA, SpaceX Falcon program, appendices, Table 1):
@@ -91,12 +113,17 @@ Z_EMIT_MAX = 45000.0       # above this the air is too thin for an audible boom 
 # Cape (those peaks include focus booms, not modelled here). Super Heavy ascent scaled by the descent ratio 12/2.05:
 # UNVALIDATED, and its carpet is far out over the Gulf.
 K_V = {("falcon9", "descent"): 2.05, ("superheavy", "descent"): 12.0,
-       ("falcon9", "ascent"): 40.0, ("superheavy", "ascent"): 234.0}
+       ("falcon9", "ascent"): 40.0, ("superheavy", "ascent"): 234.0, ("capsule", "reentry"): 5.0}
 # measured points the model must reproduce within a factor of 2 (test_rocket.py):
 # (name, site, vehicle, phase, (lat, lon) of the station, measured psf, allowed factor)
 CAL = [("Falcon Heavy side boosters at LC-40, 8.9 km", "cape", "falcon9", "descent", (28.5618, -80.5772), 1.65, 2.0),
        ("Falcon Heavy side boosters at LC-39A, 15.1 km", "cape", "falcon9", "descent", (28.6082, -80.6041), 1.42, 2.0),
-       ("Super Heavy Flight 5, about 10 km north (Port Isabel)", "starbase", "superheavy", "descent", (26.073, -97.208), 8.0, 2.0)]
+       ("Super Heavy Flight 5, about 10 km north (Port Isabel)", "starbase", "superheavy", "descent", (26.073, -97.208), 8.0, 2.0),
+       # capsule reentry, Apollo 15 (NASA TN D-6950): ships under the track 500, 55.6 and 12.9 km from splashdown;
+       # fitted K = 7.0, 4.3, 4.5 -> 5.0 used (the track here is the California one, same geometry)
+       ("Apollo 15 reentry, ship 500 km uprange", "socal", "capsule", "reentry", (36.0554, -121.6322), 0.197, 2.0),
+       ("Apollo 15 reentry, ship 55.6 km uprange", "socal", "capsule", "reentry", (33.3842, -118.0928), 0.438, 2.0),
+       ("Apollo 15 reentry, ship 12.9 km uprange", "socal", "capsule", "reentry", (33.1275, -117.7527), 0.80, 2.0)]
 
 
 def interp_traj(rows, dt_s=2.0):
@@ -216,6 +243,21 @@ def scenario(site_key, vehicle, phase, prof, azimuth=None, n_phi=72, dt_emit=2.0
         for i in range(len(t)):
             x, y = bearing_xy(az, dr[i] * 1000.0)
             track.append((t[i], alt[i] * 1000.0, x, y, M[i], az, gam[i]))
+    elif phase == "reentry":
+        az = S["booster_from_deg"] if azimuth is None else azimuth            # bearing from the splash point to the capsule
+        lat0, lon0 = S["lz"]
+        a = np.array(CAPSULE)
+        d = np.arange(a[0, 0], a[-1, 0] - 1e-9, -4.0)
+        alt = np.interp(d, a[::-1, 0], a[::-1, 1]); M = np.interp(d, a[::-1, 0], a[::-1, 2])
+        gam = -np.degrees(np.arctan(np.gradient(alt) / np.gradient(d)))          # flight-path angle, - down
+        # seconds before splashdown: ground distance over ground speed, plus ~5 min under parachutes
+        c_ = np.array([prof(z * 1000.0)[0] for z in alt])
+        v_g = np.maximum(M * c_ * np.cos(np.radians(gam)), 50.0)
+        seg = (d[:-1] - d[1:]) * 1000.0 / v_g[:-1]
+        t_rem = 300.0 + np.concatenate([np.cumsum(seg[::-1])[::-1], [0.0]])
+        for i in range(len(d)):
+            x, y = bearing_xy(az, d[i] * 1000.0)
+            track.append((-t_rem[i], alt[i] * 1000.0, x, y, M[i], (az + 180.0) % 360.0, gam[i]))
     else:
         az = S["booster_from_deg"] if azimuth is None else azimuth            # bearing from the LZ to the booster
         t, (alt, dist, M, gam) = interp_traj(DESCENT[vehicle], dt_emit)
@@ -225,7 +267,7 @@ def scenario(site_key, vehicle, phase, prof, azimuth=None, n_phi=72, dt_emit=2.0
             track.append((LANDING_T[vehicle] - t[i], alt[i] * 1000.0, x, y, M[i], (az + 180.0) % 360.0, gam[i]))
     K = K_V[(vehicle, phase)]
     for (te, z, x0, y0, M, psi, gam) in track:
-        if M <= 1.02 or z > Z_EMIT_MAX or z < 500.0:
+        if M <= 1.02 or z > (Z_EMIT_CAPSULE if phase == "reentry" else Z_EMIT_MAX) or z < 500.0:
             continue
         c, u, v = prof(z)[:3]
         Ma = M                                   # trajectories give Mach relative to the air
@@ -329,6 +371,35 @@ def parse_ll2(js):
     return out
 
 
+LL2_EVENTS = "https://ll.thespacedevs.com/2.3.0/events/upcoming/?limit=40"
+
+
+def parse_events(js):
+    """LL2 upcoming events -> capsule splashdowns off California (Dragon, Orion) as launch-like records."""
+    out = []
+    for E in js.get("results", []):
+        name = (E.get("name") or "")
+        typ = ((E.get("type") or {}).get("name") or "")
+        loc = (E.get("location") or "") if isinstance(E.get("location"), str) else ((E.get("location") or {}).get("name") or "")
+        text = f"{name} {typ} {loc} {E.get('description') or ''}".lower()
+        if not (("dragon" in text or "orion" in text) and ("splashdown" in text or "landing" in typ.lower())):
+            continue
+        if any(w in text for w in ("atlantic", "gulf of america", "gulf of mexico", "florida")):
+            continue                                   # the old Florida recovery zones: not modelled
+        out.append({"id": f"ev{E.get('id')}", "name": name, "net": E.get("date"), "window_start": E.get("date"),
+                    "status": None, "site": "socal", "pad": "Splashdown off California", "vehicle": "capsule",
+                    "rocket": "Dragon" if "dragon" in text else "Orion", "orbit": "default", "landings": [],
+                    "rtls": True, "n_rtls": 1, "url": E.get("url"), "image": None, "capsule": True})
+    return out
+
+
+def fetch_returns(timeout=30):
+    import requests
+    r = requests.get(LL2_EVENTS, timeout=timeout, headers={"User-Agent": "mach-corridor (https://machcorridor.com)"})
+    r.raise_for_status()
+    return parse_events(r.json())
+
+
 def fetch_launches(timeout=30):
     import requests
     r = requests.get(LL2, timeout=timeout, headers={"User-Agent": "mach-corridor (https://machcorridor.com)"})
@@ -356,6 +427,11 @@ def run_launch(L, cols, valid_times):
     col, vt = pick_column(cols, L["site"], when, valid_times)
     prof = profile_from_column(col)
     S = SITES[L["site"]]
+    if L.get("capsule"):
+        p = scenario(L["site"], "capsule", "reentry", prof)
+        return {**L, "atmosphere": vt or "standard", "atmosphere_note": None if vt else
+                "outside the 48 h forecast range: US Standard Atmosphere, no wind (updates as the return gets closer)",
+                "towns": town_verdicts(L["site"], p["hits"]), "parts": [{"phase": "reentry", "track": p["track"], "hits": thin(p["hits"])}]}
     az = S["ascent_az"].get(L["orbit"], S["ascent_az"]["default"])
     parts = [scenario(L["site"], L["vehicle"], "ascent", prof, azimuth=az)]
     if L["rtls"]:
@@ -388,6 +464,11 @@ def main():
     except Exception as ex:
         launches, err = [], f"launch list unavailable: {ex}"[:200]
         print(err)
+    if not a.launches:
+        try:
+            launches += fetch_returns()
+        except Exception as ex:
+            print("capsule returns unavailable:", ex)
     out = []
     for L in launches:
         try:
@@ -404,14 +485,17 @@ def main():
     for k in SITES:
         col = (cols or {}).get("sites", {}).get(k, {}).get("by_time", {}).get(valid[0]) if valid else None
         prof = profile_from_column(col)
-        veh = "superheavy" if k == "starbase" else "falcon9"
-        parts = [scenario(k, veh, "ascent", prof), scenario(k, veh, "descent", prof)]
+        if SITES[k].get("kind") == "reentry":
+            veh, parts = "capsule", [scenario(k, "capsule", "reentry", prof)]
+        else:
+            veh = "superheavy" if k == "starbase" else "falcon9"
+            parts = [scenario(k, veh, "ascent", prof), scenario(k, veh, "descent", prof)]
         hits = [h for p in parts for h in p["hits"]]
         examples[k] = {"vehicle": veh, "atmosphere": valid[0] if col else "standard", "towns": town_verdicts(k, hits),
                        "parts": [{"phase": p["phase"], "track": p["track"], "hits": thin(p["hits"])} for p in parts]}
     res = {"generated": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"), "model": "rocket v0 (issue #50)",
            "gfs_run": (cols or {}).get("run"), "error": err, "k_v": {f"{v}/{p}": K for (v, p), K in K_V.items()},
-           "sites": {k: {kk: S[kk] for kk in ("name", "short", "lat", "lon", "tz", "lz")} for k, S in SITES.items()},
+           "sites": {k: {kk: S[kk] for kk in ("name", "short", "lat", "lon", "tz", "lz", "kind") if kk in S} for k, S in SITES.items()},
            "launches": out, "examples": examples, "ll2_seen": SEEN[:60]}
     with open(os.path.join(a.data, "rockets.json"), "w") as f:
         json.dump(res, f, separators=(",", ":"))

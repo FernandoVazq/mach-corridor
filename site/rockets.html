@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Will I hear the sonic boom? Rocket launch boom forecast · Mach Corridor</title>
-<meta name="description" content="Sonic boom forecast for rocket launches and booster landings at Cape Canaveral, Vandenberg and Starbase: which towns will hear it, how loud, and when, traced through the forecast atmosphere.">
+<meta name="description" content="Sonic boom forecast for rocket launches, booster landings and Dragon and Orion capsule returns: which towns will hear it, how loud, and when, traced through the forecast atmosphere.">
 <link rel="canonical" href="https://machcorridor.com/rockets.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Will I hear the sonic boom? Rocket launch boom forecast">
@@ -66,7 +66,7 @@
 <main class="page rk">
   <header class="top">
     <h1>Will I hear the sonic boom?</h1>
-    <p class="lead">Which towns hear the boom from the next launch or booster landing at Cape Canaveral, Vandenberg and Starbase, how loud, and when.<button type="button" class="it" aria-label="How the forecast is made" data-tip="Every sound ray is traced through the forecast wind and temperature for launch time, so the edge of the boom zone moves the way it does on the day."></button></p>
+    <p class="lead">Which towns hear the boom from the next launch, booster landing or capsule return, how loud, and when.<button type="button" class="it" aria-label="How the forecast is made" data-tip="Every sound ray is traced through the forecast wind and temperature for launch time, so the edge of the boom zone moves the way it does on the day."></button></p>
     <div class="seg sites" role="group" aria-label="Launch site" id="siteSeg"></div>
   </header>
 
@@ -77,7 +77,7 @@
       <div class="ss" id="psfStrip"></div>
     </div>
     <div>
-      <h2 class="h3">Upcoming launches <span class="muted" id="range"></span></h2>
+      <h2 class="h3" id="upH">Upcoming launches <span class="muted" id="range"></span></h2>
       <div class="launches" id="launches"></div>
       <p class="rkverdict" id="verdict"></p>
       <p class="sub" id="verdictSub"></p>
@@ -106,7 +106,8 @@
     <ul>
       <li><strong>Atmosphere:</strong> NOAA GFS temperature and wind at the site for the forecast hour closest to liftoff, up to about 36 km, with the standard atmosphere above. Launches more than 48 hours away use the standard atmosphere until they come into forecast range; the forecast updates every 6 hours.</li>
       <li><strong>Rays:</strong> sound rays are traced from every point of the supersonic flight, in every direction on the boom cone, until they reach the ground or the atmosphere bends them back up. That bending sets the edge of the boom zone.</li>
-      <li><strong>Loudness:</strong> the standard far-field scaling for a sonic boom (it falls with distance to the power 3/4), calibrated to published measurements of real Falcon 9 and Super Heavy booms.</li>
+      <li><strong>Loudness:</strong> the standard far-field scaling for a sonic boom (it falls with distance to the power 3/4), calibrated to published measurements of real Falcon 9 and Super Heavy booms, and for capsules to the three ship measurements of Apollo 15's reentry (NASA TN D-6950), which the model matches within 30%.</li>
+      <li><strong>Capsule returns:</strong> Dragon and Orion now splash down off Southern California and come in from the northwest. The page uses a typical splash point and Apollo 15's speed and height along the way; the capsule is subsonic before its parachutes open.</li>
       <li><strong>Flight path:</strong> a typical path for the vehicle (altitude, speed and angle against time), the usual launch direction for the orbit, and the booster's usual approach to the landing zone. Real flights differ.</li>
     </ul></div></details>
 

@@ -280,6 +280,36 @@ an upcoming launch or booster landing, about how loud, and when.
   region), terrain, the landing burn, turbulence (BYU measured up to 8 dB across 150 m and 10 dB launch to launch).
   Stated uncertainty: about a factor of 2 in level.
 
+### 4.3 Capsule returns (`engine/rocket.py`, site `socal`, issue #62)
+
+Dragon has splashed down off Southern California since 2025 and Orion did for Artemis II (April 2026). The capsule's
+supersonic path is Apollo 15's measured reentry (NASA TN D-6950, Hilton, Henderson and McKinney 1972: vehicle height
+and speed above ships 500, 55.6 and 12.9 km from splashdown), linearly interpolated, plus an estimated Mach 1 near
+19 km; it comes in from the northwest (bearing 312° from a typical splash point near 33.05° N, 117.65° W, a
+descending ISS-inclination pass). Rays leave the cone below 56 km. The Carlson constant K = 5.0 is fitted to the same
+three Apollo 15 measurements (individual fits 7.0, 4.3, 4.5); the model reproduces 0.14 / 0.51 / 0.89 psf against
+0.20 / 0.44 / 0.80 measured. Returns listed by Launch Library 2 (`events/upcoming`, Dragon or Orion splashdowns) are
+forecast with the GFS column at the splash point; otherwise the page shows a typical return in today's atmosphere.
+Limits: the real ground track, splash point and entry angle change every mission; Orion is larger than Apollo.
+
+### 4.4 Fireball booms (`engine/bolide.py`, issue #61; page `fireballs.html`)
+
+NASA JPL CNEOS fireballs (US Government sensors) with a speed and direction: the luminous path below 60 km emits a
+line-source shock (Mach 40-250, the cone is almost a cylinder) traced through the US Standard Atmosphere. Strength:
+ReVelle (1976) weak-shock theory, dp/p_z = (2γ/(γ+1)) 0.4467 x^(-3/4), x = R/R0, R0 = M d, with d from the impact
+energy, speed and a density of 3,300 kg/m³, and an acoustic gain sqrt(ρ_g c_g / ρ_z c_z) on the way down. Checks:
+Chelyabinsk 2013 (440 kt at 23 km; model 0.2-1.1 kPa against 1-4 kPa reported near the track) and centimetre meteors
+from 56-103 km (Edwards et al. 2008: 0.012-0.65 Pa). Not valid for blunt capsules (OSIRIS-REx: such a formula gave
+21 Pa, 0.7 Pa was measured).
+
+### 4.5 How far sound carries (`engine/sound.py`, issue #60; page `sound.html`)
+
+For each 1° point and 6-hour step, the effective sound speed c + u sin φ + v cos φ toward eight directions from the
+GFS 2 m temperature and 10 m wind up to 1.5 km above the ground (80 m level and pressure levels 100-1,500 m above the
+model ground). The critical angle θc = arccos(c_eff(0) / max c_eff) is the elevation below which every ray from a
+ground source turns back down (trapped). θc = 0: upward refraction. A regional estimate of whether the air helps
+sound travel, not a noise level (Embleton 1996; ISO 9613-2 "favourable propagation").
+
 ## 5. Routing
 - Time-dependent shortest path on a 1° grid (16 directions), then continuous refinement.
 - The aircraft meets the forecast valid when it arrives. Ground speed comes from the wind triangle.
