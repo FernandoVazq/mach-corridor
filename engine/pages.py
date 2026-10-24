@@ -276,7 +276,7 @@ def main():
     with open(os.path.join(a.site, "routes", "index.html"), "w", encoding="utf8") as f:
         f.write("\n".join(idx))
     # sitemap
-    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("sound.html", "hourly", "0.8"), ("fireballs.html", "daily", "0.8"), ("x59.html", "hourly", "0.7"), ("routes/", "daily", "0.8")] + \
+    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("sound.html", "hourly", "0.8"), ("fireballs.html", "daily", "0.8"), ("x59.html", "hourly", "0.7"), ("blast.html", "hourly", "0.8"), ("routes/", "daily", "0.8")] + \
            [(f"routes/{slug(x, y)}.html", "daily", "0.6") for x, y, _ in rows] + [("privacy.html", "yearly", "0.2")]
     sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     sm += [f"  <url><loc>https://machcorridor.com/{u}</loc><changefreq>{c}</changefreq><priority>{p}</priority></url>" for u, c, p in urls]

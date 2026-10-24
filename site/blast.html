@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5654559314082674"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blast window forecast: when will the noise carry to the neighbours? · Mach Corridor</title>
+<meta name="description" content="For a quarry, mine, demolition site, range or fireworks show: the next 48 hours rated Good, Caution or Avoid toward each direction where people live, from where the forecast air traps sound near the ground.">
+<link rel="canonical" href="https://machcorridor.com/blast.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Blast window forecast">
+<meta property="og:description" content="When will blast noise carry to the neighbours? The next 48 hours, direction by direction.">
+<meta property="og:url" content="https://machcorridor.com/blast.html">
+<meta property="og:image" content="https://machcorridor.com/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: auto; }
+  .bar { height: 52px; }
+  .bw2 { max-width: 1080px; margin: 0 auto; }
+  .bw2 h1 { font-size: 30px; }
+  .bw2 .lead { font-size: 16px; color: var(--ink-2); max-width: 720px; margin: 4px 0 0; }
+  .bw2 form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 16px 0 8px; }
+  .bw2 label { display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+  .bw2 input { font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); min-height: 36px; width: 9.5em; }
+  .bw2 .presets, .bw2 #dirSeg { margin: 6px 0; }
+  .bw2 h2.site { font-size: 20px; margin: 18px 0 2px; }
+  .bw2 .bwverdict { font-size: 18px; font-weight: 600; margin: 8px 0 2px; }
+  .bw2 .sub { color: var(--ink-2); margin: 0 0 10px; }
+  .bw2 .tbl.bw td, .bw2 .tbl.bw th { text-align: center; }
+  .bw2 .tbl.bw td:first-child, .bw2 .tbl.bw th:first-child { text-align: left; white-space: nowrap; }
+  .bw2 .chipr { display: inline-block; min-width: 4.6em; border-radius: 999px; padding: 1px 8px; font-size: 12.5px; font-weight: 500; }
+  .bw2 .chipr.good { color: var(--good); background: var(--good-soft); } .bw2 .chipr.caution { color: var(--warn); background: var(--warn-soft); } .bw2 .chipr.avoid { color: var(--bad); background: var(--bad-soft); }
+  .bw2 .btnrow { display: flex; gap: 8px; margin: 12px 0; }
+  .bw2 section.txt { max-width: 760px; margin-top: 30px; }
+  .bw2 section.txt p, .bw2 section.txt li { color: var(--ink-2); line-height: 1.65; }
+  .bw2 .empty { color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
+  @media (max-width: 860px) { .bw2 h1 { font-size: 24px; } }
+  @media print { .bar, form, .presets, #dirSeg, .btnrow, section.txt, .lead .it { display: none !important; } }
+</style>
+<script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Mach Corridor home">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
+    <span class="name">Mach Corridor</span>
+  </a>
+  <div class="status"><a href="sound.html">Sound tonight</a><a href="rockets.html">Rocket booms</a><a href="./">Map</a></div>
+</header>
+<main class="page bw2">
+  <h1>Blast window forecast</h1>
+  <p class="lead">When will the noise of a blast carry to the neighbours? The next 48 hours, rated for each direction where people live.<button type="button" class="it" aria-label="How the rating works" data-tip="Good: the air bends sound upward. Caution: some sound is trapped near the ground. Avoid: an inversion or wind traps sound and carries it toward that side."></button></p>
+  <form id="siteForm">
+    <label>Site name<input id="sname" placeholder="optional"></label>
+    <label>Latitude<input id="lat" type="number" step="0.0001" min="-89" max="89" required inputmode="decimal"></label>
+    <label>Longitude<input id="lon" type="number" step="0.0001" min="-180" max="180" required inputmode="decimal"></label>
+    <button type="submit" class="btn main">Forecast</button>
+    <button type="button" class="linkish" id="geo">use my location</button>
+  </form>
+  <div class="seg presets" id="presets" role="group" aria-label="Examples"></div>
+  <p class="fine" style="margin:8px 0 0">Neighbours to the:</p>
+  <div class="seg" id="dirSeg" role="group" aria-label="Directions where people live"></div>
+  <h2 class="site" id="siteName"></h2>
+  <div id="out" aria-live="polite"></div>
+  <p class="fine" id="runNote"></p>
+
+  <section class="txt">
+    <details class="fold"><summary>Why the same blast is loud one day and quiet the next <span class="sm">Inversions and wind bend sound back to the ground.</span></summary><div class="fb">
+    <p>Sound bends toward slower air. On a sunny afternoon the air cools with height and a blast's noise curves up and away. On a clear, calm morning or evening, warm air sits on cool air near the ground and the noise curves back down, often several kilometres away. Wind does the same toward the side it blows to. Blasting codes and guidance (US Bureau of Mines RI 8485, mining regulators) say the same: avoid inversions and wind toward neighbours.</p></div></details>
+    <details class="fold"><summary>For quarries, ranges and event organisers <span class="sm">Hourly, site-specific forecasts with alerts are in development.</span></summary><div class="fb">
+    <p>This free page uses a global forecast on a 100 km grid every 6 hours. The service in development adds hourly 3 km forecasts, the site's terrain and your neighbours' exact locations, a daily email or text with the best blasting window, and validation with microphones at your site.</p></div></details>
+    <details class="fold"><summary>Limits <span class="sm">A planning aid, not a measurement or a compliance assessment.</span></summary><div class="fb">
+    <ul>
+      <li>It rates whether the air helps sound travel, not how loud a given blast will be: that depends on the charge, delays, stemming, terrain and distance.</li>
+      <li>The thresholds are a first estimate and are being calibrated against measurements. Local effects (valleys, sea breeze, fog) are not resolved.</li>
+      <li>Follow your permit, your blasting plan and your regulator. Research prototype by Mach Corridor.</li>
+    </ul></div></details>
+    <p class="fine">Method: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/sound.py">engine/sound.py</a>. Data: NOAA GFS. <a href="privacy.html">Privacy</a>.</p>
+  </section>
+</main>
+<script src="ui.js"></script>
+<script src="blast.js"></script>
+</body>
+</html>
