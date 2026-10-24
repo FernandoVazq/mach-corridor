@@ -524,8 +524,13 @@
         prev = s;
       }
     }
+    const fl = win.map(s => s.M).filter(Number.isFinite);
+    if (fl.length) strip("efbChart", { values: fl, unit: "Mach", dec: 3, ref: 1, refLabel: "Mach 1", n: `${fl.length} stretches`, period: `next ${AHEAD} nm`,
+      hl: s0.M, hlLabel: "now", label: "Mach to fly" });
     $("efbNext").innerHTML = items.length ? items.slice(0, 6).map(t => `<li>${t}</li>`).join("") : "<li>No change in the next 300 nm.</li>";
   }
+  // Atlas FJV StatStrip under each chart (site/ui.js)
+  const strip = (id, o) => { const el = document.getElementById(id); if (el && window.MC_UI) window.MC_UI.stripFor(el, o); };
   function axisLight(g) { g.select(".domain").attr("stroke", "var(--rule)"); g.selectAll("text").style("font-size", "13px").style("fill", "var(--ink-2)"); g.selectAll("line").attr("stroke", "var(--rule)"); }
 
   function drawLadder(r) {
@@ -539,6 +544,8 @@
       svg.append("rect").attr("x", 128).attr("y", y + 3).attr("height", 14).attr("rx", 3).attr("width", x(e.block) - 128).attr("fill", c);
       svg.append("text").attr("x", x(e.block) + 6).attr("y", y + 14).text(fmtT(e.block)).style("font-size", "11px").style("fill", "var(--ink)");
     });
+    strip("rLadder", { values: rows.map(d => d[1].block * 60), unit: "min", dec: 0, lo: 0, n: `${rows.length} options`,
+      hl: rows[rows.length - 1][1].block * 60, hlLabel: rows.length > 1 ? "optimised" : "787-9", label: "Block time" });
   }
 
   function drawProfile(e) {
@@ -572,6 +579,8 @@
     g2.append("text").attr("x", 0).attr("y", -3).text("Wind along track, kt (green tailwind, red headwind)");
     g2.append("g").attr("class", "axis").attr("transform", `translate(0,${h2})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat(d => d3.format(",")(d) + (d === 0 ? " nm" : ""))).call(s => s.select(".domain").attr("stroke", "var(--rule)"));
     svg.attr("viewBox", `0 0 340 ${6 + h1 + gap + h2 + 22}`);
+    strip("rprof", { values: e.segs.map(s => s.M), unit: "Mach", dec: 2, ref: 1, refLabel: "Mach 1",
+      n: `${e.segs.length} stretches`, period: `${Math.round(e.dist).toLocaleString()} nm`, label: "Flown Mach along the route" });
     svg.on("click", ev => { const [px] = d3.pointer(ev, g.node()); window.MC3D?.openRoute(Math.max(0, Math.min(e.dist, x.invert(px)))); });
   }
 

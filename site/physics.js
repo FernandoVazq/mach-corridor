@@ -89,6 +89,9 @@
   // ---------- charts ----------
   function axisStyle(g) { g.select(".domain").attr("stroke", "var(--rule)"); g.selectAll("text").style("font-size", "11px").style("fill", "var(--ink-3)"); g.selectAll("line").attr("stroke", "var(--rule)"); }
 
+  // Atlas FJV StatStrip under each chart (site/ui.js); id or element
+  const strip = (id, o) => { const el = typeof id === "string" ? document.getElementById(id) : id; if (el && window.MC_UI) window.MC_UI.stripFor(el, o); };
+
   function drawTornado() {
     const s = study(), F = { ...s.factors };
     const v = P.validation, vf = v && (v["FL" + st.fl] || v.all);
@@ -112,6 +115,8 @@
     g.append("text").attr("class", "tval").attr("x", W - m.r + 6).attr("y", rh / 2 + 4)
       .text(d => d.sym ? `±${d.median.toFixed(3)}` : Math.abs(d.median) < 0.0005 ? "≈ 0" : `${f3(d.median)} · ${d3.format("+d")(Math.round(d.median * KT_PER_M))} kt`);
     g.append("title").text(d => `${d.label}: typical ${d.sym ? "±" + d.median.toFixed(4) : f3(d.median)} Mach; 80% of cases between ${d.p10.toFixed(4)} and ${d.p90.toFixed(4)}`);
+    strip("phTornado", { values: rows.map(r => Math.abs(r.median)), unit: "Mach", dec: 3, lo: 0, n: `${rows.length} factors`, period: `FL${st.fl}`,
+      hl: Math.abs(rows[0].median), hlLabel: rows[0].label.split(" (")[0].slice(0, 22), label: "Size of the typical change per factor" });
   }
 
   function drawImp() {
@@ -129,11 +134,11 @@
     g.append("rect").attr("class", d => "tbar" + (d.v < 0 ? " neg" : "")).attr("rx", 3).attr("x", d => Math.min(x(0), x(d.v))).attr("width", d => Math.abs(x(d.v) - x(0))).attr("y", rh / 2 - 6).attr("height", 12);
     g.append("text").attr("class", "tval").attr("x", W - m.r + 6).attr("y", rh / 2 + 4).text(d => `${f3(d.v)} · ${d3.format("+d")(Math.round(d.v * KT_PER_M))} kt`);
     g.append("title").text(d => `${d.name}: one normal swing (±${d.natural_sd} ${d.unit}) moves the limit ${f3(d.v)} Mach`);
+    strip("chImp", { values: rows.map(r => Math.abs(r.v)), unit: "Mach", dec: 3, lo: 0, n: `${rows.length} drivers`, period: `FL${st.fl}`,
+      hl: Math.abs(rows[0].v), hlLabel: rows[0].name.slice(0, 22), label: "Effect of one normal swing" });
     $("impNote").textContent = `These drivers explain ${Math.round(100 * I.r2)}% of the day-to-day variation (±${I.y_sd.toFixed(3)} Mach) at FL${st.fl}. Terrain is fixed for a place, so it is not a day-to-day driver.`;
   }
 
-  const qs = (v) => { const s = [...v].sort((a, b) => a - b), q = (f) => s[Math.min(s.length - 1, Math.floor(f * (s.length - 1) + 0.5))]; return { min: s[0], q1: q(.25), med: q(.5), q3: q(.75), max: s.at(-1) }; };
-  const strip = (id, o) => { if (window.MC_UI) window.MC_UI.stripFor(document.getElementById(id), o); };
   function drawAlt() {
     const svg = d3.select("#chAlt"); svg.selectAll("*").remove();
     const W = 520, H = 300, m = { l: 44, r: 16, t: 14, b: 30 };
@@ -154,7 +159,9 @@
     const lg = svg.append("g").attr("transform", `translate(${m.l + 8},${m.t + 4})`);
     data.forEach((d, i) => { const g = lg.append("g").attr("transform", `translate(0,${i * 16})`); g.append("rect").attr("width", 14).attr("height", 3).attr("y", 4).attr("rx", 1.5).attr("fill", d.c); g.append("text").attr("x", 20).attr("y", 9).style("font-size", "11.5px").style("fill", "var(--ink-2)").text(d.n); });
     const bal = data.find(d => d.k === "balloon") || data[0];
-    strip("chAlt", { ...qs(bal.r.map(r => r.any_median)), ref: 1.10, refLabel: "usable", better: "", dec: 3, lo: 1.0, unit: "Mach", n: `${bal.r.length} levels`, label: `Median, ${bal.n.split(",")[0].toLowerCase()}` });
+    const r550 = bal.r.find(r => r.fl === 550);
+    strip("chAlt", { values: bal.r.map(r => r.any_median), ref: 1.10, refLabel: "usable", dec: 3, lo: 1.0, unit: "Mach", n: `${bal.r.length} levels`,
+      period: `FL${bal.r[0].fl}–FL${bal.r[bal.r.length - 1].fl}`, hl: r550 ? r550.any_median : null, hlLabel: "FL550", label: `Median by level, ${bal.n.split(",")[0].toLowerCase()}` });
   }
 
   function drawVal() {
@@ -176,7 +183,8 @@
     const lg = svg.append("g").attr("transform", `translate(${m.l},12)`);
     keys.forEach((k, i) => { const gg = lg.append("g").attr("transform", `translate(${i * 150},0)`); gg.append("rect").attr("width", 10).attr("height", 10).attr("rx", 2).attr("fill", k[2]); gg.append("text").attr("x", 15).attr("y", 9).style("font-size", "11.5px").style("fill", "var(--ink-2)").text(k[1]); });
     const da = fls.map(f => v[f].f24_1p00 && v[f].f24_1p00.rmse).filter(Number.isFinite);
-    if (da.length) strip("chVal", { ...qs(da), ref: 0.010, refLabel: "Phase 1 gate", better: "low", dec: 4, lo: 0, unit: "Mach", n: `${da.length} levels`, label: "Day-ahead error, 1°" });
+    if (da.length) strip("chVal", { values: da, ref: 0.010, refLabel: "Phase 1 gate", better: "low", dec: 4, lo: 0, unit: "Mach", n: `${da.length} levels`,
+      period: "a year of balloons", label: "Day-ahead RMS error, 1°" });
   }
 
   function drawPsf(c, p) {
@@ -193,6 +201,9 @@
     svg.append("text").attr("x", m.l + 6).attr("y", m.t + 12).style("font-size", "11px").style("fill", "var(--ink-2)").text(`below M${Mb.toFixed(2)}: boom turns before the ground on a median day`);
     svg.append("g").selectAll("circle").data(pts).join("circle").attr("cx", d => x(d.M)).attr("cy", d => y(d.v)).attr("r", 5).attr("fill", "transparent")
       .append("title").text(d => `M${d.M.toFixed(2)}: ${d.v.toFixed(2)} psf if it reaches the ground`);
+    strip("chPsf", { values: pts.map(d => d.v), unit: "psf", dec: 2, lo: 0, ref: BOOM.LIMIT, refLabel: "proposed limit", better: "low",
+      n: `${pts.length} Mach steps`, period: `M${Ms[0].toFixed(2)}–M${Ms[Ms.length - 1].toFixed(2)}, FL${p.FL}`, hl: BOOM.psf(c, p.M, p.FL), hlLabel: `M${p.M.toFixed(2)}`,
+      label: "Overpressure if the boom lands" });
   }
 
   function drawBuf(c, p) {
@@ -209,6 +220,9 @@
       .append("title").text(`Your aircraft: ${Math.round(h)} m`);
     svg.append("text").attr("x", x(Math.min(120, p.L)) + 9).attr("y", y(Math.min(2100, h)) + 4).style("font-size", "11.5px").style("fill", "var(--ink)").text("your aircraft");
     svg.append("text").attr("x", m.l + 6).attr("y", m.t + 12).style("font-size", "11px").style("fill", "var(--ink-3)").text("grey: aircraft of airliner-like weight for their length");
+    const hs = r.map(d => d.quiet_height_m ?? d.safe_height_m).filter(Number.isFinite);
+    strip("chBuf", { values: hs, unit: "m", dec: 0, lo: 0, ref: 1000, refLabel: "map cushion", n: `${hs.length} lengths`,
+      period: `${r[0].length_m}–${r[r.length - 1].length_m} m long`, hl: h, hlLabel: "your aircraft", label: "Height needed for 0.11 psf" });
   }
 
   function insights() {
@@ -285,6 +299,9 @@
     $("clTable").innerHTML = `<tr><th>Region (land, FL${cl.fl})</th>${per.map(p => `<th class="${p === cl.season ? "cur" : ""}">${p === "Year" ? "All year" : p}</th>`).join("")}</tr>` +
       regs.map(rg => `<tr><td>${rg}</td>${per.map(p => `<td class="${p === cl.season ? "cur" : ""}">${Math.round(100 * m.regions[rg][fk][p])}%</td>`).join("")}</tr>`).join("") +
       `<tr><td>All land</td>${per.map(p => `<td class="${p === cl.season ? "cur" : ""}">${Math.round(100 * m.all_land[fk][p])}%</td>`).join("")}</tr>`;
+    strip(document.querySelector("#clMap + .cllegend") || $("clMap"), { values: regs.map(rg => 100 * m.regions[rg][fk][cl.season]), unit: "%", dec: 0, lo: 0, hi: 100,
+      n: `${regs.length} regions`, period: `FL${cl.fl}, ${cl.season === "Year" ? "all year" : cl.season}, Oct 2025 – Oct 2026`, hl: 100 * m.all_land[fk][cl.season], hlLabel: "all land",
+      label: "Chance of a corridor by region" });
   }
 
   // ---------- month by month, five years (study/variability_eval.py -> geo/seasonal.json) ----------
@@ -308,6 +325,9 @@
     };
     $("seTable").innerHTML = `<tr><th>Region (land, ${fk}), %</th>${mon.map(m => `<th>${m}</th>`).join("")}</tr>` +
       regs.map(r => `<tr><td>${r}</td>${SE.months[r][fk].map(cell).join("")}</tr>`).join("");
+    const allM = regs.flatMap(r => SE.months[r][fk]).map(v => 100 * v);
+    strip($("seTable").closest(".tblwrap"), { values: allM, unit: "%", dec: 0, lo: 0, hi: 100, n: `${regs.length} regions × 12 months`, period: `${fk}, Apr 2021 – Sep 2026`,
+      label: "Monthly share with a corridor in every direction" });
     const us = SE.annual_fl550["Contiguous US"], yrs = Object.keys(us);
     $("seSub").textContent = `Share of time every direction has a corridor of at least M1.10 (${SE.analyses.toLocaleString()} GFS analyses, Apr 2021 – Sep 2026)`;
     $("seNote").innerHTML = `The year-to-year change is small (contiguous US at FL550: ${yrs.map(y => `${y} ${Math.round(100 * us[y])}%`).join(", ")}); ` +
@@ -348,7 +368,8 @@
       .append("title").text(r => `FL${r.fl}${r.fl > hiFl ? " (estimate)" : ""}: median M${r.s.land_any_median.toFixed(3)} in any direction; 10th percentile ${r.s.land_any_p10.toFixed(3)}; best direction 90th ${r.s.land_best_p90.toFixed(3)}`);
     const best = rows.reduce((b, r) => r.s.land_any_median > b.s.land_any_median ? r : b);
     const core = rows.filter(r => r.fl <= hiFl).map(r => r.s.land_any_median);
-    if (core.length) strip("chLiveAlt", { ...qs(core), ref: 1.05, refLabel: "floor", better: "", dec: 3, lo: 1.0, unit: "Mach", n: `${core.length} levels, FL300–FL${hiFl}`, label: "Median over land, this forecast hour" });
+    if (core.length) strip("chLiveAlt", { values: core, ref: 1.05, refLabel: "floor", dec: 3, lo: 1.0, unit: "Mach", n: `${core.length} levels, FL300–FL${hiFl}`,
+      period: d3.utcFormat("%a %d %b %HZ")(new Date(man.valid_times[fi])), hl: best.s.land_any_median, hlLabel: `FL${best.fl}`, label: "Median over land, this forecast hour" });
     svg.append("text").attr("x", x(best.fl)).attr("y", y(best.s.land_any_median) - 10).attr("text-anchor", "middle").style("font-size", "12px").style("font-weight", 600).style("fill", "var(--ink)").text(`M${best.s.land_any_median.toFixed(3)}`);
     const vt = d3.utcFormat("%a %d %b %HZ")(new Date(man.valid_times[fi]));
     const hiRows = rows.filter(r => r.fl > hiFl);

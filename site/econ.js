@@ -96,6 +96,9 @@
     ].join("");
   }
   const axisStyle = s => s.call(g => g.select(".domain").remove()).call(g => g.selectAll(".tick line").attr("stroke", "var(--rule)"));
+  // Atlas FJV StatStrip under each chart (site/ui.js)
+  const strip = (id, o) => { const el = document.getElementById(id); if (el && window.MC_UI) window.MC_UI.stripFor(el, o); };
+  const acName = id => { const a = ACS.find(x => x.id === id); return a ? a.name.split(" (")[0] : id; };
 
   function chWorth() {
     const svg = d3.select("#chWorth"); svg.selectAll("*").remove();
@@ -125,6 +128,9 @@
       .attr("fill", p => AC_COLOR[p.ac.id]).attr("opacity", p => (p.ac.id === focus ? 1 : .35) * (p.ok ? 1 : .4))
       .attr("stroke", "var(--surface)").attr("stroke-width", 1.5)
       .append("title").text(p => `${p.ac.name}, ${p.r}: ${fmtT(p.x)} saved, +${money(p.y)} per seat${p.ok ? "" : " (beyond range)"}`);
+    const be = pts.filter(p => p.ac.id === focus && p.x > 0).map(p => p.y / p.x);
+    if (be.length) strip("chWorth", { values: be, unit: "$/h", dec: 0, ref: e.vot, refLabel: "your value of time", better: "low",
+      n: `${be.length} route directions`, label: `Break-even value of time, ${acName(focus)}` });
   }
 
   function chCorr() {
@@ -144,6 +150,7 @@
     [["Direct great circle", "var(--route-super)", .55], ["Optimised route", "var(--route-boomless)", 1]].forEach(([t, c, o], i) => {
       lg.append("rect").attr("y", i * 14).attr("width", 10).attr("height", 8).attr("fill", c).attr("opacity", o); lg.append("text").attr("x", 14).attr("y", i * 14 + 8).text(t);
     });
+    strip("chCorr", { values: rows.map(r => r.opt), unit: "min", dec: 0, lo: 0, n: `${rows.length} routes`, label: `Minutes saved, optimised route, ${acName(focus)}` });
   }
 
   function chWind() {
@@ -171,6 +178,8 @@
       lg.append("text").attr("x", i * 120 + 14).attr("y", 4).text(t);
     });
     lg.append("text").attr("x", 240).attr("y", 4).text("Grey: 787-9");
+    strip("chWind", { values: rows.map(r => Math.abs(r.out.ac[focus].opt.block - r.back.ac[focus].opt.block) * 60), unit: "min", dec: 0, lo: 0,
+      n: `${rows.length} routes`, label: `One way vs return, ${acName(focus)}` });
   }
 
   function chCost() {
@@ -192,6 +201,8 @@
     });
     const lg = g.append("g").attr("transform", `translate(${W - 150},${H - 30})`);
     [["Fuel", 1], ["Crew, maintenance, ownership", .35]].forEach(([t, o], k) => { lg.append("rect").attr("y", k * 14).attr("width", 10).attr("height", 8).attr("fill", "var(--ink-2)").attr("opacity", o); lg.append("text").attr("x", 14).attr("y", k * 14 + 8).text(t); });
+    strip("chCost", { values: items.map(i => i.f + i.n), unit: "$ per seat", dec: 0, lo: 0, hl: items[0].f + items[0].n, hlLabel: "787-9",
+      n: `${items.length} aircraft`, label: `Cost per seat, ${row.ra}–${row.rb}` });
   }
 
   function chCo2() {
@@ -212,6 +223,8 @@
       g.append("text").attr("x", x(i.v) + 6).attr("y", y(k) + y.bandwidth() / 2 + 4).text(`${i.v.toFixed(1)}×, ${Math.round(i.kg)} kg`).style("fill", "var(--ink)");
     });
     g.append("line").attr("x1", x(1)).attr("x2", x(1)).attr("y1", 0).attr("y2", H).attr("stroke", "var(--ink-3)").attr("stroke-dasharray", "3 3");
+    if (items.length) strip("chCo2", { values: items.map(i => i.v), unit: "× 787-9", dec: 1, lo: 0, ref: 1, refLabel: "787-9",
+      n: `${items.length} supersonic aircraft`, label: "Fuel per seat, median over routes" });
   }
 
   function chTornado() {
@@ -254,6 +267,8 @@
     });
     g.append("line").attr("x1", x(b0)).attr("x2", x(b0)).attr("y1", -4).attr("y2", H * 0.7).attr("stroke", "var(--ink)");
     g.append("text").attr("x", 0).attr("y", H * 0.7 + 44).text("Green lowers the break-even (better for supersonic); red raises it.").style("fill", "var(--ink-3)");
+    const sw = cases.map(c => Math.abs(c[2] - c[1])).filter(Number.isFinite);
+    if (sw.length) strip("chTornado", { values: sw, unit: "$/h", dec: 0, lo: 0, n: `${sw.length} assumptions`, label: "Swing in break-even per assumption" });
   }
 
   function renderCards() {

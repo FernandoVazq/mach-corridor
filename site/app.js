@@ -1219,7 +1219,15 @@
       .attr("r", (d, i) => i === selI ? 5 : 1.8).attr("fill", (d, i) => i === selI ? "var(--text)" : "var(--mach)")
       .attr("stroke", "var(--surface)").attr("stroke-width", (d, i) => i === selI ? 1.5 : 0)
       .append("title").text((d, i) => `${S.man.headings[i]}°: ${ms[i] < 1 ? "no corridor" : "M " + ms[i].toFixed(3)}`);
+    // StatStrip under the rose (after the grid it shares with the facts): directions that have a corridor
+    const ok = ms.filter(m => m >= 1), hlM = selI != null && ms[selI] >= 1 ? ms[selI] : null;
+    mcStrip(document.querySelector(".inspgrid"), ok.length ? {
+      values: ok, unit: "Mach", dec: 3, lo: 0.98, ref: FLOOR, refLabel: "floor",
+      n: `${ok.length} of ${ms.length} directions`, period: `${d3.utcFormat("%a %d %b %HZ")(new Date(S.man.valid_times[S.fi]))}`,
+      hl: hlM, hlLabel: hlM != null ? `${S.man.headings[selI]}°` : "", label: "Boomless Mach by direction" }
+      : { min: 0.98, max: 0.98, unit: "Mach", dec: 2, n: `0 of ${ms.length} directions`, label: "No corridor in any direction" });
   }
+  const mcStrip = (el, o) => { if (el && window.MC_UI) window.MC_UI.stripFor(el, o); };
   async function drawTimeSeries(lon, lat) {
     const fl = S.fl, key = [S.hd, S.hdDeg].join(), sel = S.sel;
     const atl = await Promise.all(fhs().map(fh => loadAtlas(fh, fl)));
@@ -1243,6 +1251,10 @@
       .attr("fill", (d, i) => i === S.fi ? "var(--text)" : (d.m >= FLOOR ? "var(--mach)" : "var(--text-2)")).attr("stroke", "var(--surface)").attr("stroke-width", 1.5)
       .append("title").text(d => `${d3.utcFormat("%a %d %HZ")(d.t)}: ${d.m < 1 ? "no corridor" : "M " + d.m.toFixed(3)}`);
     $("tsSub").textContent = `· FL${fl}, ${S.hd === "min" ? "any direction" : S.hd === "max" ? "best direction" : S.hdDeg + "°"}`;
+    const tf = d3.utcFormat("%a %HZ");
+    mcStrip($("ts"), { values: data.map(d => d.m), unit: "Mach", dec: 3, ref: FLOOR, refLabel: "floor", n: `${data.length} forecast times`,
+      period: `${tf(vt[0])} – ${tf(vt[vt.length - 1])}`, first: data[0].m, last: data[data.length - 1].m, up: "good",
+      hl: data[S.fi] ? data[S.fi].m : null, hlLabel: "on map", label: "After the margin, this point" });
   }
 
   // ---------- kpis / labels ----------
