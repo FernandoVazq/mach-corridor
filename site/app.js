@@ -1459,9 +1459,14 @@
 
   // ---------- URL state ----------
   const hashExtra = {};
+  // parameters other modules read once the map is ready (r = route, ac, o, ...): kept in the hash until then, so a
+  // reload during start-up does not lose them
+  const bootHash = new URLSearchParams(location.hash.slice(1));
+  let hashReady = false;
   function writeHash() {
     if (!S.man) return;
     const p = new URLSearchParams({ fl: S.fl, d: S.hd === "hd" ? S.hdDeg : S.hd, t: S.fi, mg: S.auto && sigma ? "auto" : S.margin, v: S.view });
+    if (!hashReady) for (const [k, v] of bootHash) if (!p.has(k) && !["th", "lk", "sf"].includes(k)) p.set(k, v);
     if (S.thresh) p.set("th", S.thresh);
     if (S.look !== "mach") p.set("lk", S.look);
     const sf = ["land", "snow", "mtn"].filter(k => S[k]); if (sf.length) p.set("sf", sf.join(","));
@@ -1559,6 +1564,7 @@
       if (S.view === "3d") setView();
       emit("ready", p);
       window.dispatchEvent(new CustomEvent("mc-ready", { detail: p }));
+      hashReady = true;
     } catch (err) {
       console.error(err);
       $("runInfo").textContent = "Could not load forecast data: " + err.message;
