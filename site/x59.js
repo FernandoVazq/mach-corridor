@@ -92,7 +92,66 @@
       const d = el("div"); d.appendChild(el("b", null, v)); d.appendChild(el("span", null, t)); k.appendChild(d);
     }
   }
-  function render() { $("tLbl").textContent = fmtT(st.S.times[st.ti]); kpis(); map(); verdict(); chart(); }
+  // the carpet across the track: the jet at 55,000 ft, rays to the carpet edges, the ones beyond turning back up,
+  // the standard-atmosphere edges for comparison and the towns at their distance from the track
+  function section() {
+    const box = $("xsec"); box.textContent = "";
+    const c = cur(), std = st.S.standard[st.hi], hdg = st.d.headings[st.hi];
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const towns = st.S.towns.map((t) => ({ t, x: cross(t.lat, t.lon, hdg) })).filter((o) => Math.abs(o.x) < 140);
+    const ext = Math.max(60, (c[0] || 0) * 1.6, (c[1] || 0) * 1.6, total(std) / 2 * 1.15);
+    const Wd = Math.max(330, Math.min(560, box.clientWidth || 480)), Hd = 262, G = 168, x = d3.scaleLinear([-ext, ext], [14, Wd - 14]), z = d3.scaleLinear([0, 17], [G, 22]);
+    const svg = d3.create("svg").attr("viewBox", `0 0 ${Wd} ${Hd}`).attr("role", "img")
+      .attr("aria-label", c[0] == null ? "No boom reaches the ground: every ray turns back up" : `Cross-section: the boom reaches the ground from ${Math.round(c[0])} km left to ${Math.round(c[1])} km right of the track`);
+    const air = svg.append("defs").append("linearGradient").attr("id", "xqAir").attr("x1", 0).attr("x2", 0).attr("y1", 1).attr("y2", 0);
+    air.append("stop").attr("offset", "0%").attr("stop-color", css("--warn-soft")); air.append("stop").attr("offset", "70%").attr("stop-color", css("--surface-2"));
+    svg.append("rect").attr("x", 14).attr("y", 18).attr("width", Wd - 28).attr("height", G - 18).attr("fill", "url(#xqAir)").attr("rx", 4);
+    const jx = x(0), jy = z(16.76), line = d3.line().curve(d3.curveBasis), rayCol = css("--data-1");
+    const ray = (side, dx, hit) => {          // dx: where it lands (km, > 0); hit false: turns back up beyond dx
+      const s = side, pts = hit ? [[jx, jy], [x(s * dx * 0.55), z(9)], [x(s * dx * 0.92), z(2.2)], [x(s * dx), z(0)]]
+                                : [[jx, jy], [x(s * dx * 0.6), z(8.5)], [x(s * dx * 0.95), z(2.4)], [x(s * dx * 1.12), z(2.8)], [x(s * dx * 1.3), z(6.5)]];
+      svg.append("path").attr("d", line(pts)).attr("fill", "none").attr("stroke", hit ? rayCol : css("--ink-3")).attr("stroke-width", hit ? 1.8 : 1.3).attr("stroke-dasharray", hit ? null : "4 3");
+    };
+    if (c[0] != null) {
+      for (const [side, w] of [[-1, c[0]], [1, c[1]]]) { ray(side, w * 0.45, true); ray(side, w, true); ray(side, w * 1.05, false); }
+      svg.append("rect").attr("x", x(-c[0])).attr("y", G - 3).attr("width", x(c[1]) - x(-c[0])).attr("height", 6).attr("fill", "#f0a33a").attr("rx", 2);
+      svg.append("text").attr("x", jx).attr("y", Hd - 6).attr("text-anchor", "middle").attr("font-size", 12).attr("font-weight", 600).attr("fill", css("--ink"))
+        .text(`heard on the ground: ${Math.round(total(c))} km wide`);
+    } else for (const side of [-1, 1]) ray(side, 30, false);
+    // standard-atmosphere edges, for comparison
+    if (std && std[0] != null) for (const v of [-std[0], std[1]]) {
+      svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", G - 14).attr("y2", G + 8).attr("stroke", css("--ink-3")).attr("stroke-dasharray", "2 2");
+    }
+    if (std && std[0] != null) svg.append("text").attr("x", x(std[1]) - 3).attr("y", G - 17).attr("text-anchor", "end").attr("font-size", 10).attr("fill", css("--ink-3")).text("standard day");
+    svg.append("line").attr("x1", 14).attr("x2", Wd - 14).attr("y1", G).attr("y2", G).attr("stroke", css("--ink-2")).attr("stroke-width", 1.5);
+    // towns: ticks on the ground, names on two staggered rows
+    const rows = [[], [], []];                     // labels on up to three rows, never overlapping
+    towns.sort((a, b) => a.x - b.x).forEach((o) => {
+      const inside = c[0] != null && (o.x < 0 ? -o.x <= c[0] : o.x <= c[1]), px = x(o.x), w = o.t.town.length * 5.6 + 8;
+      svg.append("line").attr("x1", px).attr("x2", px).attr("y1", G).attr("y2", G + 6).attr("stroke", inside ? "#f0a33a" : css("--ink-3")).attr("stroke-width", 1.5);
+      const lx = Math.max(14 + w / 2, Math.min(Wd - 14 - w / 2, px)), r = rows.findIndex((R) => R.every(([a, b]) => lx + w / 2 < a || lx - w / 2 > b));
+      if (r < 0) return;
+      rows[r].push([lx - w / 2, lx + w / 2]);
+      svg.append("text").attr("x", lx).attr("y", G + 18 + r * 13).attr("text-anchor", "middle").attr("font-size", 10).attr("font-weight", inside ? 600 : 400)
+        .attr("fill", inside ? css("--ink") : css("--ink-3")).text(o.t.town);
+    });
+    // the jet, seen from behind, and the labels
+    svg.append("path").attr("d", `M${jx - 14},${jy + 2} L${jx},${jy - 3} L${jx + 14},${jy + 2} L${jx},${jy} Z`).attr("fill", css("--ink"));
+    svg.append("text").attr("x", jx).attr("y", 14).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", css("--ink-2")).text("X-59, 55,000 ft, M 1.4");
+    svg.append("text").attr("x", 20).attr("y", 32).attr("font-size", 10.5).attr("fill", css("--ink-3")).text("left of track");
+    svg.append("text").attr("x", Wd - 20).attr("y", 32).attr("text-anchor", "end").attr("font-size", 10.5).attr("fill", css("--ink-3")).text("right of track");
+    svg.append("text").attr("x", 20).attr("y", G - 8).attr("font-size", 10.5).attr("fill", css("--ink-3")).text("warm air near the ground");
+    box.appendChild(svg.node());
+  }
+  function render() { $("tLbl").textContent = fmtT(st.S.times[st.ti]); kpis(); map(); verdict(); section(); chart(); }
+  // play: one forecast every 1.2 s, then around again (reduced motion: the same steps, no animation needed)
+  let playT = null;
+  function setPlay(on) {
+    clearInterval(playT); playT = null;
+    const b = $("playBtn"); b.setAttribute("aria-pressed", String(on)); b.querySelector("span").textContent = on ? "Pause" : "Play";
+    b.setAttribute("aria-label", on ? "Pause" : "Play the next 48 hours");
+    if (on) playT = setInterval(() => { st.ti = (st.ti + 1) % st.S.times.length; $("tSl").value = st.ti; render(); }, 1200);
+  }
   async function main() {
     const [d, topo] = await Promise.all([fetch("data/x59.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
       fetch("vendor/countries-50m.json").then((r) => r.json()).catch(() => null)]);
@@ -106,9 +165,10 @@
       seg.appendChild(b);
     });
     $("tSl").max = st.S.times.length - 1;
-    $("tSl").addEventListener("input", (e) => { st.ti = +e.target.value; render(); });
+    $("tSl").addEventListener("input", (e) => { setPlay(false); st.ti = +e.target.value; render(); });
+    $("playBtn").addEventListener("click", () => setPlay(!playT));
     render();
-    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(map, 200); });
+    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { map(); section(); }, 200); });
   }
   main().catch((e) => { console.error(e); $("stage").insertAdjacentHTML("afterend", '<p class="empty">The X-59 forecast could not be loaded.</p>'); });
 })();

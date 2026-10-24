@@ -42,6 +42,10 @@
   .sd .tlchart { width: 100%; height: auto; display: block; }
   .sd section.txt { max-width: 760px; margin-top: 36px; }
   .sd section.txt p, .sd section.txt li { color: var(--ink-2); line-height: 1.65; }
+  .sd .sdplay { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; }
+  .sd .sdplay[aria-pressed="true"] svg { display: none; }
+  .sd .sdwind { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
+  .sd .sdwind .streak { display: inline-block; width: 18px; height: 2px; border-radius: 1px; background: linear-gradient(90deg, transparent, var(--ink-2)); margin-right: 6px; vertical-align: 3px; }
   .sd .empty { color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
   @media (max-width: 860px) { .sd .grid { grid-template-columns: minmax(0, 1fr); } .sd h1 { font-size: 24px; } .sd .sdmap { aspect-ratio: 4 / 3; } }
 </style>
@@ -60,7 +64,7 @@
     <h1>How far will sound carry tonight?</h1>
     <p class="lead">Where the air in the next 48 hours bends sound back down to the ground, so blasts, fireworks, booms, trains and highways are heard much farther than usual.<button type="button" class="it" aria-label="What the colours mean" data-tip="Colour shows how much of the sound from a source on the ground is trapped near the ground instead of escaping upward. Dark: the air bends sound up and it fades quickly. Brighter: more sound is trapped and it carries farther."></button></p>
     <div class="ctl">
-      <div class="tl"><label for="tSl" class="fine" style="margin:0">Time</label><input type="range" id="tSl" min="0" max="8" step="1" value="0"><output id="tLbl" for="tSl"></output></div>
+      <div class="tl"><button type="button" class="btn sdplay" id="playBtn" aria-pressed="false" aria-label="Play the next 48 hours"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" fill="currentColor"/></svg><span>Play</span></button><label for="tSl" class="fine" style="margin:0">Time</label><input type="range" id="tSl" min="0" max="8" step="1" value="0"><output id="tLbl" for="tSl"></output></div>
       <div class="seg" role="group" aria-label="Which side of the source" id="modeSeg">
         <button type="button" data-m="all" class="on" aria-pressed="true">All around</button>
         <button type="button" data-m="best" aria-pressed="false">Downwind side</button>
@@ -72,6 +76,7 @@
     <div>
       <div class="sdmap" id="stage"><canvas id="map" role="img" aria-label="Map of how far sound carries; tap a place for its forecast"></canvas></div>
       <div class="sdkey" id="key"></div>
+      <label class="chk sdwind" id="windRow" hidden><input type="checkbox" id="windChk" checked> <span><i class="streak"></i>Wind in the lowest 1.5 km: sound carries farther the way it blows</span></label>
       <div class="seg regions" role="group" aria-label="Region" id="regSeg"></div>
       <div class="ss" id="landStrip"></div>
     </div>

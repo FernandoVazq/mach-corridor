@@ -52,6 +52,8 @@
   .rk .scale td:first-child { white-space: nowrap; }
   .rk .rknote { background: var(--surface-2); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; color: var(--ink-2); margin: 12px 0 0; }
   @media (max-width: 860px) { .rk .grid { grid-template-columns: minmax(0, 1fr); } .rk h1 { font-size: 24px; } }
+  .rk .rkladder { margin: 6px 0 10px; }
+  .rk .rkladder svg { width: 100%; height: auto; display: block; }
 </style>
 <script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
 </head>
@@ -81,6 +83,7 @@
       <div class="launches" id="launches"></div>
       <p class="rkverdict" id="verdict"></p>
       <p class="sub" id="verdictSub"></p>
+      <figure class="rkladder"><div id="ladder"></div></figure>
       <div class="tblwrap" tabindex="0" role="region" aria-label="Towns"><table class="tbl" id="towns">
         <thead><tr><th scope="col">Town</th><th scope="col">What you would hear</th><th scope="col">Peak, psf</th><th scope="col"><abbr title="Time after liftoff, minutes:seconds">When</abbr></th></tr></thead><tbody></tbody></table></div>
       <p class="fine">Estimates, good to about a factor of 2. Follow the base's official advisories.<button type="button" class="it" aria-label="About these numbers" id="metaTip" data-tip=""></button></p>

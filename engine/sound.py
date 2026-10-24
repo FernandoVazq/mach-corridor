@@ -17,10 +17,12 @@ Acoustics (2001); ISO 9613-2 "favourable propagation" (downwind or moderate grou
 Data: GFS 2 m temperature, 10 m and 80 m wind and 80 m temperature, then the pressure levels whose height above the
 ground is 100-1500 m. 1-degree grid: a regional estimate; valleys, sea breezes and city heat are not resolved.
 
-Output per forecast hour: carry_f{HHH}.png, a 5 x 2 atlas of 360 x 181 tiles (lon -180..179, lat 90..-90):
+Output per forecast hour: carry_f{HHH}.png, a 6 x 2 atlas of 360 x 181 tiles (lon -180..179, lat 90..-90):
     tiles 0-7 : theta_c toward 0, 45, ..., 315 deg (the direction the sound travels), byte = theta_c / 0.1 deg
     tile 8    : the smallest over the 8 directions (all around the source)
     tile 9    : the largest (the best direction for the sound)
+    tiles 10-11: the mean wind of the band (10 m, 80 m and the levels up to 1.5 km), east and north components,
+                 byte = 128 + wind / 0.5 m/s (for the page's wind streaks; zero where unknown)
 """
 import numpy as np
 
@@ -28,7 +30,8 @@ GAMMA_R = 1.4 * 287.05
 H_TOP = 1500.0
 DIRS = list(range(0, 360, 45))
 STEP_DEG = 0.1
-COLS, ROWS = 5, 2
+COLS, ROWS = 6, 2
+WIND_STEP, WIND_ZERO = 0.5, 128
 WANT = {("TMP", "2 m above ground"), ("UGRD", "10 m above ground"), ("VGRD", "10 m above ground"),
         ("TMP", "80 m above ground"), ("UGRD", "80 m above ground"), ("VGRD", "80 m above ground")}
 # levels for the page, by theta_c: 2 deg ~ 0.2 m/s faster aloft, 5 deg ~ 1.3 m/s, 9 deg ~ 4.2 m/s (c (1 - cos theta))
@@ -76,14 +79,35 @@ def carry_grid(zg, Fs, plev, T, U, V, Z):
     return theta_c(c0, u0, v0, layers)
 
 
+def band_wind(zg, Fs, plev, U, V, Z):
+    """Mean wind (u, v) in m/s over the near-surface band: 10 m, 80 m and the pressure levels 100-1500 m above the
+    ground, each counted once. None if the 10 m wind is missing."""
+    if ("UGRD", "10 m above ground") not in Fs or ("VGRD", "10 m above ground") not in Fs:
+        return None
+    su = np.array(Fs[("UGRD", "10 m above ground")], np.float64); sv = np.array(Fs[("VGRD", "10 m above ground")], np.float64)
+    n = np.ones_like(su)
+    if ("UGRD", "80 m above ground") in Fs and ("VGRD", "80 m above ground") in Fs:
+        su += Fs[("UGRD", "80 m above ground")]; sv += Fs[("VGRD", "80 m above ground")]; n += 1
+    for k in range(len(plev)):
+        ok = (Z[k] - zg > 100.0) & (Z[k] - zg <= H_TOP)
+        su += np.where(ok, U[k], 0.0); sv += np.where(ok, V[k], 0.0); n += ok
+    return su / n, sv / n
+
+
+def encode_wind(w):
+    return np.clip(np.round(np.asarray(w) / WIND_STEP) + WIND_ZERO, 0, 255).astype(np.uint8)
+
+
 def encode(theta):
     return np.clip(np.round(theta / STEP_DEG), 0, 255).astype(np.uint8)
 
 
-def atlas(theta, to_display):
-    """theta (8, ny, nx) -> uint8 atlas (ROWS*ny, COLS*nx), display longitude order."""
+def atlas(theta, to_display, wind=None):
+    """theta (8, ny, nx) -> uint8 atlas (ROWS*ny, COLS*nx), display longitude order. wind: (u, v) or None (calm)."""
     ny, nx = theta.shape[1:]
     tiles = [encode(to_display(t)) for t in theta] + [encode(to_display(theta.min(0))), encode(to_display(theta.max(0)))]
+    calm = np.zeros((ny, nx))
+    tiles += [encode_wind(to_display(w)) for w in (wind if wind is not None else (calm, calm))]
     a = np.zeros((ROWS * ny, COLS * nx), np.uint8)
     for i, t in enumerate(tiles):
         r, c = divmod(i, COLS)

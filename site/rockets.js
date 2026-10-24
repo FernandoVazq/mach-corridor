@@ -137,12 +137,36 @@
     const proj = d3.geoMercator().fitExtent([[small ? 16 : 40, small ? 16 : 40], [W - (small ? 16 : 40), H - (small ? 16 : 40)]], { type: "MultiPoint", coordinates: pts });
     const path = d3.geoPath(proj);
     if (state.land) svg.append("path").attr("d", path(state.land)).attr("fill", "#16243f").attr("stroke", "rgba(226,235,252,.55)").attr("stroke-width", 0.8);
+    // the boom zones: the loudest ray landing in each small cell, spread to the neighbouring cells and outlined at
+    // 0.05, 0.3 and 1 psf, so the carpet reads as areas (faint, clear, loud) instead of scattered dots
+    const cell = small ? 6 : 8, gx = Math.ceil(W / cell) + 2, gy = Math.ceil(H / cell) + 2, grid = new Float64Array(gx * gy);
+    for (const p of cur.parts) for (const h of p.hits) {
+      const xy = proj([h[1], h[0]]); if (!xy) continue;
+      const i = Math.floor(xy[0] / cell) + 1, j = Math.floor(xy[1] / cell) + 1;
+      if (i >= 0 && i < gx && j >= 0 && j < gy) grid[j * gx + i] = Math.max(grid[j * gx + i], h[2]);
+    }
+    let fill = grid;
+    for (let pass = 0; pass < 2; pass++) {
+      const nxt = new Float64Array(fill.length);
+      for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) {
+        let m = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const a = i + di, b = j + dj; if (a >= 0 && a < gx && b >= 0 && b < gy) m = Math.max(m, fill[b * gx + a]); }
+        nxt[j * gx + i] = m;
+      }
+      fill = nxt;
+    }
+    d3.blur2({ data: fill, width: gx }, 1);           // soften the cell edges before outlining
+    const cpath = d3.geoPath(d3.geoTransform({ point(x, y) { this.stream.point((x - 1) * cell, (y - 1) * cell); } }));
+    const zones = svg.append("g");
+    for (const [th, k, op] of [[0.04, "faint", 0.2], [0.25, "clear", 0.3], [0.8, "loud", 0.4]]) {
+      const [c] = d3.contours().size([gx, gy]).thresholds([th])(fill);
+      zones.append("path").attr("d", cpath(c)).attr("fill", LEVELS[k].color).attr("fill-opacity", op).attr("stroke", LEVELS[k].color).attr("stroke-opacity", 0.8).attr("stroke-width", 1);
+    }
     const g = svg.append("g");
     for (const p of cur.parts) {
       for (const h of p.hits) {
         const xy = proj([h[1], h[0]]);
         if (!xy || xy[0] < -5 || xy[0] > W + 5 || xy[1] < -5 || xy[1] > H + 5) continue;
-        g.append("circle").attr("cx", xy[0]).attr("cy", xy[1]).attr("r", small ? 1.6 : 2.2).attr("fill", psfColor(h[2])).attr("fill-opacity", 0.55);
+        g.append("circle").attr("cx", xy[0]).attr("cy", xy[1]).attr("r", small ? 1 : 1.3).attr("fill", psfColor(h[2])).attr("fill-opacity", 0.25);
       }
       const tr = p.track.map((q) => proj([q[1], q[0]]));
       svg.append("path").attr("d", d3.line()(tr)).attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 1.4).attr("stroke-dasharray", p.phase === "ascent" ? "5 4" : null);
@@ -166,23 +190,56 @@
       const s = el("span"); const i = el("i"); i.style.background = LEVELS[k].color; s.appendChild(i); s.appendChild(document.createTextNode(txt)); lg.appendChild(s);
     }
     const tipEl = document.createElement("button"); tipEl.type = "button"; tipEl.className = "it"; tipEl.setAttribute("aria-label", "How to read the map");
-    tipEl.setAttribute("data-tip", S.kind === "reentry" ? "Each dot is where one sound ray reaches the ground. White line: the capsule's path while it is supersonic. Triangle: a typical splash point." : "Each dot is where one sound ray reaches the ground. Where there are no dots, the atmosphere bends the boom back up before it lands. White line: booster path (dashed: ascent). Triangle: pad.");
+    tipEl.setAttribute("data-tip", S.kind === "reentry" ? "Shaded zones: where the boom reaches the ground, by loudness; each small dot is one traced sound ray. White line: the capsule's path while it is supersonic. Triangle: a typical splash point." : "Shaded zones: where the boom reaches the ground, by loudness; each small dot is one traced sound ray. Where there is nothing, the atmosphere bends the boom back up before it lands. White line: booster path (dashed: ascent). Triangle: pad.");
     lg.appendChild(tipEl);
   }
 
+  // how loud, on one scale: every town that hears it placed by its peak, against everyday references
+  function ladder(cur) {
+    const box = $("ladder"); box.textContent = "";
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const heard = cur.towns.filter((t) => t.psf > 0).sort((a, b) => b.psf - a.psf);
+    const Wd = Math.max(320, Math.min(520, box.clientWidth || 440)), Hd = 150, A = 62, x = d3.scaleLog([0.03, 10], [16, Wd - 16]).clamp(true);
+    const svg = d3.create("svg").attr("viewBox", `0 0 ${Wd} ${Hd}`).attr("role", "img")
+      .attr("aria-label", heard.length ? `How loud: ${heard.slice(0, 4).map((t) => `${t.town} ${t.psf.toFixed(2)} psf`).join(", ")}` : "No town is expected to hear the boom");
+    for (const [a, b, k, lab] of [[0.03, 0.3, "faint", "faint thump"], [0.3, 1, "clear", "clear boom"], [1, 10, "loud", "loud boom"]]) {
+      svg.append("rect").attr("x", x(a)).attr("y", A).attr("width", x(b) - x(a)).attr("height", 16).attr("fill", LEVELS[k].color).attr("fill-opacity", 0.85);
+      svg.append("text").attr("x", (x(a) + x(b)) / 2).attr("y", A + 12).attr("text-anchor", "middle").attr("font-size", 11).attr("font-weight", 600).attr("fill", "#061029").text(lab);
+    }
+    for (const [v, lab, row, anc] of [[0.11, "proposed FAA airliner limit", 1, "middle"], [1, "close thunder", 0, "end"], [2, "Concorde overhead", 1, "start"]]) {
+      svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", A + 16).attr("y2", A + 26 + row * 13).attr("stroke", css("--ink-3")).attr("stroke-dasharray", "2 2");
+      svg.append("text").attr("x", x(v)).attr("y", A + 36 + row * 13).attr("text-anchor", anc).attr("dx", anc === "end" ? 4 : anc === "start" ? -4 : 0).attr("font-size", 10).attr("fill", css("--ink-2")).text(lab);
+    }
+    for (const v of [0.1, 0.3, 1, 3, 10]) svg.append("text").attr("x", x(v)).attr("y", Hd - 4).attr("text-anchor", v === 10 ? "end" : "middle").attr("font-size", 10).attr("fill", css("--ink-3")).text(`${v} psf`);
+    // towns: a marker each; names for the loudest few, on alternating rows
+    const used = [];
+    heard.forEach((t, i) => {
+      const px = x(t.psf);
+      svg.append("path").attr("d", `M${px},${A - 1} l-5,-8 l10,0 z`).attr("fill", LEVELS[t.level].color).attr("stroke", css("--ink")).attr("stroke-width", 0.8);
+      if (i < 5) {
+        const w = t.town.length * 6 + 6, row = [0, 1, 2].find((r) => used.every((u) => u.r !== r || px + w / 2 < u.a || px - w / 2 > u.b));
+        if (row == null) return;
+        used.push({ r: row, a: px - w / 2, b: px + w / 2 });
+        svg.append("text").attr("x", Math.max(w / 2, Math.min(Wd - w / 2, px))).attr("y", A - 14 - row * 14).attr("text-anchor", "middle").attr("font-size", 11)
+          .attr("font-weight", i === 0 ? 600 : 400).attr("fill", css("--ink")).text(`${t.town} ${t.psf.toFixed(t.psf < 1 ? 2 : 1)}`);
+      }
+    });
+    if (!heard.length) svg.append("text").attr("x", Wd / 2).attr("y", A - 16).attr("text-anchor", "middle").attr("font-size", 12).attr("fill", css("--ink-2")).text("No nearby town is expected to hear it");
+    box.appendChild(svg.node());
+  }
   function render() {
     const ab = document.querySelector("#towns thead abbr");
     if (ab) ab.title = isRe() ? "Minutes:seconds before (−) or after (+) splashdown" : "Time after liftoff, minutes:seconds";
     const uh = document.getElementById("upH"); if (uh) uh.firstChild.textContent = isRe() ? "Upcoming returns " : "Upcoming launches ";
     sitesBar(); launchList();
     const cur = current();
-    verdict(cur); townTable(cur); map(cur);
+    verdict(cur); ladder(cur); townTable(cur); map(cur);
     for (const b of document.querySelectorAll(".launch")) b.setAttribute("aria-pressed", "false");
     const i = launchesFor(state.site).findIndex((L) => L.id === state.launch);
     if (i >= 0) document.querySelectorAll(".launch")[i].setAttribute("aria-pressed", "true");
   }
   let rt = null;
-  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (state.data) map(current()); }, 200); });
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (state.data) { map(current()); ladder(current()); } }, 200); });
   function save() { try { history.replaceState(null, "", `#${state.site}${state.launch ? "/" + state.launch : ""}`); } catch (e) { /* ignore */ } }
 
   Promise.all([

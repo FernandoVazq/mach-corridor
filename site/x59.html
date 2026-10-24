@@ -40,6 +40,11 @@
   .xq .xqkey i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .xq .xqverdict { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
   .xq .sub { color: var(--ink-2); margin: 0 0 8px; }
+  .xq .xqplay { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; }
+  .xq .xqplay[aria-pressed="true"] svg { display: none; }
+  .xq .xqsec { margin: 4px 0 6px; }
+  .xq .xqsec svg { width: 100%; height: auto; display: block; }
+  .xq .xqsec figcaption { font-size: 12px; color: var(--ink-3); line-height: 1.45; margin-top: 2px; }
   .xq .tlchart { width: 100%; height: auto; display: block; }
   .xq section.txt { max-width: 760px; margin-top: 30px; }
   .xq section.txt p, .xq section.txt li { color: var(--ink-2); line-height: 1.65; }
@@ -61,7 +66,7 @@
   <p class="lead">How wide the strip of ground is where NASA's quiet supersonic jet would be heard, in the next 48 hours over NASA Armstrong, California.<button type="button" class="it" aria-label="About the X-59" data-tip="NASA's X-59 is shaped to turn the boom into a soft thump: about 75 PLdB on the ground at Mach 1.4 and 55,000 ft. Community tests start near NASA Armstrong."></button></p>
   <div class="kp" id="kp"></div>
   <div class="ctl">
-    <div class="tl"><label for="tSl" class="fine" style="margin:0">Time</label><input type="range" id="tSl" min="0" max="8" step="1" value="0"><output id="tLbl" for="tSl"></output></div>
+    <div class="tl"><button type="button" class="btn xqplay" id="playBtn" aria-pressed="false" aria-label="Play the next 48 hours"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" fill="currentColor"/></svg><span>Play</span></button><label for="tSl" class="fine" style="margin:0">Time</label><input type="range" id="tSl" min="0" max="8" step="1" value="0"><output id="tLbl" for="tSl"></output></div>
     <div class="seg" role="group" aria-label="Direction of flight" id="hdSeg"></div>
   </div>
   <div class="grid">
@@ -71,6 +76,7 @@
     </div>
     <div>
       <p class="xqverdict" id="verdict"></p>
+      <figure class="xqsec"><div id="xsec"></div><figcaption>Looking along the flight path: the boom leaves the jet in every direction below it; the warm air near the ground bends the side rays back up, and the carpet ends where they turn.</figcaption></figure>
       <p class="sub" id="vsub"></p>
       <h2 class="h3">Carpet width, next 48 hours</h2>
       <div id="chart"></div>

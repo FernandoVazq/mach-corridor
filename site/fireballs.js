@@ -34,11 +34,23 @@
     gLand.selectAll("*").remove(); gPts.selectAll("*").remove();
     gLand.append("path").datum({ type: "Sphere" }).attr("d", path).attr("fill", "none").attr("stroke", "rgba(226,235,252,.15)");
     gLand.append("path").datum(d3.geoGraticule10()).attr("d", path).attr("fill", "none").attr("stroke", "rgba(226,235,252,.06)");
+    if (st.landFill) gLand.append("path").datum(st.landFill).attr("d", path).attr("fill", "#16243f");
     if (st.land) gLand.append("path").datum(st.land).attr("d", path).attr("fill", "none").attr("stroke", "rgba(226,235,252,.55)").attr("stroke-width", 0.8);
     if (ev && ev.carpet.length) {
+      // the boom zone as areas by strength (as on the rocket page): loudest landing per cell, spread and outlined
+      const cell = 7, gx = Math.ceil(W / cell) + 2, gy = Math.ceil(H / cell) + 2, grid = new Float64Array(gx * gy);
+      for (const h of ev.carpet) { const xy = proj([h[1], h[0]]); const i = Math.floor(xy[0] / cell) + 1, j = Math.floor(xy[1] / cell) + 1; if (i >= 0 && i < gx && j >= 0 && j < gy) grid[j * gx + i] = Math.max(grid[j * gx + i], h[2]); }
+      let f = grid;
+      for (let pass = 0; pass < 2; pass++) { const n = new Float64Array(f.length); for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) { let m = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const ii = i + a, jj = j + b; if (ii >= 0 && ii < gx && jj >= 0 && jj < gy) m = Math.max(m, f[jj * gx + ii]); } n[j * gx + i] = m; } f = n; }
+      d3.blur2({ data: f, width: gx }, 1);
+      const cp = d3.geoPath(d3.geoTransform({ point(x, y) { this.stream.point((x - 1) * cell, (y - 1) * cell); } }));
+      for (const [th, c, op] of [[0.5, "#8fb3e8", 0.22], [5, "#f0a33a", 0.32], [50, "#ff5a6a", 0.42], [500, "#ffd0e0", 0.5]]) {
+        const [cc] = d3.contours().size([gx, gy]).thresholds([th])(f);
+        gPts.append("path").attr("d", cp(cc)).attr("fill", c).attr("fill-opacity", op).attr("stroke", c).attr("stroke-opacity", 0.8);
+      }
       gPts.selectAll("circle.h").data(ev.carpet).join("circle").attr("class", "h")
-        .attr("cx", (h) => proj([h[1], h[0]])[0]).attr("cy", (h) => proj([h[1], h[0]])[1]).attr("r", 2.6)
-        .attr("fill", (h) => paColor(h[2])).attr("opacity", 0.85);
+        .attr("cx", (h) => proj([h[1], h[0]])[0]).attr("cy", (h) => proj([h[1], h[0]])[1]).attr("r", 1.4)
+        .attr("fill", (h) => paColor(h[2])).attr("opacity", 0.35);
       const [x, y] = proj([ev.lon, ev.lat]);
       gPts.append("circle").attr("cx", x).attr("cy", y).attr("r", 7).attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 2);
       // the path direction: an arrow pointing where the fireball went
@@ -61,6 +73,48 @@
     if (st.sel) { const b = el("button", { type: "button", class: "linkish" }, "Back to all fireballs"); b.addEventListener("click", () => select(null)); k.appendChild(b); }
   }
 
+  // ---------- the main picture: height at peak brightness against energy, coloured by whether the boom landed
+  function scatter() {
+    const box = $("fbScatter"); box.textContent = "";
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const evs = st.data.events.filter((e) => e.alt != null && e.impact_kt != null);
+    if (!evs.length) return;
+    const Wd = Math.min(760, Math.max(340, box.clientWidth || 760)), Hd = Wd < 500 ? 280 : 300, m = { l: 54, r: 16, t: 14, b: 40 };   // drawn at the box's width, so the text stays readable on a phone
+    const x = d3.scaleLog([Math.min(0.05, d3.min(evs, (e) => e.impact_kt)), Math.max(5, d3.max(evs, (e) => e.impact_kt))], [m.l, Wd - m.r]).nice();
+    const y = d3.scaleLinear([0, Math.max(80, d3.max(evs, (e) => e.alt) + 8)], [Hd - m.b, m.t]).nice();
+    const svg = d3.create("svg").attr("viewBox", `0 0 ${Wd} ${Hd}`).attr("role", "img")
+      .attr("aria-label", "Fireballs by height at peak brightness and energy; the ones whose boom reached the ground are the lower ones");
+    const heardAlt = evs.filter((e) => e.boom && e.boom.heard).map((e) => e.alt), quietAlt = evs.filter((e) => e.boom && !e.boom.heard).map((e) => e.alt);
+    const edge = heardAlt.length ? d3.quantile(heardAlt.slice().sort(d3.ascending), 0.9) : 40;
+    svg.append("rect").attr("x", m.l).attr("y", y(edge)).attr("width", Wd - m.l - m.r).attr("height", y(0) - y(edge)).attr("fill", css("--warn-soft"));
+    svg.append("text").attr("x", Wd - m.r - 8).attr("y", y(0) - 10).attr("text-anchor", "end").attr("font-size", 12).attr("font-weight", 600).attr("fill", css("--warn"))
+      .text(`9 in 10 booms that reached the ground came from below ${Math.round(edge)} km`);
+    for (const t of y.ticks(5)) {
+      svg.append("line").attr("x1", m.l).attr("x2", Wd - m.r).attr("y1", y(t)).attr("y2", y(t)).attr("stroke", css("--grid"));
+      svg.append("text").attr("x", m.l - 8).attr("y", y(t) + 4).attr("text-anchor", "end").attr("font-size", 11).attr("fill", css("--ink-3")).text(`${t} km`);
+    }
+    for (const t of x.ticks(5).filter((v) => [0.01, 0.1, 1, 10, 100].includes(+v.toPrecision(1)))) {
+      svg.append("text").attr("x", x(t)).attr("y", Hd - m.b + 18).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", css("--ink-3")).text(kt(t));
+    }
+    svg.append("text").attr("x", (m.l + Wd - m.r) / 2).attr("y", Hd - 4).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", css("--ink-2")).text("Energy released (TNT equivalent)");
+    svg.append("text").attr("transform", `translate(14,${(m.t + Hd - m.b) / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", css("--ink-2")).text("Height at brightest");
+    const r = d3.scaleSqrt().domain([0, d3.max(evs, (e) => e.impact_kt)]).range([4, 14]);
+    svg.append("g").selectAll("circle").data(evs.sort((a, b) => b.impact_kt - a.impact_kt)).join("circle")
+      .attr("cx", (e) => x(e.impact_kt)).attr("cy", (e) => y(e.alt)).attr("r", (e) => r(e.impact_kt))
+      .attr("fill", (e) => e.boom && e.boom.heard ? "#f0a33a" : e.boom ? "#8fb3e8" : "none")
+      .attr("stroke", (e) => e === st.sel ? css("--ink") : e.boom ? css("--surface") : css("--ink-3")).attr("stroke-width", (e) => e === st.sel ? 2.5 : 1)
+      .attr("fill-opacity", 0.85).style("cursor", "pointer").on("click", (_, e) => { select(e); document.getElementById("stage").scrollIntoView({ behavior: "smooth", block: "center" }); })
+      .append("title").text((e) => `${fmtDate(e.date)}: ${kt(e.impact_kt)}, ${e.alt.toFixed(0)} km up${e.boom ? (e.boom.heard ? ", boom on the ground" : ", no boom on the ground") : ", not traced"}`);
+    const k = svg.append("g").attr("transform", `translate(${Wd - m.r - 170},${m.t + 4})`);
+    [["#f0a33a", "Boom reached the ground", false], ["#8fb3e8", "No boom on the ground", false], ["none", "Not traced", true]].forEach(([c, t, hollow], i) => {
+      k.append("circle").attr("cx", 6).attr("cy", i * 18 + 6).attr("r", 5).attr("fill", c).attr("stroke", hollow ? css("--ink-3") : "none");
+      k.append("text").attr("x", 16).attr("y", i * 18 + 10).attr("font-size", 11.5).attr("fill", css("--ink-2")).text(t);
+    });
+    box.appendChild(svg.node());
+    if (heardAlt.length > 1) MC_UI.stripFor(svg.node(), { values: heardAlt, ref: quietAlt.length ? d3.min(quietAlt) : null, refLabel: "lowest without a boom", unit: "km", dec: 0, lo: 0,
+      n: `${heardAlt.length} with a boom`, period: "last 2 years", label: "Height at brightest, fireballs whose boom landed" });
+  }
+
   // ---------- list and detail
   function list() {
     const box = $("evs"); box.textContent = "";
@@ -77,7 +131,7 @@
     }
   }
   function select(e) {
-    st.sel = e; draw(); key(); list(); detail();
+    st.sel = e; draw(); key(); list(); detail(); scatter();
   }
   function detail() {
     const e = st.sel, v = $("verdict"), s = $("vsub"), strip = $("carpetStrip");
@@ -130,8 +184,9 @@
       fetch("data/rockets.json", { cache: "no-cache" }).then((r) => r.ok ? r.json() : null).catch(() => null),
     ]);
     st.data = data; st.rockets = rockets;
-    if (topo) st.land = topojson.mesh(topo, topo.objects.countries);
+    if (topo) { st.land = topojson.mesh(topo, topo.objects.countries); st.landFill = topojson.merge(topo, topo.objects.countries.geometries); }
     initMap(); kpis(); list(); select(null);
+    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(scatter, 200); });
     $("chkForm").addEventListener("submit", check);
     $("chkGeo").addEventListener("click", () => navigator.geolocation && navigator.geolocation.getCurrentPosition((p) => { $("chkLat").value = p.coords.latitude.toFixed(2); $("chkLon").value = p.coords.longitude.toFixed(2); }, () => {}, { timeout: 10000 }));
     if (data.error) $("vsub").textContent = "The fireball list could not be loaded on the last update; it retries every hour.";

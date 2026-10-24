@@ -300,7 +300,8 @@ def build(run, out_dir):
             Fs = fetch(run, fh, sound.WANT)
             th = sound.carry_grid(F[("HGT", "surface")], Fs, PLEV, T, U, V, Z)   # model ground, not the boom footprint max
             if th is not None:
-                Image.fromarray(sound.atlas(th, to_display), "L").save(os.path.join(out_dir, f"carry_f{fh:03d}.png"), optimize=True)
+                bw = sound.band_wind(F[("HGT", "surface")], Fs, PLEV, U, V, Z)
+                Image.fromarray(sound.atlas(th, to_display, bw), "L").save(os.path.join(out_dir, f"carry_f{fh:03d}.png"), optimize=True)
                 carry_meta["fhs"].append(fh); carry_meta["summary"][str(fh)] = sound.summary(th, land, lat)
             else:
                 carry_meta["errors"].append(f"f{fh:03d}: near-surface fields missing ({sorted(k[1] for k in Fs)})")
@@ -424,6 +425,7 @@ def build(run, out_dir):
                 "z_aircraft_m": round(550 * 30.48), "z_low_m": secondary.Z_LOW, "top_hpa": ssb_top} if ssb_done else None,
         "carry": {"fhs": carry_meta["fhs"], "pattern": "carry_f{fh:03d}.png", "cols": sound.COLS, "rows": sound.ROWS,
                   "nx": NX, "ny": NY, "lon0": -180, "lat0": 90, "dirs": sound.DIRS, "tile_min": 8, "tile_max": 9,
+                  "tile_u": 10, "tile_v": 11, "wind_step": sound.WIND_STEP, "wind_zero": sound.WIND_ZERO,
                   "step_deg": sound.STEP_DEG, "h_top_m": sound.H_TOP, "levels": sound.LEVELS,
                   "summary": carry_meta["summary"], "errors": carry_meta["errors"][:9]} if carry_meta["fhs"] or carry_meta["errors"] else None,
         "stats_thresholds": thresholds,

@@ -41,8 +41,22 @@ def test_band_mask():
 def test_atlas_shape_and_encoding():
     th = np.zeros((8, 181, 360)); th[2, 10, 20] = 5.0
     a = sound.atlas(th, lambda x: x)
-    assert a.shape == (2 * 181, 5 * 360)
-    assert a[10, 2 * 360 + 20] == 50 and a[181 + 10, 4 * 360 + 20] == 50 and a[181 + 10, 3 * 360 + 20] == 0
+    assert a.shape == (2 * 181, 6 * 360)
+    # tile 2 at row 0, col 2; tile 9 (largest) at row 1, col 3; tile 8 (smallest) at row 1, col 2
+    assert a[10, 2 * 360 + 20] == 50 and a[181 + 10, 3 * 360 + 20] == 50 and a[181 + 10, 2 * 360 + 20] == 0
+    assert a[181 + 10, 4 * 360 + 20] == sound.WIND_ZERO and a[181 + 10, 5 * 360 + 20] == sound.WIND_ZERO     # calm
+
+
+def test_band_wind_and_encoding():
+    zg = np.zeros((1, 1)); plev = [925.0, 700.0]
+    Fs = {("UGRD", "10 m above ground"): np.full((1, 1), 2.0), ("VGRD", "10 m above ground"): np.full((1, 1), 0.0),
+          ("UGRD", "80 m above ground"): np.full((1, 1), 4.0), ("VGRD", "80 m above ground"): np.full((1, 1), 2.0)}
+    U = np.array([[[6.0]], [[30.0]]]); V = np.array([[[4.0]], [[30.0]]]); Z = np.array([[[800.0]], [[3000.0]]])
+    u, v = sound.band_wind(zg, Fs, plev, U, V, Z)      # 10 m, 80 m and 925 hPa (800 m); 700 hPa is above the band
+    assert abs(u[0, 0] - 4.0) < 1e-12 and abs(v[0, 0] - 2.0) < 1e-12
+    th = np.zeros((8, 181, 360)); w = (np.full((181, 360), -3.0), np.full((181, 360), 100.0))
+    a = sound.atlas(th, lambda x: x, w)
+    assert a[181, 4 * 360] == 128 - 6 and a[181, 5 * 360] == 255          # clipped at +63.5 m/s
 
 
 if __name__ == "__main__":

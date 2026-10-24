@@ -35,7 +35,7 @@
   .fb2 .fbkey { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 8px 0 0; }
   .fb2 .fbkey i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
   .fb2 .evs { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
-  .fb2 .ev { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius); padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; min-height: 44px; }
+  .fb2 .ev { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius); padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; min-height: 44px; flex: none; }
   .fb2 .ev[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
   .fb2 .ev .w { font-weight: 600; }
   .fb2 .ev .s { color: var(--ink-2); font-size: 12.5px; }
@@ -53,6 +53,9 @@
   .fb2 section.txt p, .fb2 section.txt li { color: var(--ink-2); line-height: 1.65; }
   .fb2 .empty { color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
   @media (max-width: 860px) { .fb2 .grid { grid-template-columns: minmax(0, 1fr); } .fb2 h1 { font-size: 24px; } .fb2 .kp b { font-size: 22px; } .fb2 .fbmap { aspect-ratio: 4 / 3; } }
+  .fb2 .fbfig { margin: 26px 0 8px; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; }
+  .fb2 .fbfig figcaption { display: grid; gap: 3px; } .fb2 .fbfig figcaption span { color: var(--ink-2); font-size: 13px; max-width: 760px; }
+  .fb2 #fbScatter svg { width: 100%; height: auto; display: block; margin-top: 8px; }
 </style>
 <script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
 </head>
@@ -76,12 +79,17 @@
       <div id="carpetStrip"></div>
     </div>
     <div>
-      <h2 class="h3">Fireballs, last two years <span class="muted" id="cnt"></span></h2>
-      <div class="evs" id="evs"></div>
       <p class="fbverdict" id="verdict"></p>
       <p class="sub" id="vsub"></p>
+      <h2 class="h3">Fireballs, last two years <span class="muted" id="cnt"></span></h2>
+      <div class="evs" id="evs"></div>
     </div>
   </div>
+
+  <figure class="fbfig">
+    <figcaption><b>Low and bright: those are the ones you hear</b><span>Each dot is one fireball: how high it was at its brightest against how much energy it released. Its boom reaches the ground only when it explodes low enough in the air. Tap a dot to see its boom on the map.</span></figcaption>
+    <div id="fbScatter"></div>
+  </figure>
 
   <section class="fbchk" aria-labelledby="chkH">
     <h2 id="chkH">Heard a boom? Check it</h2>
