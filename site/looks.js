@@ -136,33 +136,45 @@
   function stopFlow() { if (F.raf) cancelAnimationFrame(F.raf); F.raf = 0; if (F.cnv) { F.cnv.hidden = !flowActive(); if (F.cnv.hidden) F.g.clearRect(0, 0, F.cnv.width, F.cnv.height); } }
   function syncFlow() { if (flowActive()) startFlow(); else stopFlow(); }
 
-  // ---------- the switcher ----------
+  // ---------- the switcher: one small button with the current style; the others in a menu opened on demand ----------
+  // (thumbnails are drawn only for what is visible: rendering all seven after every change cost a second)
   let thumbTimer = null;
+  const menuOpen = () => !$("lensMenu").hidden;
   function renderThumbs() {
     clearTimeout(thumbTimer);
     thumbTimer = setTimeout(() => {
       if (window.MC.S.playing) { renderThumbs(); return; }      // the forecast is playing: wait until it stops
-      document.querySelectorAll("#lens canvas").forEach(c => renderThumb(c.dataset.look, c));
-    }, 700);
+      renderThumb(window.MC.look, $("lensCur"));
+      if (menuOpen()) document.querySelectorAll("#lensMenu canvas").forEach(c => renderThumb(c.dataset.look, c));
+    }, 400);
   }
   function mark() {
-    document.querySelectorAll("#lens button").forEach(b => {
-      const on = b.dataset.look === window.MC.look;
+    const MC = window.MC;
+    document.querySelectorAll("#lensMenu button").forEach(b => {
+      const on = b.dataset.look === MC.look;
       b.classList.toggle("on", on); b.setAttribute("aria-checked", on); b.tabIndex = on ? 0 : -1;
     });
+    $("lensName").textContent = NAMES[MC.look]; $("lensBtn").title = `Map style: ${NAMES[MC.look]}. ${TIPS[MC.look]}`;
+  }
+  function openMenu(on) {
+    $("lensMenu").hidden = !on; $("lensBtn").setAttribute("aria-expanded", on);
+    if (on) { document.querySelectorAll("#lensMenu canvas").forEach(c => renderThumb(c.dataset.look, c)); (document.querySelector("#lensMenu button.on") || document.querySelector("#lensMenu button")).focus(); }
   }
   function build() {
-    const MC = window.MC, el = $("lens");
+    const MC = window.MC, el = $("lensMenu");
     el.innerHTML = MC.LOOKS.map(l => `<button role="radio" data-look="${l}" title="${TIPS[l]}"><canvas data-look="${l}" width="128" height="80" aria-hidden="true"></canvas><span>${NAMES[l]}</span></button>`).join("");
-    el.querySelectorAll("button").forEach(b => b.onclick = () => { MC.setLook(b.dataset.look); });
+    el.querySelectorAll("button").forEach(b => b.onclick = () => { MC.setLook(b.dataset.look); openMenu(false); $("lensBtn").focus(); });
     el.onkeydown = e => {
+      if (e.key === "Escape") { openMenu(false); $("lensBtn").focus(); return; }
       const bs = [...el.querySelectorAll("button")], i = bs.indexOf(document.activeElement), d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
       if (i < 0 || !d) return;
-      const n = bs[(i + d + bs.length) % bs.length]; n.click(); n.focus(); e.preventDefault();
+      const n = bs[(i + d + bs.length) % bs.length]; n.focus(); e.preventDefault();
     };
-    el.hidden = false;
+    $("lensBtn").onclick = () => openMenu(!menuOpen());
+    document.addEventListener("pointerdown", e => { if (menuOpen() && !$("lens").contains(e.target)) openMenu(false); });
+    $("lens").hidden = false;
     F.cnv = $("flow"); F.g = F.cnv.getContext("2d");
-    MC.on("look", () => { mark(); syncFlow(); });
+    MC.on("look", () => { mark(); renderThumbs(); syncFlow(); });
     MC.on("texture", renderThumbs);
     MC.on("refresh", () => { renderThumbs(); syncFlow(); });
     MC.on("draw", syncFlow);

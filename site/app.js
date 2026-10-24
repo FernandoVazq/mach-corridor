@@ -528,18 +528,32 @@
       if (j.y >= h) {
         let c = pt.spare.pop();
         if (!c) { c = document.createElement("canvas"); c.width = w; c.height = h; }
-        const g = c.getContext("2d");
-        g.putImageData(pt.img, 0, 0);
-        // the land fade and the relief, baked in once (drawn on the screen they cost more than everything else).
-        // The texture starts half a degree west of 180 W: the layers go 2 px in, plus their wrapped copy.
-        for (const [lay, op, al] of [[S.fade && dimCanvas, "source-over", 1], [S.relief && shade, "soft-light", 0.95]]) {
-          if (!lay) continue;
-          g.save(); g.globalCompositeOperation = op; g.globalAlpha = al; g.imageSmoothingEnabled = true;
-          g.drawImage(lay, 2, 2, 360 * UP, 180 * UP); g.drawImage(lay, 2 - 360 * UP, 2, 360 * UP, 180 * UP); g.restore();
-        }
+        c.getContext("2d").putImageData(pt.img, 0, 0); bakeLayers(c);
         pt.tex.set(j.s, c); pt.job = null;
       }
     }
+  }
+  // the land fade and the relief, baked into a texture (drawn on the screen every frame they cost more than everything
+  // else). The texture starts half a degree west of 180 W: the layers go 2 px in, plus their wrapped copy.
+  function bakeLayers(c) {
+    const g = c.getContext("2d");
+    for (const [lay, op, al] of [[S.fade && dimCanvas, "source-over", 1], [S.relief && shade, "soft-light", 0.95]]) {
+      if (!lay) continue;
+      g.save(); g.globalCompositeOperation = op; g.globalAlpha = al; g.imageSmoothingEnabled = true;
+      g.drawImage(lay, 2, 2, 360 * UP, 180 * UP); g.drawImage(lay, 2 - 360 * UP, 2, 360 * UP, 180 * UP); g.restore();
+    }
+  }
+  // while the map moves (drag, wheel, pinch): the still map's colours with the layers baked in, resampled cheaply;
+  // the full-quality frame is drawn when the gesture ends
+  const baked = { c: null, key: "" };
+  function bakedTex() {
+    const k = [colorKey, S.fade && cid(dimCanvas), S.relief && cid(shade)].join("|");
+    if (baked.key !== k) {
+      if (!baked.c) { baked.c = document.createElement("canvas"); baked.c.width = off.width; baked.c.height = off.height; }
+      const g = baked.c.getContext("2d"); g.globalCompositeOperation = "copy"; g.drawImage(off, 0, 0); g.globalCompositeOperation = "source-over";
+      bakeLayers(baked.c); baked.key = k;
+    }
+    return baked.c;
   }
   const ptReady = x => { const N = ptStates(), s = Math.min(N - 1, Math.floor(x * SUB + 1e-9)), f = x * SUB - s; return pt.tex.has(s) && (f < 1e-3 || s + 1 >= N || pt.tex.has(s + 1)); };
   function dataTex() {
@@ -905,18 +919,19 @@
       requestViewport();
       const sharp = vp && vp.key === viewportKey();
       if (sharp) ctx.drawImage(vpCanvas, 0, 0, W, H);
-      const baked = ptOn(), tex = sharp ? null : dataTex();
-      if (baked) ctx.imageSmoothingQuality = "low";  // "high" resampling of a full-screen image each frame is slow
+      const fast = ptOn() || S.moving, tex = sharp ? null : ptOn() ? dataTex() : S.moving ? bakedTex() : off;
+      const baked = fast && tex !== off;
+      if (fast) ctx.imageSmoothingQuality = "low";   // "high" resampling of a full-screen image each frame is slow
       for (const dx of wraps) {
         const [ax, ay] = toScreen(-180.5, 90.5), [bx, by] = toScreen(179.5, -90.5);
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
         if (!sharp) ctx.drawImage(tex, ax + ox, ay, bx - ax, by - ay);
-        if (S.fade && dimCanvas && !(baked && tex !== off)) {
+        if (S.fade && dimCanvas && !baked) {
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(dimCanvas, tx + ox, ty, ux - tx, uy - ty);
         }
-        if (S.relief && shade && !(baked && tex !== off)) {
+        if (S.relief && shade && !baked) {
           ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.95;
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(shade, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
@@ -1293,19 +1308,23 @@
     const c = cAt(current, lon, lat), [u, v] = windAt(current, lon, lat);
     const iMin = ms.indexOf(Math.min(...ms)), iMax = ms.indexOf(Math.max(...ms));
     const selI = S.hd === "min" ? iMin : S.hd === "max" ? iMax : Math.round(S.hdDeg / 10) % 36;
-    const fmtM = m => m < 1.0 ? "none" : "M " + m.toFixed(3);
-    const dirLbl = S.hd === "min" ? "Any direction" : S.hd === "max" ? "Best direction" : `Heading ${String(S.hdDeg).padStart(3, "0")}°`;
+    const deg = i => String(S.man.headings[i]).padStart(3, "0") + "°", kt = m => m >= 1 ? Math.round(m * c * KT) + " kt" : "–";
+    const mTxt = m => m < 1.0 ? "none" : m.toFixed(3);
     const wspd = Math.hypot(u, v), wdir = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
-    $("inspFacts").innerHTML = `
-      <dt>${dirLbl}</dt><dd>${fmtM(ms[selI])}</dd>
-      <dt>True airspeed</dt><dd>${ms[selI] >= 1 ? Math.round(ms[selI] * c * KT) + " kt" : "—"}</dd>
-      <dt>Worst (${String(S.man.headings[iMin]).padStart(3, "0")}°)</dt><dd>${fmtM(ms[iMin])}</dd>
-      <dt>Best (${String(S.man.headings[iMax]).padStart(3, "0")}°)</dt><dd>${fmtM(ms[iMax])}</dd>
-      <dt>Wind FL${S.fl}</dt><dd>${String(Math.round(wdir)).padStart(3, "0")}° / ${Math.round(wspd * KT)} kt</dd>
-      <dt>Sound speed</dt><dd>${Math.round(c * KT)} kt</dd>`;
+    const selLbl = S.hd === "min" ? `Any direction (worst, ${deg(selI)})` : S.hd === "max" ? `Best direction (${deg(selI)})` : `Heading ${deg(selI)}`;
+    // one line that answers the question first, then the three directions that matter in a small table
+    const m0 = ms[selI], best = ms[iMax];
+    $("inspHero").innerHTML = m0 >= 1
+      ? `<b class="big">M ${m0.toFixed(2)}</b><span>boomless · ${selLbl.toLowerCase()} · ${kt(m0)}</span>`
+      : `<b class="big none">No corridor</b><span>${best >= 1 ? `${selLbl.toLowerCase()}; the best direction here is ${deg(iMax)} at M ${best.toFixed(2)}` : "in any direction at this point and level"}</span>`;
+    const row = (lbl, i, cls = "") => `<tr class="${cls}"><th scope="row">${lbl}</th><td>${mTxt(ms[i])}</td><td>${kt(ms[i])}</td></tr>`;
+    $("inspTbl").innerHTML = `<thead><tr><th scope="col">Direction</th><th scope="col">Mach</th><th scope="col">Speed</th></tr></thead><tbody>` +
+      (S.hd === "hd" ? row(`On map ${deg(selI)}`, selI, "sel") : "") + row(`Best ${deg(iMax)}`, iMax, S.hd === "max" ? "sel" : "") + row(`Worst ${deg(iMin)}`, iMin, S.hd === "min" ? "sel" : "") + `</tbody>`;
+    $("inspFacts").innerHTML = `<span title="Wind at FL${S.fl}, from">Wind ${String(Math.round(wdir)).padStart(3, "0")}°/${Math.round(wspd * KT)} kt</span><span title="Speed of sound at FL${S.fl}">Sound ${Math.round(c * KT)} kt</span>`;
     disagreementAt(lon, lat).then(r => {
       const t = disText(r); if (!t || !S.sel || S.sel[0] !== lon || S.sel[1] !== lat) return;
-      $("inspFacts").insertAdjacentHTML("beforeend", `<dt title="Largest difference over the 36 directions between NOAA GFS and ECMWF IFS; the map shows their mean">GFS vs ECMWF</dt><dd id="inspDis">${t}</dd>`);
+      const old = $("inspDis"); if (old) old.remove();
+      $("inspFacts").insertAdjacentHTML("beforeend", `<span id="inspDis" title="Largest difference over the 36 directions between NOAA GFS and ECMWF IFS; the map shows their mean">GFS vs ECMWF: ${t.replace(/^differ /, "")}</span>`);
     });
     drawPolar(ms, selI);
     drawTimeSeries(lon, lat);
@@ -1316,7 +1335,7 @@
     svg.append("circle").attr("r", r(FLOOR)).attr("fill", "var(--low-soft)").attr("stroke", "var(--text-2)").attr("stroke-dasharray", "3 3");
     for (const v of [1.1, 1.2, 1.3]) {
       svg.append("circle").attr("r", r(v)).attr("fill", "none").attr("stroke", "var(--line)");
-      svg.append("text").attr("x", 3).attr("y", -r(v) + 10).text(v.toFixed(1));
+      if (v === 1.3) svg.append("text").attr("x", 3).attr("y", -r(v) + 18).text("1.3");
     }
     for (const [lbl, a] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) {
       const t = a * Math.PI / 180;
@@ -1332,11 +1351,11 @@
       .append("title").text((d, i) => `${S.man.headings[i]}°: ${ms[i] < 1 ? "no corridor" : "M " + ms[i].toFixed(3)}`);
     // StatStrip under the rose (after the grid it shares with the facts): directions that have a corridor
     const ok = ms.filter(m => m >= 1), hlM = selI != null && ms[selI] >= 1 ? ms[selI] : null;
-    mcStrip(document.querySelector(".inspgrid"), ok.length ? {
+    const oldStrip = document.querySelector(".inspgrid + .ss"); if (!ok.length && oldStrip) oldStrip.remove();
+    if (ok.length) mcStrip(document.querySelector(".inspgrid"), {
       values: ok, unit: "Mach", dec: 3, lo: 0.98, ref: FLOOR, refLabel: "floor",
       n: `${ok.length} of ${ms.length} directions`, period: `${d3.utcFormat("%a %d %b %HZ")(new Date(S.man.valid_times[S.fi]))}`,
-      hl: hlM, hlLabel: hlM != null ? `${S.man.headings[selI]}°` : "", label: "Boomless Mach by direction" }
-      : { min: 0.98, max: 0.98, unit: "Mach", dec: 2, n: `0 of ${ms.length} directions`, label: "No corridor in any direction" });
+      hl: hlM, hlLabel: hlM != null ? `${S.man.headings[selI]}°` : "", label: "Boomless Mach by direction" });
   }
   const mcStrip = (el, o) => { if (el && window.MC_UI) window.MC_UI.stripFor(el, o); };
   async function drawTimeSeries(lon, lat) {
@@ -1347,7 +1366,7 @@
     const vt = S.man.valid_times.map(s => new Date(s));
     const mg = marginAt(lon, lat), data = atl.map((a, i) => ({ t: vt[i], m: mAt(a, tile, lon, lat) - mg }));
     const svg = d3.select("#ts"); svg.selectAll("*").remove();
-    const m = { l: 30, r: 8, t: 8, b: 22 }, w = 320 - m.l - m.r, h = 130 - m.t - m.b;
+    const m = { l: 30, r: 8, t: 6, b: 22 }, w = 320 - m.l - m.r, h = 112 - m.t - m.b;
     const g = svg.append("g").attr("transform", `translate(${m.l},${m.t})`);
     const x = d3.scaleUtc(d3.extent(vt), [0, w]);
     const y = d3.scaleLinear([0.98, Math.max(1.3, d3.max(data, d => d.m))], [h, 0]);
@@ -1419,6 +1438,7 @@
   }
   function onMove(e) {
     if (!current) return;
+    if (e.buttons) { tip.hidden = true; return; }       // drawing a route or moving the map: no tooltip
     const r = canvas.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
     const [lon, lat] = toLonLat(sx, sy);
     if (lat > 90 || lat < -90) { tip.hidden = true; return; }
@@ -1461,11 +1481,12 @@
     mark(); return mark;
   }
   function buildControls() {
-    const flLo = S.man.flight_levels.filter(f => f <= HI_FL), flHi = S.man.flight_levels.filter(f => f > HI_FL), marks = [];
-    const setFl = v => { S.fl = v; marks.forEach(m => m()); refresh(); };
-    marks.push(seg($("flSeg"), flLo.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft`]), () => S.fl, setFl));
-    $("flHiRow").hidden = !flHi.length;
-    if (flHi.length) marks.push(seg($("flHiSeg"), flHi.map(f => [f, String(f), `FL${f}, about ${Math.round(f / 10)},000 ft: an estimate (GFS only, not yet validated)`]), () => S.fl, setFl));
+    const flLo = S.man.flight_levels.filter(f => f <= HI_FL), flHi = S.man.flight_levels.filter(f => f > HI_FL);
+    const opt = f => `<option value="${f}">FL${f} · ${Math.round(f / 10)},000 ft</option>`;
+    $("flSel").innerHTML = `<optgroup label="Checked against balloons">${flLo.map(opt).join("")}</optgroup>` +
+      (flHi.length ? `<optgroup label="Estimate (GFS only)">${flHi.map(opt).join("")}</optgroup>` : "");
+    $("flSel").value = S.fl;
+    $("flSel").onchange = e => setFl(+e.target.value);
     seg($("hdSeg"), null, () => S.hd, v => { S.hd = v; $("hdSlider").disabled = v !== "hd"; refresh(); });
     $("hdSlider").value = S.hdDeg; $("hdSlider").disabled = S.hd !== "hd";
     $("hdSlider").oninput = e => { S.hdDeg = +e.target.value; refresh(); };
@@ -1492,18 +1513,22 @@
     $("apts").innerHTML = AIRPORTS.map(a => `<option value="${a[0]}">${a[1]}</option>`).join("");
     $("protoBadge").onclick = () => setTab("method");
     $("layersToggle").onclick = () => { const o = $("mapControls").classList.toggle("open"); $("layersToggle").setAttribute("aria-expanded", o); };
+    $("moreBtn").onclick = () => { const o = $("moreSet").hidden; $("moreSet").hidden = !o; $("moreBtn").setAttribute("aria-expanded", o); $("moreBtn").classList.toggle("on", o); };
     $("tticks").innerHTML = S.man.valid_times.map((v, i) => i % 2 ? "" : `<span style="left:${100 * i / (fhs().length - 1)}%">${d3.utcFormat("%a %HZ")(new Date(v))}</span>`).join("");
     seg($("viewSeg"), null, () => S.view, v => { S.view = v; setView(); });
     document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
   }
+  function setFl(v) { if (!S.man.flight_levels.includes(v)) return; S.fl = v; if ($("flSel")) $("flSel").value = v; refresh(); }
   function setView() {
     const g = S.view === "3d";
     $("globe").hidden = !g; canvas.style.visibility = g ? "hidden" : "visible";
-    $("hint").textContent = g ? "Drag to rotate. Click to inspect, shift-click to route." : "Click to inspect a point. Shift-click a second point to plan a route.";
+    $("hint").textContent = g ? "Drag to rotate. Click to inspect, shift-click to route." : HINT_2D;
     emit("draw");
     if (g && window.MC3D) window.MC3D.showGlobe($("globe"));
     writeHash();
   }
+  const HINT_2D = "Drag from A to B to plan a route · right-drag or Shift-drag moves the map";
+  if (matchMedia("(pointer: coarse)").matches) $("inspHint").textContent = "Tap a point on the map to inspect it. To plan a route, press and hold the start, then drag to the destination.";
   function setTab(t) {
     document.querySelectorAll(".tabs button").forEach(b => { const on = b.dataset.tab === t; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
     for (const k of ["map", "econ", "physics", "method"]) $("tab-" + k).hidden = t !== k;
@@ -1631,18 +1656,23 @@
     get terrain() { return terrain; }, get shade() { return shade; }, elevAt, restrictedAt, regulatedLand, landDistKm, prepareSsb, ssbAt, AIR_DATA_SD, kEffective: fl => !S.auto ? 3.75 : gefs.meta ? kEns(fl) : sigma ? kAt(fl) : 3.75, get ssbReady() { return ssb.ready.size > 0; }, zoneNm, marginAt, marginTypical, get sigmaReady() { return !!sigma; }, kAt, prepareGefs, get gefsMeta() { return gefs.meta; },
     on: (ev, f) => listeners[ev].push(f), css, isDark,
     // map styles (site/looks.js)
-    LOOKS, setLook, isHigh, HI_FL, isPhoto: SAT_LOOK, get look() { return S.look; }, satGlobal, get satStatus() { return sat.status; }, get ovl() { paintOverlay(); return ovl; },
+    setFl, LOOKS, setLook, isHigh, HI_FL, isPhoto: SAT_LOOK, get look() { return S.look; }, satGlobal, get satStatus() { return sat.status; }, get ovl() { paintOverlay(); return ovl; },
     mGrid, corridorColor, drawContourLook, strokeContours, drawRoseLook, toLonLat, toScreen, lit,
     get view() { return { W, H, k: S.t.k, W0, dpr }; }, get canvas() { return canvas; },
   };
 
   // ---------- boot ----------
-  const zoom = d3.zoom().scaleExtent([1, 16]).on("zoom", e => { S.t = e.transform; tip.hidden = true; schedule(); });
+  const zoom = d3.zoom().scaleExtent([1, 16])
+    .filter(e => (!e.ctrlKey || e.type === "wheel") && (e.type !== "mousedown" || e.button !== 0 || e.shiftKey || !window.MC_DRAW))
+    .on("start", () => { S.moving = true; })
+    .on("zoom", e => { S.t = e.transform; tip.hidden = true; schedule(); })
+    .on("end", () => { S.moving = false; schedule(); });
   async function boot() {
     d3.select(canvas).call(zoom).on("dblclick.zoom", null);
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("mouseleave", () => tip.hidden = true);
     canvas.addEventListener("click", onClick);
+    canvas.addEventListener("contextmenu", e => e.preventDefault());     // right-drag moves the map
     // keyboard: arrows pan, +/- zoom, Enter inspects the centre (Shift+Enter plans a route to it)
     canvas.tabIndex = 0;
     canvas.addEventListener("keydown", e => {

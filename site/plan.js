@@ -41,7 +41,7 @@
   const colors = () => ({ boomless: MC.css("--route-boomless"), super: MC.css("--route-super"), sub: MC.css("--route-sub"), climb: MC.css("--route-sub") });
 
   // ---------- picking a route on the map: Plan button -> click start -> click destination; drag the ends ----------
-  const pickS = { mode: null, A: null, drag: null, hover: null, justDragged: false };
+  const pickS = { mode: null, A: null, drag: null, hover: null, justDragged: false, draw: null, hold: null };
   const SNAP_PX = 18;
   // screen point -> {p: [lon, lat], name}: the nearest airport within SNAP_PX, else the clicked point
   function snapAt(sx, sy) {
@@ -65,7 +65,7 @@
     return null;
   }
   function drawPickLayer(ctx, toScreen, worldW) {
-    if (!pickS.mode && !pickS.drag) return;
+    if (!pickS.mode && !pickS.drag && !(pickS.draw && pickS.draw.shown)) return;
     ctx.save(); ctx.font = "600 11px 'IBM Plex Sans', system-ui, sans-serif";
     for (const a of MC.AIRPORTS) for (const dx of [-worldW, 0, worldW]) {
       const [x0, y] = toScreen(a[3], a[2]), x = x0 + dx;
@@ -85,6 +85,14 @@
     if (pickS.mode === "B" && pickS.A) {
       const a = mark(pickS.A, "From", true);
       if (pickS.hover) { const [bx, by] = toScreen(pickS.hover.p[0], pickS.hover.p[1]); ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bx, by); ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]); }
+    }
+    if (pickS.draw && pickS.draw.shown) {           // drawing a new route: start pin, dashed line, destination pin
+      const a = mark(pickS.draw.A, "From", true);
+      if (pickS.draw.B) {
+        const [bx, by] = toScreen(pickS.draw.B.p[0], pickS.draw.B.p[1]);
+        ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(bx, by); ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1.8; ctx.stroke(); ctx.setLineDash([]);
+        mark(pickS.draw.B, "To", false);
+      }
     }
     if (pickS.drag && pickS.drag.q) {
       const other = pickS.drag.k ? R.A : R.B, [ox, oy] = toScreen(other[0], other[1]), [bx, by] = toScreen(pickS.drag.q.p[0], pickS.drag.q.p[1]);
@@ -119,25 +127,64 @@
       planRoute(a.p, q.p, [a.name, q.name]);
       if (matchMedia("(max-width: 900px)").matches) $("routePanel").scrollIntoView({ behavior: "smooth" });
     }, true);
-    // drag a route end: grab within 14 px, drop to re-plan (airports snap); the map does not pan meanwhile
+    // drag a route end: grab within 14 px, drop to re-plan (airports snap); the map does not pan meanwhile.
+    // Anywhere else, press and drag draws a new route from where the press started to where it ends (a click without
+    // moving still inspects the point). The left mouse button no longer pans (app.js zoom filter): the right or middle
+    // button, or Shift, does. On a touch screen one finger pans; press and hold, then drag, draws a route.
+    window.MC_DRAW = true;
+    const cancelHold = () => { if (pickS.hold) { clearTimeout(pickS.hold.t); pickS.hold = null; } };
     const down = e => {
-      if (pickS.mode || !R || MC.S.view === "3d" || e.target !== cv) return;
-      const k = endAt(...local(e)); if (k == null) return;
-      e.stopPropagation(); e.preventDefault();
-      pickS.drag = { k, q: null }; cv.style.cursor = "grabbing";
+      if (pickS.mode || MC.S.view === "3d" || e.target !== cv) return;
+      const touch = !!e.touches;
+      if (touch && e.touches.length > 1) { cancelHold(); pickS.draw = null; return; }
+      if (!touch && (e.button !== 0 || e.shiftKey)) return;
+      const [sx, sy] = local(e), k = R ? endAt(sx, sy) : null;
+      if (k != null) { e.stopPropagation(); e.preventDefault(); pickS.drag = { k, q: null }; cv.style.cursor = "grabbing"; return; }
+      if (!touch) { pickS.draw = { A: snapAt(sx, sy), x0: sx, y0: sy, moved: false, shown: false }; return; }
+      cancelHold();
+      pickS.hold = { x0: sx, y0: sy, t: setTimeout(() => {
+        pickS.hold = null; pickS.draw = { A: snapAt(sx, sy), x0: sx, y0: sy, moved: false, shown: true, touch: true };
+        if (navigator.vibrate) navigator.vibrate(12);
+        $("pickHint").hidden = false; $("pickHint").textContent = "Drag to the destination";
+        MC.schedule();
+      }, 420) };
     };
+    // while drawing with a finger, the map must not pan: stop the moves before they reach the map's own handler
+    wrap.addEventListener("touchmove", e => {
+      if (pickS.hold) { const [sx, sy] = local(e); if (Math.hypot(sx - pickS.hold.x0, sy - pickS.hold.y0) > 8 || e.touches.length > 1) cancelHold(); }
+      if (pickS.draw && pickS.draw.touch) { e.stopPropagation(); if (e.cancelable) e.preventDefault(); drawMove(...local(e)); }
+    }, { capture: true, passive: false });
+    function drawMove(sx, sy) {
+      const d = pickS.draw;
+      if (!d.moved && Math.hypot(sx - d.x0, sy - d.y0) < 6) return;
+      d.moved = true; d.shown = true; d.B = snapAt(sx, sy); MC.schedule();
+    }
     wrap.addEventListener("mousedown", down, true);
     wrap.addEventListener("touchstart", down, { capture: true, passive: false });
     const move = e => {
       if (pickS.drag) { if (e.cancelable) e.preventDefault(); pickS.drag.q = snapAt(...local(e)); MC.schedule(); return; }
+      if (pickS.draw && !pickS.draw.touch && !e.touches) { drawMove(...local(e)); return; }
       if (e.touches || e.target !== cv) return;
       const [sx, sy] = local(e);
       if (pickS.mode) { pickS.hover = snapAt(sx, sy); MC.schedule(); return; }
-      cv.style.cursor = endAt(sx, sy) != null ? "grab" : "";
+      cv.style.cursor = R && endAt(sx, sy) != null ? "grab" : "";
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("touchmove", move, { passive: false });
     const up = () => {
+      cancelHold();
+      const w = pickS.draw;
+      if (w) {
+        pickS.draw = null; $("pickHint").hidden = true;
+        if (w.moved && w.B) {
+          pickS.justDragged = true; setTimeout(() => { pickS.justDragged = false; }, 300);
+          if (Math.hypot(w.A.p[0] - w.B.p[0], w.A.p[1] - w.B.p[1]) > 0.5) {
+            planRoute(w.A.p, w.B.p, [w.A.name, w.B.name]);
+            if (matchMedia("(max-width: 900px)").matches) $("routePanel").scrollIntoView({ behavior: "smooth" });
+          }
+        } else if (w.touch) { pickS.justDragged = true; setTimeout(() => { pickS.justDragged = false; }, 300); }
+        MC.schedule();
+      }
       const d = pickS.drag; if (!d) return;
       pickS.drag = null; cv.style.cursor = ""; pickS.justDragged = true; setTimeout(() => { pickS.justDragged = false; }, 300);
       if (!d.q) { MC.schedule(); return; }
@@ -145,7 +192,8 @@
       planRoute(A.p, B.p, [A.name, B.name], { keepView: true });
     };
     window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
+    wrap.addEventListener("touchend", up, true);       // capture: the map's own handler stops touchend from bubbling
+    wrap.addEventListener("touchcancel", () => { cancelHold(); pickS.draw = null; $("pickHint").hidden = true; MC.schedule(); }, true);
   }
 
   function drawOverlay(ctx, toScreen, worldW) {
@@ -235,36 +283,51 @@
     const [field, fieldB] = await Promise.all([RT.makeField(MC.S.fl, MC.S.fi), RT.makeField(RT.nearestFL(base.fl), MC.S.fi)]);
     if (my !== seq) return;
     const gc = [A, B];
-    const r = { A, B, names, ac, obj, fl: MC.S.fl, fi: MC.S.fi,
+    const r = { A, B, names, ac, obj, fl: MC.S.fl, fi: MC.S.fi, key: routeKey(), e,
       base: RT.evalPath(fieldB, base, gc, "ban", e), ban: RT.evalPath(field, ac, gc, "ban", e), gc: RT.evalPath(field, ac, gc, "corr", e) };
     r.opt = ac.supersonic ? RT.bestRoute(field, ac, A, B, obj, e) : r.gc;
     const fresh = !R || R.A !== A || R.B !== B;
     R = r; if (fresh && !opts.keepView) MC.fit && MC.fit([...r.opt.path, ...r.gc.path]);
     // a new route: colour the map for the direction it flies, so the map and the plan show the same Mach
-    if (fresh && ac.supersonic && MC.S.hd !== "hd" || fresh && ac.supersonic && Math.abs(((MC.S.hdDeg - routeBrg(r) + 540) % 360) - 180) > 30) { matchMap(); return; }
+    // (the map recolours; the route does not depend on the map's direction, so it is not planned again)
+    if (fresh && ac.supersonic && MC.S.hd !== "hd" || fresh && ac.supersonic && Math.abs(((MC.S.hdDeg - routeBrg(r) + 540) % 360) - 180) > 30) matchMap();
     MC.schedule(); render(r); dirHint(); window.dispatchEvent(new Event("mc-route"));
     MC.hashExtra.r = [A, B].map((p, i) => MC.APT[names[i]] ? names[i] : `${p[1].toFixed(2)},${p[0].toFixed(2)}`).join("-");
     MC.hashExtra.ac = ac.id; MC.hashExtra.o = obj; MC.hashExtra.sea = $("seaSel").value === "full10" ? null : $("seaSel").value; MC.writeHash();
-    const rows = [];
-    for (const fl of MC.S.man.flight_levels) {
-      const f = await RT.makeField(fl, MC.S.fi);
-      if (my !== seq) return;
-      rows.push({ fl, o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 500) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e),
-                  same: ac.supersonic ? RT.evalPath(f, ac, r.opt.path, "corr", e) : null });
-      renderFl(rows);
-      levelAdvice(r, rows);
-      await new Promise(res => setTimeout(res, 0));
+    extras();
+  }
+  // the altitude and departure tables re-plan the route up to 20 times (half a second to a second each), which kept
+  // the page busy for 10 to 20 s after every plan: now each is computed only while its section is open
+  const routeKey = () => [MC.S.fl, MC.S.fi, MC.S.margin, MC.S.auto, MC.sigmaReady, $("acSel").value, $("objSel").value, $("seaSel").value, $("machMax").value, !!MC.S.allowStale].join("|");
+  let exSeq = 0;
+  async function extras() {
+    const r = R; if (!r) return;
+    const my = ++exSeq, { ac, A, B, obj, e } = r, gc = [A, B];
+    if ($("flFold").open && !r.flDone) {
+      r.flDone = true;
+      const rows = [];
+      for (const fl of MC.S.man.flight_levels) {
+        const f = await RT.makeField(fl, r.fi);
+        if (my !== exSeq || R !== r) { r.flDone = false; return; }
+        rows.push({ fl, o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 500) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e),
+                    same: ac.supersonic ? RT.evalPath(f, ac, r.opt.path, "corr", e) : null });
+        renderFl(rows);
+        levelAdvice(r, rows);
+        await new Promise(res => setTimeout(res, 30));
+      }
     }
     // departure-time advice: the corridor moves with the weather, so the same flight can be faster at another hour
-    const deps = [], H = MC.S.man.forecast_hours, est = r.opt.block;
-    $("depTable").innerHTML = "<tr><td class='muted'>Computing departures…</td></tr>";
-    for (let k = 0; k < H.length; k++) {
-      if (H[k] + est > H[H.length - 1] + 3) break;          // the flight must end inside the forecast
-      const f = await RT.makeField(MC.S.fl, k);
-      if (my !== seq) return;
-      deps.push({ k, t: MC.S.man.valid_times[k], o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 300) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
-      renderDep(deps, obj);
-      await new Promise(res => setTimeout(res, 0));
+    if ($("depFold").open && !r.depDone) {
+      r.depDone = true;
+      const deps = [], H = MC.S.man.forecast_hours, est = r.opt.block;
+      for (let k = 0; k < H.length; k++) {
+        if (H[k] + est > H[H.length - 1] + 3) break;          // the flight must end inside the forecast
+        const f = await RT.makeField(r.fl, k);
+        if (my !== exSeq || R !== r) { r.depDone = false; return; }
+        deps.push({ k, t: MC.S.man.valid_times[k], o: ac.supersonic ? RT.bestRoute(f, ac, A, B, obj, e, 300) : RT.evalPath(f, ac, gc, "corr", e), b: RT.evalPath(f, ac, gc, "ban", e) });
+        renderDep(deps, obj);
+        await new Promise(res => setTimeout(res, 30));
+      }
     }
   }
 
@@ -295,7 +358,8 @@
           : k(`${Math.round(o.tAcc * 60)} min`, "Spent accelerating or slowing"),
     ].join("");
     drawLadder(r); drawProfile(o); navlog();
-    $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>";
+    $("flTable").innerHTML = "<tr><td class='muted'>Computing the other altitudes…</td></tr>"; $("lvlNote").textContent = "";
+    $("depTable").innerHTML = "<tr><td class='muted'>Computing departures…</td></tr>";
     const inf = o.path.info;
     $("optNote").textContent = sup && inf ? `Route search: time-dependent grid search, then continuous refinement from two starting routes${inf.startsAgree < 0.002 ? ", which agree" : ` (they differ by ${(100 * inf.startsAgree).toFixed(1)}%; the better is shown)`}. Best for this forecast and cost model; not a proof of the global optimum. Weather is taken at the time the aircraft reaches each point.` : "";
   }
@@ -760,7 +824,9 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
       const names = [ptName(a), ptName(b)];
       planRoute(a, b, names);
     });
-    MC.on("refresh", () => { if (R) planRoute(R.A, R.B, R.names, { keepView: true }); });
+    // re-plan only when something the route depends on changed (not the map's colours, direction or highlight)
+    MC.on("refresh", () => { if (R && R.key !== routeKey()) planRoute(R.A, R.B, R.names, { keepView: true }); });
+    for (const id of ["flFold", "depFold"]) $(id).addEventListener("toggle", () => { if ($(id).open) extras(); });
     const r = p.get("r");      // "KJFK-KLAX" or "45.28,-62.60-32.39,-102.25": only a dash after a digit or letter separates
     if (r) {
       const pts = r.split(/(?<=[0-9A-Za-z])-/).map(s => MC.APT[s] ? [[MC.APT[s][3], MC.APT[s][2]], s] : (([la, lo]) => [[+lo, +la], `${la},${lo}`])(s.split(",")));

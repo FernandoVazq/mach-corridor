@@ -54,51 +54,42 @@
 
       <button class="float layersToggle" id="layersToggle" aria-expanded="false" aria-controls="mapControls"><span id="layersSummary">Settings</span><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3 6 L8 11 L13 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
       <div class="float layers" id="mapControls" aria-label="Map settings">
-        <div class="row">
-          <span class="k">Flight level</span>
-          <div class="seg" id="flSeg" role="radiogroup" aria-label="Flight level"></div>
-        </div>
-        <div class="row" id="flHiRow" hidden>
-          <span class="k" title="70,000 to 100,000 ft: an estimate from GFS alone, not yet validated">High, est.</span>
-          <div class="seg" id="flHiSeg" role="radiogroup" aria-label="High flight level, estimated"></div>
-        </div>
-        <div class="row">
-          <span class="k">Direction</span>
+        <div class="qbar">
+          <select id="flSel" aria-label="Flight level" title="Flight level"></select>
           <div class="seg" id="hdSeg" role="radiogroup" aria-label="Direction mode">
-            <button data-v="min" title="Worst case over all directions">Any</button><button data-v="max" title="Most favourable direction">Best</button><button data-v="hd">Heading</button>
+            <button data-v="min" title="Worst case over all directions">Any</button><button data-v="max" title="Most favourable direction">Best</button><button data-v="hd" title="One heading">Heading</button>
           </div>
+          <select id="threshSel" aria-label="Only light up Mach at or above" title="Only light up Mach at or above">
+            <option value="0">All Mach</option><option value="1.05">M 1.05+</option><option value="1.10">M 1.10+</option>
+            <option value="1.15">M 1.15+</option><option value="1.20">M 1.20+</option><option value="1.25">M 1.25+</option><option value="1.30">M 1.30+</option>
+          </select>
+          <button class="icon morebtn" id="moreBtn" aria-expanded="false" aria-controls="moreSet" title="Margin, view and layers"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 4h7M13 4h1M2 12h1M7 12h7M2 8h3M9 8h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="4" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="12" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
         </div>
         <div class="row" id="hdRow">
-          <span class="k"></span>
           <input type="range" id="hdSlider" min="0" max="350" step="10" value="100" aria-label="Heading in degrees">
           <output id="hdLbl" class="v"></output>
         </div>
-        <div class="row r4">
-          <span class="k">Margin</span>
-          <input type="range" id="marginSlider" min="0" max="0.08" step="0.005" value="0.05" aria-label="Forecast-error margin in Mach">
-          <output id="marginLbl" class="v"></output>
-          <button id="marginAuto" class="chip" aria-pressed="false" hidden title="Per-point margin from a year of forecast errors">Auto</button>
-        </div>
-        <div class="row">
-          <span class="k">Highlight</span>
-          <select id="threshSel" aria-label="Only show Mach at or above">
-            <option value="0">All values</option><option value="1.05">M 1.05 and up</option><option value="1.10">M 1.10 and up</option>
-            <option value="1.15">M 1.15 and up</option><option value="1.20">M 1.20 and up</option><option value="1.25">M 1.25 and up</option><option value="1.30">M 1.30 and up</option>
-          </select>
-        </div>
-        <div class="row">
-          <span class="k">View</span>
-          <div class="seg" id="viewSeg" role="radiogroup" aria-label="View"><button data-v="2d">Flat map</button><button data-v="3d">Globe</button></div>
-        </div>
-        <div class="row">
-          <span class="k">Show</span>
-          <div class="chks">
-            <label class="chk"><input type="checkbox" id="fadeOcean"> Dim open ocean</label>
-            <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
-            <label class="chk" title="Deserts, farmland, forests, grassland, ice: NASA MODIS land cover"><input type="checkbox" id="landShow"> Land cover</label>
-            <label class="chk" title="Snow on the ground yesterday: NASA MODIS snow cover"><input type="checkbox" id="snowShow"> Snow</label>
-            <label class="chk" title="Ground above 1,500 m, denser above 3,000 m: the boom must clear it"><input type="checkbox" id="mtnShow"> Mountains</label>
-            <label class="chk" id="disWrap" hidden title="Hatched where NOAA GFS and ECMWF IFS differ by 0.02 Mach or more in some direction, or only one has a corridor: trust the map less there"><input type="checkbox" id="disShow"> Model disagreement</label>
+        <div class="moreset" id="moreSet" hidden>
+          <div class="row r4">
+            <span class="k">Margin</span>
+            <input type="range" id="marginSlider" min="0" max="0.08" step="0.005" value="0.05" aria-label="Forecast-error margin in Mach">
+            <output id="marginLbl" class="v"></output>
+            <button id="marginAuto" class="chip" aria-pressed="false" hidden title="Per-point margin from a year of forecast errors">Auto</button>
+          </div>
+          <div class="row">
+            <span class="k">View</span>
+            <div class="seg" id="viewSeg" role="radiogroup" aria-label="View"><button data-v="2d">Flat map</button><button data-v="3d">Globe</button></div>
+          </div>
+          <div class="row">
+            <span class="k">Layers</span>
+            <div class="chks">
+              <label class="chk"><input type="checkbox" id="fadeOcean"> Dim open ocean</label>
+              <label class="chk"><input type="checkbox" id="relief" checked> Terrain relief</label>
+              <label class="chk" title="Deserts, farmland, forests, grassland, ice: NASA MODIS land cover"><input type="checkbox" id="landShow"> Land cover</label>
+              <label class="chk" title="Snow on the ground yesterday: NASA MODIS snow cover"><input type="checkbox" id="snowShow"> Snow</label>
+              <label class="chk" title="Ground above 1,500 m, denser above 3,000 m: the boom must clear it"><input type="checkbox" id="mtnShow"> Mountains</label>
+              <label class="chk" id="disWrap" hidden title="Hatched where NOAA GFS and ECMWF IFS differ by 0.02 Mach or more in some direction, or only one has a corridor: trust the map less there"><input type="checkbox" id="disShow"> Model disagreement</label>
+            </div>
           </div>
         </div>
       </div>
@@ -111,7 +102,10 @@
         <p class="ln" id="legendNote">Brighter means more Mach without a boom reaching the ground. Orange marks the usable floor.</p>
       </div>
 
-      <div class="float lens" id="lens" role="radiogroup" aria-label="Map style" hidden></div>
+      <div class="float lens" id="lens" hidden>
+        <div class="lensMenu" id="lensMenu" role="radiogroup" aria-label="Map style" hidden></div>
+        <button class="lensBtn" id="lensBtn" aria-expanded="false" aria-controls="lensMenu" title="Map style"><canvas id="lensCur" width="96" height="60" aria-hidden="true"></canvas><span id="lensName">Mach</span><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 10 L8 5 L13 10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      </div>
 
       <div class="float timeline">
         <button class="play" id="playBtn" aria-label="Play forecast">
@@ -124,7 +118,7 @@
         <output id="timeLbl" class="tval"></output>
       </div>
       <button class="float routeBtn" id="routeMode" aria-pressed="false" title="Click a start and a destination on the map; nearby airports snap. Drag the ends of a route to move them."><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="3.5" cy="12.5" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12.5" cy="3.5" r="2" fill="currentColor"/><path d="M5 11 C 8 10, 8 6, 11 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg><span id="routeModeLbl">Plan a route</span></button>
-      <div class="hint" id="hint">Click to inspect a point. Shift-click a second point to plan a route.</div>
+      <div class="hint" id="hint">Drag from A to B to plan a route · right-drag or Shift-drag moves the map</div>
       <div class="pickhint" id="pickHint" hidden>Tap the destination</div>
       <div class="float dirhint" id="dirHint" hidden></div>
     </section>
@@ -138,18 +132,18 @@
       </section>
 
       <section class="sec" id="inspectPanel">
-        <h2>Point</h2>
-        <p class="empty" id="inspHint">Tap or click a point on the map.</p>
+        <div class="insphead"><h2 id="inspLoc">Point</h2><span id="inspSurf"></span></div>
+        <p class="empty" id="inspHint">Click a point on the map to inspect it, or drag from one place to another to plan a route.</p>
         <div id="inspBody" hidden>
-          <div class="insphead"><b id="inspLoc"></b><span id="inspSurf"></span></div>
+          <div class="hero" id="inspHero"></div>
           <div class="inspgrid">
             <svg id="polar" viewBox="-120 -120 240 240" role="img" aria-label="Boomless Mach by direction"></svg>
-            <dl class="facts" id="inspFacts"></dl>
+            <table class="itbl" id="inspTbl"></table>
           </div>
-          <button class="btn" id="open3d">Open 3D column</button>
-          <div class="btnrow"><button class="btn" id="routeFromHere">Start route here</button><button class="btn" id="routeToHere">End route here</button></div>
+          <p class="imeta" id="inspFacts"></p>
+          <div class="btnrow3"><button class="btn sm" id="open3d">3D column</button><button class="btn sm" id="routeFromHere">Route from here</button><button class="btn sm" id="routeToHere">Route to here</button></div>
           <h3>Next 48 hours <span id="tsSub"></span></h3>
-          <svg id="ts" viewBox="0 0 320 130" role="img" aria-label="Boomless Mach over forecast time"></svg>
+          <svg id="ts" viewBox="0 0 320 112" role="img" aria-label="Boomless Mach over forecast time"></svg>
         </div>
       </section>
 
@@ -197,11 +191,13 @@
             <span><i class="sw" style="background:var(--route-sub)"></i>Subsonic</span>
             <span><i class="sw" style="background:#ff5c5c;border-radius:50%;width:8px;height:8px"></i>Secondary boom would land on land (map)</span>
           </div>
-          <h3>Every altitude, same route</h3>
-          <div class="tblwrap" tabindex="0" role="region" aria-label="Every altitude, same route"><table class="tbl" id="flTable"></table></div>
-          <p class="fine" id="lvlNote"></p>
-          <h3>When to leave <span>Same route and altitude, each forecast departure</span></h3>
-          <div class="tblwrap" tabindex="0" role="region" aria-label="When to leave"><table class="tbl" id="depTable"></table></div>
+          <details class="navwrap" id="flFold"><summary>Every altitude <span class="muted">same route, each flight level</span></summary>
+            <div class="tblwrap" tabindex="0" role="region" aria-label="Every altitude, same route"><table class="tbl" id="flTable"></table></div>
+            <p class="fine" id="lvlNote"></p>
+          </details>
+          <details class="navwrap" id="depFold"><summary>When to leave <span class="muted">same route and altitude, each departure</span></summary>
+            <div class="tblwrap" tabindex="0" role="region" aria-label="When to leave"><table class="tbl" id="depTable"></table></div>
+          </details>
           <p class="fine" id="optNote"></p>
         </div>
       </section>

@@ -401,7 +401,7 @@
       if (!$("fromIn").value || !$("toIn").value) { $("fromIn").value = "KJFK"; $("toIn").value = "KLAX"; }   // an overland route by default
       document.querySelector('.tabs button[data-tab="map"]').click();
       const fls = MC.S.man.flight_levels, fl = fls.reduce((b, x) => Math.abs(x - +$("abFL").value) < Math.abs(b - +$("abFL").value) ? x : b, fls[0]);
-      const fb = document.querySelector(`#flSeg button[data-v="${fl}"]`); if (fb) fb.click();   // map at the aircraft's level
+      MC.setFl(fl);                                                                           // map at the aircraft's level
       setTimeout(() => $("routeGo") && $("routeGo").click(), 400);
     };
     renderBuilder();
