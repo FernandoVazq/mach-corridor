@@ -6,7 +6,7 @@ const [, , base = 'http://localhost:8765/', exe] = process.argv;
 const axe = fs.readFileSync(new URL('./node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const fail = [];
-const paths = ['about/', 'es/', 'sound.html', 'fireballs.html'].concat(fs.existsSync(new URL('../site/routes/index.html', import.meta.url)) ? ['routes/', 'routes/kjfk-klax.html'] : []);
+const paths = ['about/', 'es/', 'sound.html', 'fireballs.html', 'x59.html'].concat(fs.existsSync(new URL('../site/routes/index.html', import.meta.url)) ? ['routes/', 'routes/kjfk-klax.html'] : []);
 for (const path of paths) for (const [w, h, scheme] of [[1280, 900, 'light'], [390, 844, 'dark']]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme });
   await p.route(/fernando-vazquez\.netlify\.app|googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)|fonts\.g/, r => r.abort());

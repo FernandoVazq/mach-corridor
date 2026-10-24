@@ -28,6 +28,7 @@ import secondary
 import rocket
 import ecmwf
 import sound
+import x59
 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
@@ -312,7 +313,7 @@ def build(run, out_dir):
             src = hi if hi is not None else (np.array(PLEV, float), T, U, V, Z, RH)
             lv_, T_, U_, V_, Z_, RH_ = src
             vt_ = (dt.datetime.strptime(run, "%Y%m%d%H") + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            for k_, s_ in rocket.SITES.items():
+            for k_, s_ in {**rocket.SITES, **x59.SITES}.items():   # launch sites, capsule returns, X-59 test area
                 i_, j_ = int(round(90 - s_["lat"])), int(round(s_["lon"] % 360)) % 360
                 Tc = T_[:, i_, j_]
                 if RH_ is not None:
