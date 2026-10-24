@@ -21,6 +21,15 @@ for (const [w, h, scheme] of [[1400, 900, 'light'], [1400, 900, 'dark'], [390, 8
   report[key] = { ready_ms: tReady, route_ms: Date.now() - t0 };
   // performance budget (issue #29): the map must be interactive within 15 s even on a slow CI runner
   if (tReady > 15000) fail.push(`${key}: map ready in ${tReady} ms (budget 15000)`);
+  // smooth playback: play blends between forecasts (fractional time), pause snaps back to a real forecast
+  if (scheme === 'light') {
+    await p.click('#playBtn'); await p.waitForTimeout(2500);
+    const mid = await p.evaluate(() => ({ ft: window.MC.S.ft, step: document.getElementById('timeSlider').step }));
+    await p.click('#playBtn'); await p.waitForTimeout(800);
+    const end = await p.evaluate(() => ({ ft: window.MC.S.ft, fi: window.MC.S.fi, step: document.getElementById('timeSlider').step }));
+    if (typeof mid.ft !== 'number' || mid.step !== 'any') fail.push(`${key}: playback did not advance smoothly ${JSON.stringify(mid)}`);
+    if (end.ft != null || end.step !== '1' || !Number.isInteger(end.fi)) fail.push(`${key}: pause did not snap to a forecast ${JSON.stringify(end)}`);
+  }
   for (const tab of ['map', 'econ', 'physics', 'method']) {
     if (tab !== 'map') { await p.click(`button[data-tab="${tab}"]`); await p.waitForTimeout(tab === 'econ' ? 15000 : 1500); }
     await p.addScriptTag({ content: axe });

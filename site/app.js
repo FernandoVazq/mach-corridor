@@ -220,9 +220,36 @@
   const schedule = () => { if (!rafPending) { rafPending = true; requestAnimationFrame(draw); } };
   const overlays = [];   // functions (ctx, toScreen, wrapOffsets) drawn on top (routes)
 
+  // ---------- smooth playback: between two 6-hourly forecasts the map shows a blend of the pair ----------
+  // S.ft = fractional forecast index while the forecast plays (null otherwise). Mach is blended as a number, with
+  // "no corridor" counted as M 0.98 (as the colours do), so a corridor's edge moves instead of blinking; wind and
+  // the other tiles blend linearly. Each blended state then cross-fades into the next on screen.
+  let blendBuf = null;
+  function blendAtlas(a, b, t) {
+    if (!blendBuf || blendBuf.length !== a.length) blendBuf = new Uint8Array(a.length);
+    const o = blendBuf, cols = A().cols, aw = AW(), u = 1 - t, z = (0.98 - enc().M0) / enc().M_step;
+    for (let tile = 0; tile < cols * A().rows; tile++) {
+      const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX, isM = tile < 36 || tile === A().tile_min || tile === A().tile_max;
+      for (let j = 0; j < NY; j++) {
+        const r = base + j * aw, e = r + NX;
+        if (isM) for (let i = r; i < e; i++) { const v = (a[i] || z) * u + (b[i] || z) * t; o[i] = v < 0.5 ? 0 : v > 255 ? 255 : Math.round(v); }
+        else for (let i = r; i < e; i++) o[i] = Math.round(a[i] * u + b[i] * t);
+      }
+    }
+    return o;
+  }
+  async function frameData() {
+    const f = fhs();
+    if (S.ft == null || S.ft === Math.floor(S.ft)) return loadAtlas(f[S.ft == null ? S.fi : S.ft], S.fl);
+    const i = Math.floor(S.ft), t = S.ft - i, ft = S.ft, fl = S.fl;
+    const [a, b] = await Promise.all([loadAtlas(f[i], fl), loadAtlas(f[Math.min(f.length - 1, i + 1)], fl)]);
+    return S.ft === ft && S.fl === fl ? blendAtlas(a, b, t) : frameData();
+  }
+  const validMsAt = x => { const v = S.man.valid_times, i = Math.min(v.length - 1, Math.floor(x)), j = Math.min(v.length - 1, i + 1), a = Date.parse(v[i]); return a + (Date.parse(v[j]) - a) * (x - i); };
+
   async function refresh() {
     if (!S.man) return;
-    [current] = await Promise.all([loadAtlas(fhs()[S.fi], S.fl), S.auto ? prepareGefs(S.fl) : null]);
+    [current] = await Promise.all([frameData(), S.auto ? prepareGefs(S.fl) : null]);
     colorKey = "";
     updateKpis(); updateInspector(); disCanvasFor(); schedule(); writeHash();
     emit("refresh");
@@ -395,15 +422,35 @@
     }
   }
   function paintData() {
-    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.fade, S.thresh].join("|");
+    const k = [S.fi, S.ft ?? "", S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.fade, S.thresh].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
+    if (S.playing && S.playing.smooth) {          // keep what is on screen now, to fade from it into the new state
+      const src = xf.on ? mix : off;
+      prevCtx.globalCompositeOperation = "copy"; prevCtx.globalAlpha = 1; prevCtx.drawImage(src, 0, 0);
+      xf.on = true; xf.t0 = performance.now(); xf.dur = S.playing.subMs;
+    } else xf.on = false;
     const w = NX * UP, h = NY * UP, img = offCtx.createImageData(w, h);
     rasterize(img, w, h, (x, y) => [(x + 0.5) / UP - 0.5, (y + 0.5) / UP - 0.5]);
     offCtx.putImageData(img, 0, 0);
     gridCache = null; ovlKey = "";
     drawLegend();
     return true;
+  }
+  // cross-fade while playing: mix = (1 - f) * previous + f * new, with "lighter" so colour and transparency
+  // both interpolate exactly (drawing one over the other would leave the old frame showing through the ocean fade)
+  const prev = document.createElement("canvas"); prev.width = NX * UP; prev.height = NY * UP;
+  const mix = document.createElement("canvas"); mix.width = NX * UP; mix.height = NY * UP;
+  const prevCtx = prev.getContext("2d"), mixCtx = mix.getContext("2d"), xf = { on: false, t0: 0, dur: 1 };
+  function dataTex() {
+    if (!xf.on) return off;
+    const f = (performance.now() - xf.t0) / xf.dur;
+    if (f >= 1 || !S.playing) { xf.on = false; return off; }
+    mixCtx.globalCompositeOperation = "copy"; mixCtx.globalAlpha = 1 - f; mixCtx.drawImage(prev, 0, 0);
+    mixCtx.globalCompositeOperation = "lighter"; mixCtx.globalAlpha = f; mixCtx.drawImage(off, 0, 0);
+    mixCtx.globalCompositeOperation = "source-over"; mixCtx.globalAlpha = 1;
+    schedule();
+    return mix;
   }
   // the cyan wash for the satellite looks, on the same 4-pixels-per-degree raster as the Mach colours
   const ovl = document.createElement("canvas"); ovl.width = NX * UP; ovl.height = NY * UP;
@@ -429,7 +476,7 @@
   const rasterMode = () => SAT_LOOK(S.look) ? "ovl" : "mach";
   function viewportKey() { return [colorKey, rasterMode(), lit(), S.t.x.toFixed(1), S.t.y.toFixed(1), S.t.k.toFixed(4), W, H].join("|"); }
   function requestViewport() {
-    if (S.t.k < 2 || !current || CHART_LOOK(S.look)) { vp = null; return; }
+    if (S.t.k < 2 || !current || CHART_LOOK(S.look) || S.playing) { vp = null; return; }
     if (vp && vp.key === viewportKey()) return;
     clearTimeout(vpTimer);
     vpTimer = setTimeout(() => {
@@ -756,11 +803,12 @@
       requestViewport();
       const sharp = vp && vp.key === viewportKey();
       if (sharp) ctx.drawImage(vpCanvas, 0, 0, W, H);
+      const tex = sharp ? null : dataTex();
       for (const dx of wraps) {
         const [ax, ay] = toScreen(-180.5, 90.5), [bx, by] = toScreen(179.5, -90.5);
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
-        if (!sharp) ctx.drawImage(off, ax + ox, ay, bx - ax, by - ay);
+        if (!sharp) ctx.drawImage(tex, ax + ox, ay, bx - ax, by - ay);
         if (S.fade && dimCanvas) {
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(dimCanvas, tx + ox, ty, ux - tx, uy - ty);
@@ -1210,8 +1258,7 @@
       }
       $("kpiPct").textContent = `${Math.round(pct * 100)}%`;
     }
-    const vt = new Date(S.man.valid_times[S.fi]);
-    $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC`;
+    timeLabel();
     $("hdLbl").textContent = S.hd === "hd" ? `${String(S.hdDeg).padStart(3, "0")}°` : "";
     $("hdRow").hidden = S.hd !== "hd";
     $("layersSummary").textContent = `FL${S.fl}${isHigh() ? " (est.)" : ""}, ${S.hd === "hd" ? String(S.hdDeg).padStart(3, "0") + "°" : S.hd === "min" ? "any direction" : "best direction"}${S.thresh ? ", M " + S.thresh.toFixed(2) + "+" : ""}`;
@@ -1300,7 +1347,7 @@
     $("hdSlider").value = S.hdDeg; $("hdSlider").disabled = S.hd !== "hd";
     $("hdSlider").oninput = e => { S.hdDeg = +e.target.value; refresh(); };
     const sl = $("timeSlider"); sl.max = fhs().length - 1; sl.value = S.fi;
-    sl.oninput = () => { S.fi = +sl.value; refresh(); };
+    sl.oninput = () => { const v = Math.round(+sl.value); if (S.playing) { S.ft = null; S.fi = v; stopPlay(); return; } S.fi = v; refresh(); };
     $("marginSlider").value = S.margin;
     $("marginSlider").oninput = e => { S.margin = +e.target.value; refresh(); };
     $("marginAuto").hidden = !sigma;
@@ -1340,11 +1387,55 @@
     window.dispatchEvent(new CustomEvent("mc-tab", { detail: t }));
     if (t === "map") { layout(); schedule(); }
   }
+  // the time under the slider; while playing, the blended moment (hourly steps between the 6-hourly forecasts)
+  function timeLabel() {
+    const x = S.ft ?? S.fi, vt = new Date(validMsAt(x));
+    $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC${x === Math.floor(x) ? "" : " (blend)"}`;
+  }
+  // play: 1.8 s per 6-hour step, 3 blended states per step (every 2 h), each cross-fading into the next; the last forecast
+  // holds half a step, then it starts over. Reduced motion: the old jump from one forecast to the next.
+  const STEP_MS = 1800, SUB = 3;
+  let playTok = 0;
+  function stopPlay() {
+    const p = S.playing; if (!p) return;
+    if (p.raf) cancelAnimationFrame(p.raf); if (p.iv) clearInterval(p.iv);
+    S.playing = null; xf.on = false;
+    if (S.ft != null) { S.fi = Math.round(S.ft); S.ft = null; }
+    const sl = $("timeSlider"); sl.step = 1; sl.value = S.fi;
+    $("playBtn").textContent = "▶"; $("playBtn").setAttribute("aria-label", "Play forecast");
+    refresh();
+  }
+  async function stepTo(q) {
+    const tok = ++playTok;
+    S.ft = q; $("timeSlider").value = q; timeLabel();
+    const fi = Math.round(q);
+    if (fi !== S.fi) { S.fi = fi; return refresh(); }       // a new nearest forecast: the full update (numbers, routes)
+    const a = await frameData();
+    if (tok !== playTok || !S.playing) return;
+    current = a; colorKey = ""; schedule();
+  }
+  function playFrame(now) {
+    const p = S.playing; if (!p || !p.smooth) return;
+    const n = fhs().length;
+    if (p.last != null) p.x += (now - p.last) / STEP_MS;
+    p.last = now;
+    if (p.x > n - 0.5) p.x = 0;
+    const q = Math.min(n - 1, Math.floor(p.x * SUB + 1e-9) / SUB);
+    if (q !== S.ft) stepTo(q);
+    p.raf = requestAnimationFrame(playFrame);
+  }
   function togglePlay() {
-    if (S.playing) { clearInterval(S.playing); S.playing = null; $("playBtn").textContent = "▶"; return; }
+    if (S.playing) { stopPlay(); return; }
     fhs().forEach(fh => loadAtlas(fh, S.fl));
-    $("playBtn").textContent = "❚❚";
-    S.playing = setInterval(() => { S.fi = (S.fi + 1) % fhs().length; $("timeSlider").value = S.fi; refresh(); }, 900);
+    $("playBtn").textContent = "❚❚"; $("playBtn").setAttribute("aria-label", "Pause forecast");
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!smooth) {
+      S.playing = { smooth: false, iv: setInterval(() => { S.fi = (S.fi + 1) % fhs().length; $("timeSlider").value = S.fi; refresh(); }, 900) };
+      return;
+    }
+    S.playing = { smooth: true, x: S.fi >= fhs().length - 1 ? 0 : S.fi, last: null, subMs: STEP_MS / SUB, raf: 0 };
+    $("timeSlider").step = "any";
+    S.playing.raf = requestAnimationFrame(playFrame);
   }
 
   function setLook(l) {
