@@ -1,5 +1,7 @@
 # Monetization: support button, custom domain, ads
 
+Update (24 Oct 2026): ad sections prepared on more pages (see the table); nothing new is switched on. `adsense` in `site/config.js` stays as it is (verification only, no slot) until Google approves the site.
+
 Status (16 Oct 2026): **domain done**: machcorridor.com bought at Porkbun ($11.08/yr, renews at the same price), DNS pointed at GitHub Pages, custom domain saved; github.io redirects to it. Still off: the support badge and ads (switches in `site/config.js`). Every account, purchase and setting below has to be done by the owner.
 
 | Piece | In the repo | Switch |
@@ -7,7 +9,11 @@ Status (16 Oct 2026): **domain done**: machcorridor.com bought at Porkbun ($11.0
 | Sponsor button on the GitHub repo page | `.github/FUNDING.yml` (`github: [FernandoVazq]`) | Appears once Sponsors is approved |
 | "Support" link in the site header and on the Method page | `site/support.js` | `sponsorsUrl` in `site/config.js` |
 | Privacy policy (AdSense-ready) | `site/privacy.html`, linked from the Method page footer and the ad box | Always on |
-| One ad unit, side panel below the route, never over the map | `site/ads.js`, `#adSlot` in `site/index.html` | `adsense` in `site/config.js` |
+| Ad sections (`.adslot`), at most 2 per page, after the main text, never beside a map, button or control | `site/ads.js`; `#adSlot` in `site/index.html` (side panel, below the route), `site/about/index.html`, `site/es/index.html` (both after "How I built it", from `tools/project_page.py`), `site/rockets.html` and `site/sound.html` (after the text, at the end of the page) | `adsense` in `site/config.js` |
+| No ads on `blast.html`, `fireballs.html`, `x59.html` | No `.adslot` and no `ads.js` on those pages | Add them only once each page has at least 600 words of its own text (about 300 today) |
+| No ads for CV and LinkedIn visitors | `site/ads.js`: skips the ad units if `document.referrer` contains `fernandojvazquez.com` or `linkedin.com`, or the URL has `?ref=cv`; remembered in `sessionStorage` (`mc-noads`) for the rest of the visit | Always on |
+| Contact line | Method tab footer (`site/index.html`), About pages footer, `site/privacy.html` | Always on |
+| Search Console verification | `<meta name="google-site-verification" content="">` in `site/index.html` | Paste the code from Search Console into `content` |
 
 ## Order of operations
 
@@ -80,7 +86,11 @@ GitHub's [Acceptable Use Policies](https://docs.github.com/en/site-policy/accept
 5. Request review. Approval usually takes days to a few weeks; thin or new sites are often refused, so wait for real traffic.
 6. After approval: in AdSense, **turn Auto ads off** for this site (they can put anchors and pop-ups over the map), create one **Display ad unit** (responsive), copy its slot id, and set
    `adsense: { client: "ca-pub-XXXXXXXXXXXXXXXX", slot: "1234567890" },`
-   The ad appears in the side panel below the route, labelled "Advertisement", with a link to the privacy page.
+   The same unit then fills every ad section on a page (at most 2): the side panel below the route, the About pages (EN/ES), Rocket booms and Sound tonight, each labelled "Advertisement" with a link to the privacy page. Visitors from the CV site or LinkedIn, or with `?ref=cv`, see none for the whole visit.
+
+### 4. Search Console
+
+In <https://search.google.com/search-console> add the property `https://machcorridor.com/` with the **HTML tag** method, copy the `content` value and put it in the empty `<meta name="google-site-verification" content="">` in `site/index.html`; commit, push, then press **Verify**.
 
 Alternatives with less tracking: [EthicalAds](https://www.ethicalads.io/) wants roughly 50k+ pageviews a month; [Carbon Ads](https://www.carbonads.net/) is by application. Both would need their own snippet in `site/ads.js` and an update to the privacy page.
 

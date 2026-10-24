@@ -101,7 +101,7 @@ T = {
           ("Launch Library 2, The Space Devs", "Upcoming launches", "Free API under its own terms", "Check its terms")],
   "src_note": "Forecast data are updated every 6 hours; validation covers Oct 2025 – Sep 2026. Method, code and model change log: github.com/FernandoVazq/mach-corridor.",
   "notice": "Research project by Fernando J. Vázquez. Not for flight planning.",
-  "privacy": "Privacy",
+  "privacy": "Privacy", "ad": "Advertisement", "ad_about": "About ads and privacy", "contact": "Contact",
  },
  "es": {
   "kpi_short": ["meta 0.010", "vs la prohibición actual", "meta bajo 0.5 %", "Europa 43 %"],
@@ -193,7 +193,7 @@ T = {
           ("Launch Library 2, The Space Devs", "Próximos lanzamientos", "API gratuita con sus propios términos", "Revisar sus términos")],
   "src_note": "Los datos del pronóstico se actualizan cada 6 horas; la validación cubre oct 2025 – sep 2026. Método, código e historial del modelo: github.com/FernandoVazq/mach-corridor.",
   "notice": "Proyecto de investigación de Fernando J. Vázquez. No apto para planificar vuelos.",
-  "privacy": "Privacidad",
+  "privacy": "Privacidad", "ad": "Anuncio", "ad_about": "Sobre los anuncios y la privacidad", "contact": "Contacto",
  },
 }
 
@@ -353,6 +353,8 @@ def page(L):
 <link rel="stylesheet" href="../style.css">
 <style>{CSS}</style>
 <script src="../ui.js" defer></script>
+<script src="../config.js" defer></script>
+<script src="../ads.js" defer></script>
 <script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
 </head>
 <body>
@@ -378,8 +380,9 @@ def page(L):
   <section><div class="money"><div class="th"><h2 style="margin:0">{e(L['money_h'])}</h2><span class="d warn">{e(L['est'])}</span>{tip(L['money_note'], L['more'] + ': ' + L['money_h'])}</div><div class="mg">{money}</div>
     {table(L['money_cols'], L['money_rows'], num_cols=(1, 2), key_flag=True)}</div></section>
   <section class="how"><h2>{e(L['how_h'])}</h2>{how}</section>
+  <section class="adslot" id="adSlot" hidden aria-label="{e(L['ad'])}"><div class="adhead"><span>{e(L['ad'])}</span><a href="../privacy.html#ads">{e(L['ad_about'])}</a></div><div class="adbody"></div></section>
   <section><h2>{e(L['src_h'])}</h2><details class="fold"><summary>{len(L['src'])} <span class="sm">{e(L['src_sum'])}</span></summary><div class="fb">{table(L['src_cols'], L['src'])}<p class="note">{e(L['src_note'])}</p></div></details></section>
-  <section><p class="notice">{e(L['notice'])}</p><p class="foot"><a href="../privacy.html">{e(L['privacy'])}</a> · <a href="https://github.com/FernandoVazq/mach-corridor">GitHub</a></p></section>
+  <section><p class="notice">{e(L['notice'])}</p><p class="foot"><a href="../privacy.html">{e(L['privacy'])}</a> · <a href="https://github.com/FernandoVazq/mach-corridor">GitHub</a> · {e(L['contact'])}: <a href="mailto:fernando.vazquez2@aol.com">fernando.vazquez2@aol.com</a></p></section>
 </main>
 </body>
 </html>
