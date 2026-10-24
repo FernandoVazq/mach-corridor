@@ -225,10 +225,10 @@
   // "no corridor" counted as M 0.98 (as the colours do), so a corridor's edge moves instead of blinking; wind and
   // the other tiles blend linearly. Each blended state then cross-fades into the next on screen.
   let blendBuf = null;
-  function blendAtlas(a, b, t) {
-    if (!blendBuf || blendBuf.length !== a.length) blendBuf = new Uint8Array(a.length);
-    const o = blendBuf, cols = A().cols, aw = AW(), u = 1 - t, z = (0.98 - enc().M0) / enc().M_step;
-    for (let tile = 0; tile < cols * A().rows; tile++) {
+  function blendAtlas(a, b, t, out, tiles) {
+    if (!out && (!blendBuf || blendBuf.length !== a.length)) blendBuf = new Uint8Array(a.length);
+    const o = out || blendBuf, cols = A().cols, aw = AW(), u = 1 - t, z = (0.98 - enc().M0) / enc().M_step;
+    for (const tile of tiles || d3.range(cols * A().rows)) {
       const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX, isM = tile < 36 || tile === A().tile_min || tile === A().tile_max;
       for (let j = 0; j < NY; j++) {
         const r = base + j * aw, e = r + NX;
@@ -382,14 +382,14 @@
   }
   // fill an ImageData; px(x, y) -> [fi, fj] fractional grid coordinates (fi along longitude, fj from the north pole)
   // mode "ovl": the translucent cyan wash for the satellite looks instead of the opaque Mach colours
-  function rasterize(img, w, h, px, mode = "mach") {
-    const a = current, tile = curTile(), cols = A().cols, aw = AW();
+  function rasterize(img, w, h, px, mode = "mach", a = current, y0 = 0, y1 = h) {
+    const tile = curTile(), cols = A().cols, aw = AW();
     const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX;
     const lt = A().tile_land, lbase = Math.floor(lt / cols) * NY * aw + (lt % cols) * NX;
     const lut = colorLut(), m0 = enc().M0, ms = enc().M_step, nz = 0.98, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0), g = marginGrid();
     if (mode === "ovl") {
       const ol = ovlLut(), d = img.data;
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      for (let y = y0; y < y1; y++) for (let x = 0; x < w; x++) {
         const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
         if (fj0 < -0.5 || fj0 > 180.5) { d[o + 3] = 0; continue; }
         const fi = ((fi0 % 360) + 360) % 360, fj = Math.min(180, Math.max(0, fj0));
@@ -403,7 +403,7 @@
       return;
     }
     const fadeOcean = S.fade && !(restricted || zone), d = img.data;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    for (let y = y0; y < y1; y++) for (let x = 0; x < w; x++) {
       const o = (y * w + x) * 4, [fi0, fj0] = px(x, y);
       if (fj0 < -0.5 || fj0 > 180.5) { d[o + 3] = 0; continue; }
       const fi = ((fi0 % 360) + 360) % 360, fj = Math.min(180, Math.max(0, fj0));
@@ -421,35 +421,136 @@
       } else d[o + 3] = 240;
     }
   }
+  // the same Mach colours on the global 1/UP-degree texture, fast: the nodes (Mach minus margin, land fraction) are
+  // read once per degree instead of once per pixel, and the columns' interpolation weights once per texture
+  const gx = (() => { const n = NX * UP, i0 = new Int32Array(n), i1 = new Int32Array(n), di = new Float32Array(n);
+    for (let x = 0; x < n; x++) { const fi = (((x + 0.5) / UP - 0.5) % 360 + 360) % 360, f = Math.floor(fi); i0[x] = f; i1[x] = (f + 1) % NX; di[x] = fi - f; }
+    return { i0, i1, di }; })();
+  let nodeBuf = null;
+  function rasterGlobal(img, a = current, y0 = 0, y1 = NY * UP) {
+    const w = NX * UP, tile = curTile(), cols = A().cols, aw = AW();
+    const base = Math.floor(tile / cols) * NY * aw + (tile % cols) * NX;
+    const lt = A().tile_land, lbase = Math.floor(lt / cols) * NY * aw + (lt % cols) * NX;
+    const lut = colorLut(), m0 = enc().M0, ms = enc().M_step, sc = (LUT_N - 1) / (LUT_M1 - LUT_M0), g = marginGrid();
+    const fadeOcean = S.fade && !(restricted || zone), d = img.data, { i0, i1, di } = gx;
+    if (!nodeBuf) nodeBuf = { M: new Float32Array(NX * NY), L: new Float32Array(NX * NY) };
+    const NM = nodeBuf.M, NL = nodeBuf.L;
+    const j0 = Math.max(0, Math.min(179, Math.floor(Math.max(0, (y0 + 0.5) / UP - 0.5)))), j1 = Math.min(NY - 1, Math.floor((y1 - 0.5) / UP) + 1);
+    for (let j = j0; j <= j1; j++) for (let i = 0; i < NX; i++) {
+      const v = a[base + j * aw + i], n = j * NX + i;
+      NM[n] = (v ? m0 + ms * v : 0.98) - g[n];
+      if (fadeOcean) NL[n] = a[lbase + j * aw + i] / 255;
+    }
+    for (let y = y0; y < y1; y++) {
+      const fj = Math.min(180, Math.max(0, (y + 0.5) / UP - 0.5)), jj = Math.min(179, Math.floor(fj)), dj = fj - jj, r0 = jj * NX, r1 = r0 + NX;
+      let o = y * w * 4;
+      for (let x = 0; x < w; x++, o += 4) {
+        const a0 = i0[x], a1 = i1[x], f = di[x], e = 1 - f;
+        const M = (NM[r0 + a0] * e + NM[r0 + a1] * f) * (1 - dj) + (NM[r1 + a0] * e + NM[r1 + a1] * f) * dj;
+        let n = Math.round((M - LUT_M0) * sc); n = (n < 0 ? 0 : n > LUT_N - 1 ? LUT_N - 1 : n) * 3;
+        d[o] = lut[n]; d[o + 1] = lut[n + 1]; d[o + 2] = lut[n + 2];
+        if (fadeOcean) {
+          const L = (NL[r0 + a0] * e + NL[r0 + a1] * f) * (1 - dj) + (NL[r1 + a0] * e + NL[r1 + a1] * f) * dj;
+          d[o + 3] = 70 + 170 * Math.max(0, Math.min(1, (L - 0.3) / 0.4));
+        } else d[o + 3] = 240;
+      }
+    }
+  }
   function paintData() {
-    const k = [S.fi, S.ft ?? "", S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.fade, S.thresh].join("|");
+    if (ptOn()) return false;                       // playing the Mach look: the frames come from the texture cache
+    const k = [S.fi, S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.fade, S.thresh].join("|");
     if (k === colorKey || !current) return false;
     colorKey = k;
-    if (S.playing && S.playing.smooth) {          // keep what is on screen now, to fade from it into the new state
-      const src = xf.on ? mix : off;
-      prevCtx.globalCompositeOperation = "copy"; prevCtx.globalAlpha = 1; prevCtx.drawImage(src, 0, 0);
-      xf.on = true; xf.t0 = performance.now(); xf.dur = S.playing.subMs;
-    } else xf.on = false;
     const w = NX * UP, h = NY * UP, img = offCtx.createImageData(w, h);
-    rasterize(img, w, h, (x, y) => [(x + 0.5) / UP - 0.5, (y + 0.5) / UP - 0.5]);
+    rasterGlobal(img);
     offCtx.putImageData(img, 0, 0);
     gridCache = null; ovlKey = "";
     drawLegend();
     return true;
   }
-  // cross-fade while playing: mix = (1 - f) * previous + f * new, with "lighter" so colour and transparency
-  // both interpolate exactly (drawing one over the other would leave the old frame showing through the ocean fade)
-  const prev = document.createElement("canvas"); prev.width = NX * UP; prev.height = NY * UP;
+  // ---------- playback (issue: lag on phones) ----------
+  // Playing used to re-rasterize the whole map (a million pixels in JavaScript) for every 2-hour state and run the
+  // full update (routes, thumbnails, 3D) at every forecast: hundreds of milliseconds per frame on a phone. Now the
+  // states (every 6 / SUB hours, Mach blended as a number between forecasts, as before) are rasterized ahead of
+  // time in slices of a few milliseconds per animation frame into a small cache of textures, and the screen shows
+  // a GPU cross-fade between the two states around the current moment. Mix = (1 - f) * A + f * B with "lighter",
+  // so colour and transparency both interpolate exactly. If a texture is not ready yet, the clock waits for it.
+  const PT_MAX = 5, PT_BUDGET = 7;                 // textures kept (about 4 MB each); ms of rasterizing per frame
+  const pt = { key: "", tex: new Map(), spare: [], atl: new Map(), job: null, img: null, buf: null };
   const mix = document.createElement("canvas"); mix.width = NX * UP; mix.height = NY * UP;
-  const prevCtx = prev.getContext("2d"), mixCtx = mix.getContext("2d"), xf = { on: false, t0: 0, dur: 1 };
+  const mixCtx = mix.getContext("2d");
+  const ptOn = () => !!(S.playing && S.playing.smooth && S.look === "mach");
+  let cids = 0;
+  const cid = c => c ? (c.__id ||= ++cids) : 0;
+  const ptKey = () => [S.fl, S.hd, S.hdDeg, S.margin, S.auto && !!sigma, S.thresh, S.fade && cid(dimCanvas), S.relief && cid(shade)].join("|");
+  const ptStates = () => (fhs().length - 1) * SUB + 1;
+  function ptLoad() {
+    const fl = S.fl;
+    for (const fh of fhs()) if (!pt.atl.has(`${fh}_${fl}`)) loadAtlas(fh, fl).then(a => pt.atl.set(`${fh}_${fl}`, a), () => {});
+  }
+  function ptClear() {
+    for (const c of pt.tex.values()) pt.spare.push(c);
+    pt.tex.clear(); pt.job = null;
+  }
+  function ptCheck() {
+    const k = ptKey();
+    if (k !== pt.key) { ptClear(); pt.key = k; ptLoad(); }
+  }
+  // the states needed next, in order, from the state at the clock (wrapping to the start)
+  function ptWindow(x) {
+    const N = ptStates(), s0 = Math.min(N - 1, Math.floor(x * SUB + 1e-9)), out = [];
+    for (let n = 0; n < Math.min(PT_MAX, N); n++) out.push((s0 + n) % N);
+    return out;
+  }
+  // the atlas of one state: a forecast, or two forecasts blended in Mach (only the tiles the colours read)
+  function ptAtlas(s) {
+    const f = fhs(), q = s / SUB, i = Math.floor(q + 1e-9), t = q - i;
+    const a = pt.atl.get(`${f[i]}_${S.fl}`);
+    if (!a || t < 1e-6) return a || null;
+    const b = pt.atl.get(`${f[Math.min(f.length - 1, i + 1)]}_${S.fl}`);
+    if (!b) return null;
+    if (!pt.buf || pt.buf.length !== a.length) pt.buf = new Uint8Array(a.length);
+    return blendAtlas(a, b, t, pt.buf, [curTile(), A().tile_land]);
+  }
+  function ptWork(x, budget) {
+    const t0 = performance.now(), w = NX * UP, h = NY * UP, want = ptWindow(x);
+    for (const s of [...pt.tex.keys()]) if (!want.includes(s)) { pt.spare.push(pt.tex.get(s)); pt.tex.delete(s); }
+    if (pt.job && !want.includes(pt.job.s)) pt.job = null;
+    while (performance.now() - t0 < budget) {
+      if (!pt.job) {
+        const s = want.find(v => !pt.tex.has(v)); if (s == null) return;
+        const a = ptAtlas(s); if (!a) return;
+        if (!pt.img) pt.img = offCtx.createImageData(w, h);
+        pt.job = { s, a, y: 0 };
+      }
+      const j = pt.job, y1 = Math.min(h, j.y + 48);
+      rasterGlobal(pt.img, j.a, j.y, y1); j.y = y1;
+      if (j.y >= h) {
+        let c = pt.spare.pop();
+        if (!c) { c = document.createElement("canvas"); c.width = w; c.height = h; }
+        const g = c.getContext("2d");
+        g.putImageData(pt.img, 0, 0);
+        // the land fade and the relief, baked in once (drawn on the screen they cost more than everything else).
+        // The texture starts half a degree west of 180 W: the layers go 2 px in, plus their wrapped copy.
+        for (const [lay, op, al] of [[S.fade && dimCanvas, "source-over", 1], [S.relief && shade, "soft-light", 0.95]]) {
+          if (!lay) continue;
+          g.save(); g.globalCompositeOperation = op; g.globalAlpha = al; g.imageSmoothingEnabled = true;
+          g.drawImage(lay, 2, 2, 360 * UP, 180 * UP); g.drawImage(lay, 2 - 360 * UP, 2, 360 * UP, 180 * UP); g.restore();
+        }
+        pt.tex.set(j.s, c); pt.job = null;
+      }
+    }
+  }
+  const ptReady = x => { const N = ptStates(), s = Math.min(N - 1, Math.floor(x * SUB + 1e-9)), f = x * SUB - s; return pt.tex.has(s) && (f < 1e-3 || s + 1 >= N || pt.tex.has(s + 1)); };
   function dataTex() {
-    if (!xf.on) return off;
-    const f = (performance.now() - xf.t0) / xf.dur;
-    if (f >= 1 || !S.playing) { xf.on = false; return off; }
-    mixCtx.globalCompositeOperation = "copy"; mixCtx.globalAlpha = 1 - f; mixCtx.drawImage(prev, 0, 0);
-    mixCtx.globalCompositeOperation = "lighter"; mixCtx.globalAlpha = f; mixCtx.drawImage(off, 0, 0);
+    if (!ptOn()) return off;
+    const x = S.playing.x, N = ptStates(), s = Math.min(N - 1, Math.floor(x * SUB + 1e-9)), f = x * SUB - s;
+    const a = pt.tex.get(s), b = pt.tex.get(Math.min(N - 1, s + 1));
+    if (!a) return off;
+    if (!b || b === a || f < 1e-3) return a;
+    mixCtx.globalCompositeOperation = "copy"; mixCtx.globalAlpha = 1 - f; mixCtx.drawImage(a, 0, 0);
+    mixCtx.globalCompositeOperation = "lighter"; mixCtx.globalAlpha = f; mixCtx.drawImage(b, 0, 0);
     mixCtx.globalCompositeOperation = "source-over"; mixCtx.globalAlpha = 1;
-    schedule();
     return mix;
   }
   // the cyan wash for the satellite looks, on the same 4-pixels-per-degree raster as the Mach colours
@@ -684,10 +785,10 @@
     vec[name] = { k, p }; return p;
   }
   // run f(s) with the context in base coordinates for world copy dx (s = 1 / zoom, to keep line widths in pixels)
-  function inBase(dx, f) {
+  function inBase(dx, f, g = ctx) {
     const [ax] = toScreen(-180, 0), [bx] = toScreen(180, 0), ox = dx * S.t.k;
     if (bx + ox < 0 || ax + ox > W) return;
-    ctx.save(); ctx.setTransform(dpr * S.t.k, 0, 0, dpr * S.t.k, dpr * (S.t.x + S.t.k * dx), dpr * S.t.y); f(1 / S.t.k); ctx.restore();
+    g.save(); g.setTransform(dpr * S.t.k, 0, 0, dpr * S.t.k, dpr * (S.t.x + S.t.k * dx), dpr * S.t.y); f(1 / S.t.k); g.restore();
   }
   function contourPaths(levels) {
     ctFresh();
@@ -778,6 +879,7 @@
       }
     }
   }
+  const lines = document.createElement("canvas"); let linesKey = "";
   function draw() {
     rafPending = false;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -803,17 +905,18 @@
       requestViewport();
       const sharp = vp && vp.key === viewportKey();
       if (sharp) ctx.drawImage(vpCanvas, 0, 0, W, H);
-      const tex = sharp ? null : dataTex();
+      const baked = ptOn(), tex = sharp ? null : dataTex();
+      if (baked) ctx.imageSmoothingQuality = "low";  // "high" resampling of a full-screen image each frame is slow
       for (const dx of wraps) {
         const [ax, ay] = toScreen(-180.5, 90.5), [bx, by] = toScreen(179.5, -90.5);
         const ox = dx * S.t.k;
         if (bx + ox < 0 || ax + ox > W) continue;
         if (!sharp) ctx.drawImage(tex, ax + ox, ay, bx - ax, by - ay);
-        if (S.fade && dimCanvas) {
+        if (S.fade && dimCanvas && !(baked && tex !== off)) {
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(dimCanvas, tx + ox, ty, ux - tx, uy - ty);
         }
-        if (S.relief && shade) {
+        if (S.relief && shade && !(baked && tex !== off)) {
           ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.95;
           const [tx, ty] = toScreen(-180, 90), [ux, uy] = toScreen(180, -90);
           ctx.drawImage(shade, tx + ox, ty, ux - tx, uy - ty); ctx.restore();
@@ -829,12 +932,20 @@
     const onPhoto = SAT_LOOK(S.look);
     const pg = basePath("grat", d3.geoGraticule10()), pb = borders && basePath("borders", borders), pl = land && basePath("coast", land);
     const cGrat = css("--grat"), cBord = onPhoto ? "rgba(255,255,255,.22)" : css("--border-c"), cCoast = onPhoto ? "rgba(255,255,255,.38)" : css("--coast");
-    for (const dx of wraps) inBase(dx, s => {
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = cGrat; ctx.lineWidth = s; ctx.stroke(pg);
-      if (pb) { ctx.strokeStyle = cBord; ctx.lineWidth = 0.6 * s; ctx.stroke(pb); }
-      if (pl) { ctx.strokeStyle = cCoast; ctx.lineWidth = (onPhoto ? 0.7 : 0.9) * s; ctx.stroke(pl); }
-    });
+    const strokeLines = g => { for (const dx of wraps) inBase(dx, s => {
+      g.lineJoin = "round";
+      g.strokeStyle = cGrat; g.lineWidth = s; g.stroke(pg);
+      if (pb) { g.strokeStyle = cBord; g.lineWidth = 0.6 * s; g.stroke(pb); }
+      if (pl) { g.strokeStyle = cCoast; g.lineWidth = (onPhoto ? 0.7 : 0.9) * s; g.stroke(pl); }
+    }, g); };
+    if (S.playing) {                                 // the 50 m coastlines and borders, stroked once and reused
+      const k = [W, H, dpr, S.t.x, S.t.y, S.t.k, baseKey(), cGrat, cBord, cCoast, !!pb, !!pl].join("|");
+      if (k !== linesKey) {
+        lines.width = Math.round(W * dpr); lines.height = Math.round(H * dpr);
+        strokeLines(lines.getContext("2d")); linesKey = k;
+      }
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lines, 0, 0); ctx.restore();
+    } else strokeLines(ctx);
     if (current && S.look === "contour") drawContoursMain(wraps, CT_LEVELS.filter(v => v >= lit() - 1e-9), contourStyle, true);
     if (current && onPhoto) drawContoursMain(wraps, [lit()], () => ({ stroke: "#ff9a2e", width: 1.6 }), false);
     if (current && S.look === "rose") {
@@ -1399,53 +1510,69 @@
     window.dispatchEvent(new CustomEvent("mc-tab", { detail: t }));
     if (t === "map") { layout(); schedule(); }
   }
-  // the time under the slider; while playing, the blended moment (hourly steps between the 6-hourly forecasts)
+  // the time under the slider; while playing, the moment on the clock (to the hour)
   function timeLabel() {
-    const x = S.ft ?? S.fi, vt = new Date(validMsAt(x));
-    $("timeLbl").textContent = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC${x === Math.floor(x) ? "" : " (blend)"}`;
+    const x = S.ft ?? S.fi, vt = new Date(Math.round(validMsAt(x) / 36e5) * 36e5);
+    const t = `${d3.utcFormat("%a %d %b, %H:%M")(vt)} UTC`, el = $("timeLbl");
+    if (el.textContent !== t) el.textContent = t;
   }
-  // play: 1.8 s per 6-hour step, 3 blended states per step (every 2 h), each cross-fading into the next; the last forecast
-  // holds half a step, then it starts over. Reduced motion: the old jump from one forecast to the next.
-  const STEP_MS = 1800, SUB = 3;
-  let playTok = 0;
+  // play: 1.8 s per 6-hour step, states every 6 / SUB hours cross-fading continuously; the last forecast holds half a
+  // step, then it starts over. Other looks step from forecast to forecast. Reduced motion: the old jump, 0.9 s each.
+  const STEP_MS = 1800, SUB = 2;
   function stopPlay() {
     const p = S.playing; if (!p) return;
     if (p.raf) cancelAnimationFrame(p.raf); if (p.iv) clearInterval(p.iv);
-    S.playing = null; xf.on = false;
-    if (S.ft != null) { S.fi = Math.round(S.ft); S.ft = null; }
+    S.playing = null;
+    if (S.ft != null) { S.fi = Math.min(fhs().length - 1, Math.round(S.ft)); S.ft = null; }
+    ptClear(); pt.spare = []; pt.img = null; pt.buf = null; pt.key = "";
+    lines.width = lines.height = 0; linesKey = "";
     const sl = $("timeSlider"); sl.step = 1; sl.value = S.fi;
     $("playBtn").textContent = "▶"; $("playBtn").setAttribute("aria-label", "Play forecast");
     refresh();
   }
-  async function stepTo(q) {
-    const tok = ++playTok;
-    S.ft = q; $("timeSlider").value = q; timeLabel();
-    const fi = Math.round(q);
-    if (fi !== S.fi) { S.fi = fi; return refresh(); }       // a new nearest forecast: the full update (numbers, routes)
-    const a = await frameData();
-    if (tok !== playTok || !S.playing) return;
-    current = a; colorKey = ""; schedule();
+  // a new nearest forecast while playing: only what is cheap (numbers, the inspector); routes, thumbnails and the
+  // 3D globe wait for the stop
+  function playStep() {
+    const a = pt.atl.get(`${fhs()[S.fi]}_${S.fl}`);
+    if (a) current = a;
+    else loadAtlas(fhs()[S.fi], S.fl).then(v => { if (S.playing) { current = v; schedule(); } });
+    updateKpis(); updateInspector();
   }
   function playFrame(now) {
     const p = S.playing; if (!p || !p.smooth) return;
-    const n = fhs().length;
-    if (p.last != null) p.x += (now - p.last) / STEP_MS;
+    const n = fhs().length, dt = p.last == null ? 0 : Math.min(100, now - p.last);
     p.last = now;
-    if (p.x > n - 0.5) p.x = 0;
-    const q = Math.min(n - 1, Math.floor(p.x * SUB + 1e-9) / SUB);
-    if (q !== S.ft) stepTo(q);
+    let x = p.x + dt / STEP_MS;
+    if (x > n - 0.5) x = 0;
+    if (S.look === "mach") {
+      ptCheck();
+      const wait = !ptReady(x);
+      if (wait) x = p.x;                              // wait for the next texture instead of skipping it
+      ptWork(x, wait ? 3 * PT_BUDGET : PT_BUDGET);
+    }
+    p.x = x; S.ft = S.look === "mach" ? x : Math.floor(x + 1e-9);
+    $("timeSlider").value = x; timeLabel();
+    const fi = Math.min(n - 1, S.look === "mach" ? Math.round(x) : Math.floor(x + 1e-9));
+    if (fi !== S.fi) { S.fi = fi; playStep(); }
+    schedule();
     p.raf = requestAnimationFrame(playFrame);
   }
   function togglePlay() {
     if (S.playing) { stopPlay(); return; }
-    fhs().forEach(fh => loadAtlas(fh, S.fl));
     $("playBtn").textContent = "❚❚"; $("playBtn").setAttribute("aria-label", "Pause forecast");
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!smooth) {
+      fhs().forEach(fh => loadAtlas(fh, S.fl));
       S.playing = { smooth: false, iv: setInterval(() => { S.fi = (S.fi + 1) % fhs().length; $("timeSlider").value = S.fi; refresh(); }, 900) };
       return;
     }
-    S.playing = { smooth: true, x: S.fi >= fhs().length - 1 ? 0 : S.fi, last: null, subMs: STEP_MS / SUB, raf: 0 };
+    const x0 = S.fi >= fhs().length - 1 ? 0 : S.fi;
+    S.playing = { smooth: true, x: x0, last: null, raf: 0 };
+    pt.key = ptKey(); ptLoad();
+    if (x0 === S.fi && S.look === "mach" && colorKey) {   // the map on screen is the first state: reuse it
+      const c = document.createElement("canvas"); c.width = off.width; c.height = off.height;
+      c.getContext("2d").drawImage(off, 0, 0); pt.tex.set(x0 * SUB, c);
+    }
     $("timeSlider").step = "any";
     S.playing.raf = requestAnimationFrame(playFrame);
   }
