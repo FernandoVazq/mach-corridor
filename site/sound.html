@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5654559314082674"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How far will sound carry tonight? Sound propagation forecast · Mach Corridor</title>
+<meta name="description" content="Forecast map of where the air will bend sound back down to the ground in the next 48 hours, so blasts, fireworks, booms, trains and highways are heard much farther than usual. From NOAA GFS, updated every 6 hours.">
+<link rel="canonical" href="https://machcorridor.com/sound.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="How far will sound carry tonight?">
+<meta property="og:description" content="Where the air will trap sound near the ground in the next 48 hours, and which way it carries farthest.">
+<meta property="og:url" content="https://machcorridor.com/sound.html">
+<meta property="og:image" content="https://machcorridor.com/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23061029'/%3E%3Cpath d='M6 21 L16 9 L26 21' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M5 25 Q16 17 27 25' fill='none' stroke='%237FA6DB' stroke-width='2.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: auto; }
+  .bar { height: 52px; }
+  .sd { max-width: 1180px; margin: 0 auto; }
+  .sd header.top { margin-bottom: 14px; }
+  .sd h1 { font-size: 30px; }
+  .sd .lead { font-size: 16px; color: var(--ink-2); max-width: 720px; margin: 4px 0 0; }
+  .sd .ctl { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 16px 0 12px; }
+  .sd .ctl .tl { display: flex; align-items: center; gap: 10px; min-width: 260px; flex: 1 1 320px; }
+  .sd .ctl input[type=range] { flex: 1; min-width: 120px; }
+  .sd .ctl output { font-variant-numeric: tabular-nums; min-width: 128px; }
+  .sd .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .sd .grid > div { min-width: 0; }
+  .sd .sdmap { background: var(--stage); border-radius: var(--radius); overflow: hidden; position: relative; aspect-ratio: 16 / 10; touch-action: none; }
+  .sd .sdmap canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .sd .sdkey { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 8px 0 0; }
+  .sd .sdkey i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1px solid var(--rule); }
+  .sd .regions { margin: 10px 0 0; }
+  .sd .sdverdict { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .sd .sub { color: var(--ink-2); margin: 0 0 12px; }
+  .sd .rose { width: 100%; max-width: 260px; display: block; margin: 4px auto 0; }
+  .sd .tlchart { width: 100%; height: auto; display: block; }
+  .sd section.txt { max-width: 760px; margin-top: 36px; }
+  .sd section.txt p, .sd section.txt li { color: var(--ink-2); line-height: 1.65; }
+  .sd .empty { color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
+  @media (max-width: 860px) { .sd .grid { grid-template-columns: minmax(0, 1fr); } .sd h1 { font-size: 24px; } .sd .sdmap { aspect-ratio: 4 / 3; } }
+</style>
+<script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./" aria-label="Mach Corridor home">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
+    <span class="name">Mach Corridor</span>
+  </a>
+  <div class="status"><a href="rockets.html">Rocket booms</a><a href="./">Supersonic map</a></div>
+</header>
+<main class="page sd">
+  <header class="top">
+    <h1>How far will sound carry tonight?</h1>
+    <p class="lead">Where the air in the next 48 hours bends sound back down to the ground, so blasts, fireworks, booms, trains and highways are heard much farther than usual.<button type="button" class="it" aria-label="What the colours mean" data-tip="Colour shows how much of the sound from a source on the ground is trapped near the ground instead of escaping upward. Dark: the air bends sound up and it fades quickly. Brighter: more sound is trapped and it carries farther."></button></p>
+    <div class="ctl">
+      <div class="tl"><label for="tSl" class="fine" style="margin:0">Time</label><input type="range" id="tSl" min="0" max="8" step="1" value="0"><output id="tLbl" for="tSl"></output></div>
+      <div class="seg" role="group" aria-label="Which side of the source" id="modeSeg">
+        <button type="button" data-m="all" class="on" aria-pressed="true">All around</button>
+        <button type="button" data-m="best" aria-pressed="false">Downwind side</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="sdmap" id="stage"><canvas id="map" role="img" aria-label="Map of how far sound carries; tap a place for its forecast"></canvas></div>
+      <div class="sdkey" id="key"></div>
+      <div class="seg regions" role="group" aria-label="Region" id="regSeg"></div>
+      <div class="ss" id="landStrip"></div>
+    </div>
+    <div>
+      <h2 class="h3" id="ptTitle">Pick a place</h2>
+      <div id="pt"><p class="empty">Tap the map, or <button type="button" class="linkish" id="geoBtn">use my location</button> (only used in your browser, never sent anywhere).</p></div>
+    </div>
+  </div>
+
+  <section class="txt">
+    <details class="fold"><summary>Why sound carries farther at night <span class="sm">Cool air under warm air bends sound back down.</span></summary><div class="fb">
+    <p>Sound travels a little faster in warmer air and is carried along by the wind. A sound wave bends toward the slower air. On a sunny afternoon the ground heats the air above it, the air gets cooler with height, and sound bends up and away: a few hundred metres to a couple of kilometres from the source it gets much quieter. On a clear, calm night the ground cools first, a layer of warm air sits on top of cool air (an inversion), and sound bends back down. It hops along the ground and is heard far away. Wind does the same thing in one direction: wind usually gets stronger with height, so sound carries farther downwind and less far upwind.</p></div></details>
+
+    <details class="fold"><summary>Who uses a forecast like this <span class="sm">Quarries, fireworks, airports, wind farms, venues, rocket and boom watchers.</span></summary><div class="fb">
+    <ul>
+      <li><strong>Quarries and mines</strong> schedule blasts for hours when the air will not focus the blast toward neighbours.</li>
+      <li><strong>Fireworks, concerts and festivals</strong> can expect more complaints on nights when sound is trapped.</li>
+      <li><strong>Airports, rail yards and wind farms</strong> can tell residents when engine runs or turbines will sound louder than usual.</li>
+      <li><strong>Rocket launches and sonic booms</strong>: the same physics moves the edge of the boom zone. See <a href="rockets.html">rocket booms</a>.</li>
+    </ul></div></details>
+
+    <details class="fold"><summary>How the forecast works <span class="sm">NOAA GFS, the lowest 1.5 km, eight directions.</span></summary><div class="fb">
+    <p>For every 1° point and every 6 hours, the forecast temperature and wind from the ground (2 m and 10 m) up to 1.5 km give the effective speed of sound toward eight directions. Where the air somewhere above is faster than at the ground, every ray leaving the source below a critical angle turns back down instead of escaping. That angle is what the map shows: 0° means the sound escapes upward; 2° to 5° a little is trapped; above 9° a lot is. "All around" is the smallest of the eight directions; "Downwind side" the largest.</p></div></details>
+
+    <details class="fold"><summary>Limits <span class="sm">A regional estimate, not a noise measurement.</span></summary><div class="fb">
+    <ul>
+      <li>The grid is about 100 km. Valleys, lakes, sea breezes and city heat can trap or lift sound locally where the map shows nothing.</li>
+      <li>It says whether the air helps sound travel, not how loud a given source will be: that also depends on the source, the ground, hills, buildings and background noise.</li>
+      <li>It is a forecast and can be wrong, especially for the timing of an inversion. It is not an official noise assessment.</li>
+    </ul></div></details>
+    <p class="fine">Method and code: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/sound.py">engine/sound.py</a>. Data: NOAA GFS. <a href="privacy.html">Privacy</a>.</p>
+  </section>
+</main>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="ui.js"></script>
+<script src="sound.js"></script>
+</body>
+</html>

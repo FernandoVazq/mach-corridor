@@ -112,9 +112,9 @@
     $("metaTip").setAttribute("data-tip", `Atmosphere: ${atm}. GFS run ${state.data.gfs_run || "n/a"}; updated ${state.data.generated.replace("T", " ").replace("Z", " UTC")}.` + (cur.note ? " " + cur.note : "") + " A focus boom can be louder in a narrow strip.");
     // standard summary strip: peak psf over the towns that hear the boom
     const heard = cur.towns.filter((t) => t.psf > 0).map((t) => t.psf).sort((a, b) => a - b);
-    const q = (p) => heard[Math.min(heard.length - 1, Math.floor(p * (heard.length - 1) + 0.5))];
-    if (heard.length > 1) MC_UI.stat($("psfStrip"), { min: heard[0], q1: q(0.25), med: q(0.5), q3: q(0.75), max: heard[heard.length - 1], ref: 1, refLabel: "loud", lo: 0,
-      dec: 1, unit: "psf", n: `${heard.length} of ${cur.towns.length} towns`, label: "Peak boom in towns" });
+    const top = cur.towns.filter((t) => t.psf > 0).sort((a, b) => b.psf - a.psf)[0];
+    if (heard.length > 1) MC_UI.stat($("psfStrip"), { values: heard, ref: 1, refLabel: "loud", lo: 0, hl: top.psf, hlLabel: top.town,
+      dec: 1, unit: "psf", period: cur.atm === "standard" ? "standard atmosphere" : "forecast for launch time", n: `${heard.length} of ${cur.towns.length} towns`, label: "Peak boom in towns" });
     else { $("psfStrip").textContent = ""; }
   }
 

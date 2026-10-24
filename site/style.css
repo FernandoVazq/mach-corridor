@@ -468,17 +468,23 @@ dialog.efb[open] { gap: 10px; }
 .itpop { position: absolute; z-index: 1000; background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 19px; box-shadow: 0 6px 24px rgba(15, 27, 37, .18); }
 
 /* StatStrip (site/ui.js): the standard summary under every chart and map */
-.ss { display: grid; gap: 4px; margin: 6px 0 2px; max-width: 560px; }
-.sshead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ss { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px 14px; margin: 8px 0 4px; align-items: center; }
+@media (min-width: 900px) { .ss { grid-template-columns: auto minmax(140px, 1fr) auto; } }
+.sshead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sslbl { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-.ssbar { position: relative; height: 18px; }
-.ssbar svg { width: 100%; height: 18px; display: block; }
+.ss .chip { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); background: var(--surface-2); border-radius: 4px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.ssbar { position: relative; height: 20px; min-width: 120px; }
+.ssbar svg { width: 100%; height: 20px; display: block; overflow: visible; }
 .ssbar .ax { stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.ssbar .rg { fill: var(--data-other); opacity: .55; }
-.ssbar .iq { fill: var(--data-1); opacity: .45; }
+.ssbar .rg { fill: var(--data-other); }
+.ssbar .iq { fill: var(--data-1); opacity: .35; }
+.ssbar .mdl { stroke: var(--data-1); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .ssbar .rf { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
-.ssbar .md { position: absolute; top: 5px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--data-1); border: 2px solid var(--surface); }
-.sstxt { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ssbar .mn { position: absolute; top: 7px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--ink); border: 1.5px solid var(--surface); }
+.ssbar .hl { position: absolute; top: 2px; width: 0; height: 0; margin-left: -5px; border: 5px solid transparent; border-top: 6px solid var(--data-2); }
+.ssbar .hlt { position: absolute; top: -13px; transform: translateX(-50%); font: 500 10.5px/1 var(--font-mono); color: var(--ink); white-space: nowrap; }
+.ssnums { display: flex; flex-wrap: wrap; gap: 0 12px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; align-items: center; }
+.ssnums b { color: var(--ink); font-weight: 500; }
 .ss .d { font-family: var(--font-mono); font-size: 12px; border-radius: 4px; padding: 1px 6px; }
 .ss .d.good { color: var(--good); background: var(--good-soft); } .ss .d.crit { color: var(--bad); background: var(--bad-soft); }
 
@@ -492,3 +498,12 @@ details.fold > summary .sm { grid-column: 2; font-weight: 400; color: var(--ink-
 details.fold > .fb { padding: 0 14px 12px 36px; }
 details.fold > .fb p { margin: 0 0 10px; }
 .brand .name, .status .badge { white-space: nowrap; }
+/* a button that reads as an inline link (sound.html, fireballs.html) */
+.linkish { border: 0; background: none; padding: 2px 0; min-height: 24px; color: var(--accent); text-decoration: underline; font: inherit; cursor: pointer; }
+.ssbar:has(.hlt) { margin-top: 12px; }
+.ssbar .hlt.l { transform: translateX(-6px); } .ssbar .hlt.r { transform: translateX(calc(-100% + 6px)); }
+/* map page: the common Atlas FJV bar (fernando-vazquez.netlify.app/bar/v1.js) may be added above .app; the app
+   takes whatever height is left instead of a fixed 100vh, so the time controls never fall below the screen */
+.appbody { display: flex; flex-direction: column; height: 100vh; height: 100dvh; box-sizing: border-box; }
+.appbody > .app { flex: 1 1 auto; min-height: 0; height: auto; }
+.appbody > :not(.app) { flex: none; }

@@ -1,7 +1,7 @@
 // Cost of the forward-reach and turn rules (issue #44): block time and slowed distance per route, rules off vs on.
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
-const p = await b.newPage(); await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
+const p = await b.newPage(); await p.route(/fernando-vazquez\.netlify\.app|googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)/, r => r.abort()); /* adBlock: Google ad scripts are third-party and absent on localhost */
 await p.goto('http://localhost:8765/#fl=550&mg=auto');
 await p.waitForFunction(() => window.MC && window.MC.S && window.MC.S.man && window.ROUTE, null, { timeout: 60000 });
 await p.waitForTimeout(4000);

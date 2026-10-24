@@ -8,7 +8,7 @@ const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const fail = [];
 for (const [w, h, scheme] of [[1400, 900, 'light'], [390, 844, 'dark']]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, colorScheme: scheme });
-  await p.route(/googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)|fonts\.g/, r => r.abort());
+  await p.route(/fernando-vazquez\.netlify\.app|googlesyndication|doubleclick|adtrafficquality|adservice\.google|google\.com\/(pagead|adsense)|fonts\.g/, r => r.abort());
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(base + 'rockets.html');
   const hasData = fs.existsSync(new URL('../site/data/rockets.json', import.meta.url));

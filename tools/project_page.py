@@ -77,6 +77,11 @@ T = {
   "money_note": "2026 USD. Break-even = extra cost per seat ÷ hours saved, median of 960 router flights of an Overture-class jet (study/results/mach_value.json). Seat costs are estimates: Overture's fuel burn is not published.",
   "est": "Estimate",
   "how_h": "How I built it",
+  "how3": ["<b>Problem:</b> the US has banned supersonic flight over land since 1973; Mach cutoff could lift it, but it depends on the day's weather.",
+           "<b>Data:</b> free NOAA GFS and ECMWF forecasts every 6 hours, checked against 3,500 weather balloons.",
+           "<b>AI:</b> Claude wrote most of the code and ran the studies; I set the questions and made the calls."],
+  "how_more": "The full story", "how_more_sm": "Data and licences, validation, what the AI did, what failed.",
+  "period": "Oct 2025 – Sep 2026", "hl_label": "24 h",
   "how": [
    ("The problem", "Since 1973 the United States has banned civil supersonic flight over land because of the sonic boom. In July 2026 the FAA proposed replacing the ban with a noise limit of 0.11 psf at the ground. There are two ways to meet it. One is a new, quieter airframe such as NASA's X-59. The other needs no new airplane: fly just slow enough that the air below bends the boom back up before it reaches the ground. That is called Mach cutoff, and Boom's XB-1 showed it works in January 2025. The catch is that the speed that works depends on the temperature and wind of the day, the direction of flight and the terrain below. I wanted to know where and when it works, how fast, and how much a forecast of it would be worth."),
    ("The data", "Every six hours the site downloads the latest NOAA GFS forecast and the ECMWF open-data forecast, both free, and computes the boomless Mach number at every 1-degree point, seven flight levels and 36 directions. The answer is the mean of the two models; where either model says no corridor, the map shows none. The NOAA GEFS ensemble of 31 forecasts sets the safety margin point by point. Terrain comes from GFS and a 600 m elevation model, coastlines from Natural Earth, and the satellite map styles from NASA GIBS."),
@@ -164,6 +169,11 @@ T = {
   "money_note": "2026 USD. Equilibrio = costo extra por asiento ÷ horas ahorradas, mediana de 960 vuelos planeados para un jet tipo Overture (study/results/mach_value.json). Los costos por asiento son estimados: el consumo de Overture no es público.",
   "est": "Estimado",
   "how_h": "Cómo lo hice",
+  "how3": ["<b>Problema:</b> EE.UU. prohíbe el vuelo supersónico sobre tierra desde 1973; el Mach cutoff podría levantarlo, pero depende del tiempo de cada día.",
+           "<b>Datos:</b> los pronósticos gratis de NOAA GFS y ECMWF cada 6 horas, comparados con 3,500 globos sonda.",
+           "<b>IA:</b> Claude escribió casi todo el código y corrió los estudios; yo puse las preguntas y tomé las decisiones."],
+  "how_more": "La historia completa", "how_more_sm": "Datos y licencias, validación, qué hizo la IA, qué falló.",
+  "period": "oct 2025 – sep 2026", "hl_label": "24 h",
   "how": [
    ("El problema", "Desde 1973 Estados Unidos prohíbe el vuelo civil supersónico sobre tierra por el estampido sónico. En julio de 2026 la FAA propuso cambiar la prohibición por un límite de ruido de 0.11 psf en el suelo. Hay dos formas de cumplirlo. Una es un avión nuevo y más silencioso, como el X-59 de la NASA. La otra no necesita avión nuevo: volar justo lo bastante lento para que el aire de abajo doble el estampido hacia arriba antes de tocar el suelo. Eso se llama Mach cutoff, y el XB-1 de Boom demostró en enero de 2025 que funciona. El problema es que la velocidad que funciona depende de la temperatura y el viento del día, de la dirección del vuelo y del terreno. Quería saber dónde y cuándo funciona, a qué velocidad y cuánto valdría pronosticarlo."),
    ("Los datos", "Cada seis horas el sitio descarga el último pronóstico GFS de la NOAA y el pronóstico abierto del ECMWF, los dos gratis, y calcula el Mach sin estampido en cada punto de 1 grado, siete niveles de vuelo y 36 direcciones. La respuesta es el promedio de los dos modelos; si uno de ellos dice que no hay corredor, el mapa no muestra ninguno. El ensemble GEFS de la NOAA, con 31 pronósticos, fija el margen de seguridad punto por punto. El terreno sale de GFS y de un modelo de elevación de 600 m, las costas de Natural Earth y los estilos de mapa satelital de NASA GIBS."),
@@ -244,7 +254,7 @@ html, body { height: auto; }
 .cell.cost .v { color: var(--bad); } .cell.save .v { color: var(--good); }
 .cell .lbl { color: var(--ink-2); }
 .cell .s { font-size: 13px; line-height: 18px; color: var(--ink-2); }
-.money .tw { margin: 0; border: 0; } .how h3 { margin-top: 18px; } .how { max-width: 760px; }
+.money .tw { margin: 0; border: 0; } .how h3 { margin-top: 18px; } .how { max-width: 760px; } .how .sm2 { color: var(--ink-3); margin: 0; font-size: 13px; }
 .notice { background: var(--warn-soft); color: var(--ink); border-radius: 8px; padding: 12px 16px; font-weight: 600; }
 .foot { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); margin-top: 18px; }
 @media (max-width: 900px) { .kpis, .mg { grid-template-columns: repeat(2, minmax(0, 1fr)); } .at h1 { font-size: 44px; line-height: 46px; } }
@@ -312,11 +322,16 @@ def page(L):
                  for i, (lbl, v, u, c, tone, chip, src) in enumerate(L["kpis"]))
     money = "".join(f'<div class="cell {kind}"><span class="lbl">{e(l)}{tip(s_, L["more"] + ": " + l)}</span><span class="v">{e(v)}</span><span class="s">{e(L["money_short"][i])}</span></div>'
                     for i, (kind, l, v, s_) in enumerate(L["money"]))
-    how = "".join(f'<details class="fold"><summary>{e(h)} <span class="sm">{e(L["how_sum"][i])}</span></summary><div class="fb"><p>{e(p)}</p></div></details>'
-                  for i, (h, p) in enumerate(L["how"]))
+    # Atlas FJV: 3 bullets visible, the rest folded (still in the HTML for search engines)
+    how = (f'<ul class="ins">{"".join(f"<li>{b}</li>" for b in L["how3"])}</ul>'
+           f'<details class="fold"><summary>{e(L["how_more"])} <span class="sm">{e(L["how_more_sm"])}</span></summary><div class="fb">'
+           + "".join(f'<h3>{e(h)}</h3><p class="sm2">{e(L["how_sum"][i])}</p><p>{e(p)}</p>' for i, (h, p) in enumerate(L["how"]))
+           + '</div></details>')
     nav = "".join(f'<a href="{u}">{e(n)}</a>' for n, u in L["nav"])
-    strip = (f'<div class="ss" data-min="0.0070" data-med="0.0080" data-max="0.0095" data-ref="0.010" data-better="low" data-dec="4" '
-             f'data-ref-label="{e(L["series"]["target"])}" data-n="{e(L["stat_n"])}" data-label="{e(L["series"]["mean_u"])}"></div>')
+    # StatStrip under the chart: the highlighted series (two models, unsafe side) at the three forecast ages
+    strip = (f'<div class="ss" data-values="0.0070,0.0080,0.0095" data-first="0.0070" data-last="0.0095" data-up="bad" '
+             f'data-hl="0.0095" data-hl-label="{e(L["hl_label"])}" data-ref="0.010" data-better="low" data-dec="4" data-unit="Mach" '
+             f'data-period="{e(L["period"])}" data-ref-label="{e(L["series"]["target"])}" data-n="{e(L["stat_n"])}" data-label="{e(L["series"]["mean_u"])}"></div>')
     alt_en, alt_es = "https://machcorridor.com/about/", "https://machcorridor.com/es/"
     canon = alt_en if L["lang"] == "en" else alt_es
     return f"""<!doctype html>
@@ -338,6 +353,7 @@ def page(L):
 <link rel="stylesheet" href="../style.css">
 <style>{CSS}</style>
 <script src="../ui.js" defer></script>
+<script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
 </head>
 <body>
 <header class="bar">
@@ -356,7 +372,7 @@ def page(L):
   </section>
   <section><div class="kpis">{kp}</div></section>
   <section><h2>{e(L['insights_h'])}</h2><ul class="ins">{''.join(f'<li>{e(i)}</li>' for i in L['insights'])}</ul></section>
-  <section><div class="frame"><h3>{e(L['chart_t'])}</h3><span class="sub">{e(L['chart_s'])}</span>{strip}{chart(L)}{chart(L, True)}<span class="src">{e(L['chart_src'])}</span></div></section>
+  <section><div class="frame"><h3>{e(L['chart_t'])}</h3><span class="sub">{e(L['chart_s'])}</span>{chart(L)}{chart(L, True)}{strip}<span class="src">{e(L['chart_src'])}</span></div></section>
   <section><div class="th"><h3>{e(L['t1_h'])}</h3>{tip(L['t1_note'], L['more'] + ': ' + L['t1_h'])}</div>{table(L['t1_cols'], L['t1'], num_cols=(1,), key_flag=True)}</section>
   <section><div class="th"><h3>{e(L['t2_h'])}</h3>{tip(L['t2_note'], L['more'] + ': ' + L['t2_h'])}</div>{table(L['t2_cols'], L['t2'], num_cols=(1, 2))}</section>
   <section><div class="money"><div class="th"><h2 style="margin:0">{e(L['money_h'])}</h2><span class="d warn">{e(L['est'])}</span>{tip(L['money_note'], L['more'] + ': ' + L['money_h'])}</div><div class="mg">{money}</div>

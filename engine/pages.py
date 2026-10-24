@@ -152,6 +152,7 @@ HEAD = """<!doctype html>
   @media (max-width: 640px) {{ .rt .kpis {{ grid-template-columns: 1fr; }} .rt ul.routes {{ columns: 1; }} }}
 </style>
 <script src="../ui.js" defer></script>
+<script src="https://fernando-vazquez.netlify.app/bar/v1.js" defer data-project="mach"></script>
 </head>
 <body>
 <header class="bar">
@@ -196,8 +197,8 @@ def corridor_strip(r):
         return ""
     q = lambda f: v[min(len(v) - 1, int(f * (len(v) - 1) + 0.5))]
     n_land = sum(1 for l in r["legs"] if l["land"])
-    return (f'  <div class="ss" data-min="{v[0]:.3f}" data-q1="{q(.25):.3f}" data-med="{q(.5):.3f}" data-q3="{q(.75):.3f}" data-max="{v[-1]:.3f}" '
-            f'data-ref="{M_MIN}" data-ref-label="floor" data-dec="2" data-lo="1.0" data-unit="Mach" '
+    return (f'  <div class="ss" data-values="{",".join(f"{x:.3f}" for x in v)}" '
+            f'data-ref="{M_MIN}" data-ref-label="floor" data-dec="2" data-lo="1.0" data-unit="Mach" data-period="today, FL550" '
             f'data-n="{len(v)} of {n_land} land legs of {r["seg_km"]:.0f} km" data-label="Corridor speed over land"></div>')
 
 
@@ -275,7 +276,7 @@ def main():
     with open(os.path.join(a.site, "routes", "index.html"), "w", encoding="utf8") as f:
         f.write("\n".join(idx))
     # sitemap
-    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("routes/", "daily", "0.8")] + \
+    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("sound.html", "hourly", "0.8"), ("routes/", "daily", "0.8")] + \
            [(f"routes/{slug(x, y)}.html", "daily", "0.6") for x, y, _ in rows] + [("privacy.html", "yearly", "0.2")]
     sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     sm += [f"  <url><loc>https://machcorridor.com/{u}</loc><changefreq>{c}</changefreq><priority>{p}</priority></url>" for u, c, p in urls]

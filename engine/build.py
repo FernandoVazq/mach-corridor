@@ -27,6 +27,7 @@ from physics import isa_pressure_hpa, mmax_grid, footprint_max, virtual_temperat
 import secondary
 import rocket
 import ecmwf
+import sound
 
 BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 PLEV = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
@@ -236,6 +237,7 @@ def build(run, out_dir):
     ifs_diff = {}
     rocket_cols = {}
     hi_missing = set()
+    carry_meta = {"fhs": [], "summary": {}, "errors": []}
     for fh in FHOURS:
         t0 = time.time()
         F = fetch_fields(run, fh)
@@ -291,6 +293,19 @@ def build(run, out_dir):
             hi = (np.array(lvh, float), Gh("TMP"), Gh("UGRD"), Gh("VGRD"), Gh("HGT"), RHh)
         except Exception as ex:
             print(f"high-altitude levels f{fh:03d} failed: {ex}", flush=True)
+
+        # how far sound carries (engine/sound.py, issue #60): near-surface fields; failure never blocks the map
+        try:
+            Fs = fetch(run, fh, sound.WANT)
+            th = sound.carry_grid(F[("HGT", "surface")], Fs, PLEV, T, U, V, Z)   # model ground, not the boom footprint max
+            if th is not None:
+                Image.fromarray(sound.atlas(th, to_display), "L").save(os.path.join(out_dir, f"carry_f{fh:03d}.png"), optimize=True)
+                carry_meta["fhs"].append(fh); carry_meta["summary"][str(fh)] = sound.summary(th, land, lat)
+            else:
+                carry_meta["errors"].append(f"f{fh:03d}: near-surface fields missing ({sorted(k[1] for k in Fs)})")
+        except Exception as ex:
+            carry_meta["errors"].append(f"f{fh:03d}: {str(ex)[:160]}")
+            print(f"sound carry f{fh:03d} failed: {ex}", flush=True)
 
         # rocket sites (engine/rocket.py, issue #50): one column per launch site and forecast hour, to the data top
         try:
@@ -406,6 +421,10 @@ def build(run, out_dir):
                 "tiles": "6x6, direction of travel of the ray 0..350 step 10", "V0": secondary.V0, "V_step": secondary.V_STEP,
                 "R_step_km": secondary.R_STEP, "a": ["V_lo", "V_hi", "R1_lo"], "b": ["R1_hi", "R2_lo", "R2_hi"],
                 "z_aircraft_m": round(550 * 30.48), "z_low_m": secondary.Z_LOW, "top_hpa": ssb_top} if ssb_done else None,
+        "carry": {"fhs": carry_meta["fhs"], "pattern": "carry_f{fh:03d}.png", "cols": sound.COLS, "rows": sound.ROWS,
+                  "nx": NX, "ny": NY, "lon0": -180, "lat0": 90, "dirs": sound.DIRS, "tile_min": 8, "tile_max": 9,
+                  "step_deg": sound.STEP_DEG, "h_top_m": sound.H_TOP, "levels": sound.LEVELS,
+                  "summary": carry_meta["summary"], "errors": carry_meta["errors"][:9]} if carry_meta["fhs"] or carry_meta["errors"] else None,
         "stats_thresholds": thresholds,
         "file_pattern": "f{fh:03d}_FL{fl}.png",
         "stats": stats,
