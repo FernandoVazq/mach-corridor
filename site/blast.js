@@ -78,7 +78,7 @@
   function download(dirs, M) {
     const head = ["valid_utc", ...dirs.map((d) => `angle_to_${DIRN[d]}_deg`), ...dirs.map((d) => `rating_to_${DIRN[d]}`)];
     const rows = M.map((r, k) => [vt(k).toISOString(), ...r.map((v) => v.toFixed(2)), ...r.map((v) => RATE[rate(v)].lab)]);
-    const s = st.site, txt = [`# Mach Corridor blast windows, site ${s.lat.toFixed(4)},${s.lon.toFixed(4)}, GFS run ${st.man.run}. Research prototype; not a regulatory assessment.`, head.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const s = st.site, txt = [`# Mach Corridor blast windows, site ${s.lat.toFixed(4)},${s.lon.toFixed(4)}, GFS run ${st.man.run}. Research forecast; not a regulatory assessment.`, head.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv" })); a.download = `blast-windows_${s.lat.toFixed(2)}_${s.lon.toFixed(2)}.csv`; a.click();
   }
   function setSite(lat, lon, name) {

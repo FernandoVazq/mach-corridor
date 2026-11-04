@@ -618,3 +618,21 @@ details.fold > .fb p { margin: 0 0 10px; }
 .bdread { margin: 10px 0 2px; font-size: 14px; line-height: 1.5; max-width: 760px; }
 @media (max-width: 640px) { .bdctl label { grid-template-columns: 1fr auto; } .bdctl label input { grid-column: 1 / -1; grid-row: 2; } #bdSvg text { font-size: 15px; } }
 .page .acspecw { margin-left: 0; margin-right: 0; max-width: 100%; }
+/* tool pages: the explanations are visible text, not folded (AdSense review, Nov 2026) */
+section.txt .vis { margin: 0 0 8px; }
+section.txt .vis h2 { font-size: 20px; margin: 28px 0 4px; }
+section.txt .vis .sm2 { color: var(--ink-3); font-size: 14px; margin: 0 0 8px; }
+/* the site menu, the same on every page: Map · Articles · Method · About the author · Privacy */
+.sitenav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; }
+.bar .status.sitenav { margin-left: auto; }
+.sitenav a { color: var(--ink-2); text-decoration: none; padding: 4px 2px; }
+.sitenav a:hover { color: var(--ink); text-decoration: underline; }
+.sitenav a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+.sitenav a.lang { border: 1px solid var(--rule); border-radius: 999px; padding: 1px 8px; }
+.fine.tools { margin-top: 22px; }
+@media (max-width: 900px) { .sitenav { gap: 2px 12px; font-size: 12.5px; } }
+
+/* map page: the always-visible explanation under the controls */
+.sec.seeing p { font-size: 13px; line-height: 1.55; color: var(--ink-2); margin: 0 0 10px; max-width: 62ch; }
+.sec.seeing p:last-child { margin-bottom: 0; }
+.sec.seeing a { color: var(--ink); }

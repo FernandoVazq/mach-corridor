@@ -57,7 +57,7 @@
     <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
     <span class="name">Mach Corridor</span>
   </a>
-  <div class="status"><a href="rockets.html">Rocket booms</a><a href="fireballs.html">Fireballs</a><a href="x59.html">X-59</a><a href="./">Map</a></div>
+  <nav class="status sitenav" aria-label="Site"><a href="/">Map</a><a href="/learn/">Articles</a><a href="/learn/how-the-forecast-works/">Method</a><a href="/author/">About the author</a><a href="/privacy.html">Privacy</a></nav>
 </header>
 <main class="page sd">
   <header class="top">
@@ -87,29 +87,26 @@
   </div>
 
   <section class="txt">
-    <details class="fold"><summary>Why sound carries farther at night <span class="sm">Cool air under warm air bends sound back down.</span></summary><div class="fb">
-    <p>Sound travels a little faster in warmer air and is carried along by the wind. A sound wave bends toward the slower air. On a sunny afternoon the ground heats the air above it, the air gets cooler with height, and sound bends up and away: a few hundred metres to a couple of kilometres from the source it gets much quieter. On a clear, calm night the ground cools first, a layer of warm air sits on top of cool air (an inversion), and sound bends back down. It hops along the ground and is heard far away. Wind does the same thing in one direction: wind usually gets stronger with height, so sound carries farther downwind and less far upwind.</p></div></details>
+    <section class="vis"><h2>Why sound carries farther at night</h2><p class="sm2">Cool air under warm air bends sound back down.</p><p>Sound travels a little faster in warmer air and is carried along by the wind. A sound wave bends toward the slower air. On a sunny afternoon the ground heats the air above it, the air gets cooler with height, and sound bends up and away: a few hundred metres to a couple of kilometres from the source it gets much quieter. On a clear, calm night the ground cools first, a layer of warm air sits on top of cool air (an inversion), and sound bends back down. It hops along the ground and is heard far away. Wind does the same thing in one direction: wind usually gets stronger with height, so sound carries farther downwind and less far upwind.</p></section>
 
-    <details class="fold"><summary>Who uses a forecast like this <span class="sm">Quarries, fireworks, airports, wind farms, venues, rocket and boom watchers.</span></summary><div class="fb">
-    <ul>
+    <section class="vis"><h2>Who uses a forecast like this</h2><p class="sm2">Quarries, fireworks, airports, wind farms, venues, rocket and boom watchers.</p><ul>
       <li><strong>Quarries and mines</strong> schedule blasts for hours when the air will not focus the blast toward neighbours: see the <a href="blast.html">blast window forecast</a>.</li>
       <li><strong>Fireworks, concerts and festivals</strong> can expect more complaints on nights when sound is trapped.</li>
       <li><strong>Airports, rail yards and wind farms</strong> can tell residents when engine runs or turbines will sound louder than usual.</li>
       <li><strong>Rocket launches and sonic booms</strong>: the same physics moves the edge of the boom zone. See <a href="rockets.html">rocket booms</a>.</li>
-    </ul></div></details>
+    </ul></section>
 
-    <details class="fold"><summary>How the forecast works <span class="sm">NOAA GFS, the lowest 1.5 km, eight directions.</span></summary><div class="fb">
-    <p>For every 1° point and every 6 hours, the forecast temperature and wind from the ground (2 m and 10 m) up to 1.5 km give the effective speed of sound toward eight directions. Where the air somewhere above is faster than at the ground, every ray leaving the source below a critical angle turns back down instead of escaping. That angle is what the map shows: 0° means the sound escapes upward; 2° to 5° a little is trapped; above 9° a lot is. "All around" is the smallest of the eight directions; "Downwind side" the largest.</p></div></details>
+    <section class="vis"><h2>How the forecast works</h2><p class="sm2">NOAA GFS, the lowest 1.5 km, eight directions.</p><p>For every 1° point and every 6 hours, the forecast temperature and wind from the ground (2 m and 10 m) up to 1.5 km give the effective speed of sound toward eight directions. Where the air somewhere above is faster than at the ground, every ray leaving the source below a critical angle turns back down instead of escaping. That angle is what the map shows: 0° means the sound escapes upward; 2° to 5° a little is trapped; above 9° a lot is. "All around" is the smallest of the eight directions; "Downwind side" the largest.</p></section>
 
-    <details class="fold"><summary>Limits <span class="sm">A regional estimate, not a noise measurement.</span></summary><div class="fb">
-    <ul>
+    <section class="vis"><h2>Limits</h2><p class="sm2">A regional estimate, not a noise measurement.</p><ul>
       <li>The grid is about 100 km. Valleys, lakes, sea breezes and city heat can trap or lift sound locally where the map shows nothing.</li>
       <li>It says whether the air helps sound travel, not how loud a given source will be: that also depends on the source, the ground, hills, buildings and background noise.</li>
       <li>It is a forecast and can be wrong, especially for the timing of an inversion. It is not an official noise assessment.</li>
-    </ul></div></details>
+    </ul></section>
     <p class="fine">Method and code: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/sound.py">engine/sound.py</a>. Data: NOAA GFS. <a href="privacy.html">Privacy</a>.</p>
   </section>
-  <section class="adslot" id="adSlot" hidden aria-label="Advertisement"><div class="adhead"><span>Advertisement</span><a href="privacy.html#ads">About ads and privacy</a></div><div class="adbody"></div></section>
+    <p class="fine tools">Tools: <a href="/">Live map</a> · <a href="/rockets.html">Rocket booms</a> · <a href="/sound.html">Sound tonight</a> · <a href="/fireballs.html">Fireballs</a> · <a href="/x59.html">X-59 carpet</a> · <a href="/blast.html">Blast windows</a> · <a href="/routes/">Routes today</a> · <a href="/learn/">Articles</a>. Contact: <a href="mailto:fernando.vazquez2@aol.com">fernando.vazquez2@aol.com</a></p>
+<section class="adslot" id="adSlot" hidden aria-label="Advertisement"><div class="adhead"><span>Advertisement</span><a href="privacy.html#ads">About ads and privacy</a></div><div class="adbody"></div></section>
 </main>
 <script src="vendor/d3.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>

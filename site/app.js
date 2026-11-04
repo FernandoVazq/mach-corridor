@@ -1515,7 +1515,6 @@
     $("threshSel").onchange = e => { S.thresh = +e.target.value; refresh(); };
     $("playBtn").onclick = togglePlay;
     $("apts").innerHTML = AIRPORTS.map(a => `<option value="${a[0]}">${a[1]}</option>`).join("");
-    $("protoBadge").onclick = () => setTab("method");
     $("layersToggle").onclick = () => { const o = $("mapControls").classList.toggle("open"); $("layersToggle").setAttribute("aria-expanded", o); };
     $("moreBtn").onclick = () => { const o = $("moreSet").hidden; $("moreSet").hidden = !o; $("moreBtn").setAttribute("aria-expanded", o); $("moreBtn").classList.toggle("on", o); };
     $("tticks").innerHTML = S.man.valid_times.map((v, i) => i % 2 ? "" : `<span style="left:${100 * i / (fhs().length - 1)}%">${d3.utcFormat("%a %HZ")(new Date(v))}</span>`).join("");

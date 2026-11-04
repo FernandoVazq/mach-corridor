@@ -10,6 +10,7 @@ Numbers here are a quick screen (no wind on ground speed, one level, typical mar
 import argparse, datetime as dt, html, json, math, os, re
 import numpy as np
 
+TEXT_UPDATED = "2026-11-04"   # last change to the written pages (articles, author, about, privacy); see tools/learn_pages.py
 MARGIN = 0.05            # typical Auto margin at FL550 (the live map uses the per-point ensemble margin)
 M_MIN = 1.05             # below this a corridor is not worth flying (map's default threshold)
 M_SUPER = 1.7            # Overture-class cruise over water
@@ -160,7 +161,7 @@ HEAD = """<!doctype html>
     <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
     <span class="name">Mach Corridor</span>
   </a>
-  <div class="status"><a href="../about/">About</a><a href="index.html">All routes</a><a href="../rockets.html">Rocket booms</a><a href="../">Live map</a></div>
+  <nav class="status sitenav" aria-label="Site"><a href="/">Map</a><a href="/learn/">Articles</a><a href="/learn/how-the-forecast-works/">Method</a><a href="/author/">About the author</a><a href="/privacy.html">Privacy</a></nav>
 </header>
 <main class="page rt">
 """
@@ -276,10 +277,16 @@ def main():
     with open(os.path.join(a.site, "routes", "index.html"), "w", encoding="utf8") as f:
         f.write("\n".join(idx))
     # sitemap
-    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9"), ("rockets.html", "hourly", "0.9"), ("sound.html", "hourly", "0.8"), ("fireballs.html", "daily", "0.8"), ("x59.html", "hourly", "0.7"), ("blast.html", "hourly", "0.8"), ("routes/", "daily", "0.8")] + \
+    # written pages (tools/learn_pages.py): the date their text last changed; data pages: the build date
+    articles = [("learn/", "weekly", "0.9"), ("es/aprende/", "weekly", "0.9"), ("author/", "monthly", "0.6"), ("es/autor/", "monthly", "0.6")] + \
+               [(f"learn/{s_}/", "monthly", "0.8") for s_ in ("mach-cutoff", "how-the-forecast-works", "weather-balloon-validation", "concorde-and-the-1973-ban", "x-59-and-the-thump")] + \
+               [(f"es/aprende/{s_}/", "monthly", "0.8") for s_ in ("que-es-el-mach-cutoff", "como-funciona-el-pronostico", "validacion-con-globos-sonda", "concorde-y-la-prohibicion-de-1973", "el-x-59-y-el-thump")]
+    urls = [("", "hourly", "1.0"), ("about/", "weekly", "0.9"), ("es/", "weekly", "0.9")] + articles + [("rockets.html", "hourly", "0.9"), ("sound.html", "hourly", "0.8"), ("fireballs.html", "daily", "0.8"), ("x59.html", "hourly", "0.7"), ("blast.html", "hourly", "0.8"), ("routes/", "daily", "0.8")] + \
            [(f"routes/{slug(x, y)}.html", "daily", "0.6") for x, y, _ in rows] + [("privacy.html", "yearly", "0.2")]
+    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    written = {u for u, _, _ in articles} | {"about/", "es/", "privacy.html"}
     sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    sm += [f"  <url><loc>https://machcorridor.com/{u}</loc><changefreq>{c}</changefreq><priority>{p}</priority></url>" for u, c, p in urls]
+    sm += [f"  <url><loc>https://machcorridor.com/{u}</loc><lastmod>{TEXT_UPDATED if u in written else today}</lastmod><changefreq>{c}</changefreq><priority>{p}</priority></url>" for u, c, p in urls]
     sm.append("</urlset>")
     with open(os.path.join(a.site, "sitemap.xml"), "w") as f:
         f.write("\n".join(sm) + "\n")

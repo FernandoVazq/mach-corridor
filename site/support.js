@@ -7,8 +7,8 @@
 
   const heart = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 14s-6-3.8-6-8.2A3.3 3.3 0 0 1 8 4a3.3 3.3 0 0 1 6 1.8C14 10.2 8 14 8 14z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
-  // header, next to the Prototype badge
-  const badge = document.getElementById("protoBadge");
+  // header, after the forecast line
+  const badge = document.getElementById("runInfo");
   if (badge && badge.parentNode) {
     const a = document.createElement("a");
     a.className = "badge support";
@@ -17,7 +17,7 @@
     a.rel = "noopener";
     a.title = "Support this project on GitHub Sponsors";
     a.innerHTML = heart + '<span>Support</span><span class="sr"> this project on GitHub Sponsors</span>';
-    badge.parentNode.insertBefore(a, badge);
+    badge.parentNode.insertBefore(a, badge.nextSibling);
   }
 
   // Method page, next to the data credits

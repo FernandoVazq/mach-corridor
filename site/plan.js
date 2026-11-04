@@ -425,7 +425,7 @@
       ["study_mode_off", !MC.S.allowStale, MC.S.allowStale ? "old data used on purpose: not for flight" : "fail-closed rules active"],
     ].map(([id, pass, note]) => ({ id, pass, note }));
     return {
-      kind: "Mach Corridor flight evidence", disclaimer: "Research prototype. Not certified for flight planning.",
+      kind: "Mach Corridor flight evidence", disclaimer: "Research forecast. Not certified for flight planning.",
       exported_utc: iso(Date.now()), site: location.origin + location.pathname, link: location.href,
       code_version: man.code_version || null, model_version: man.model_version || null, method: "docs/METHOD.md", changelog: "docs/CHANGELOG.md", data: { gfs_run: man.run_time, ifs_run: (man.models && man.models.ifs) || null, ifs_lag_h: (man.models && man.models.ifs_lag_h) ?? null,
         combine: (man.models && man.models.combine) || "GFS only", built: man.generated, source: man.source, physics: man.physics,
@@ -563,7 +563,7 @@
     <DepartureLLA>${msfsPos(P.dep.lat, P.dep.lon, 0)}</DepartureLLA>
     <DestinationID>${esc(P.arr.id)}</DestinationID>
     <DestinationLLA>${msfsPos(P.arr.lat, P.arr.lon, 0)}</DestinationLLA>
-    <Descr>${esc(`Boomless supersonic route from today's forecast (GFS ${MC.S.man.run_time}). Waypoint names give the Mach to hold: B = boomless, S = supersonic over water, U = subsonic. Research prototype, not for real flight.`)}</Descr>
+    <Descr>${esc(`Boomless supersonic route from today's forecast (GFS ${MC.S.man.run_time}). Waypoint names give the Mach to hold: B = boomless, S = supersonic over water, U = subsonic. Research forecast, not for real flight.`)}</Descr>
     <AppVersion>
       <AppVersionMajor>11</AppVersionMajor>
       <AppVersionBuild>282174</AppVersionBuild>
@@ -588,7 +588,7 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
   function exportNavlog() {
     if (!R) return;
     const rows = navRows(R), cols = Object.keys(rows[0]), man = MC.S.man;
-    const head = `# Mach Corridor boom navlog, ${R.names.join("-")}, ${R.ac.name}, FL${R.fl}; GFS ${man.run_time}${man.models && man.models.ifs ? " + ECMWF " + man.models.ifs : ""}; model ${man.model_version}; research prototype, not for flight`;
+    const head = `# Mach Corridor boom navlog, ${R.names.join("-")}, ${R.ac.name}, FL${R.fl}; GFS ${man.run_time}${man.models && man.models.ifs ? " + ECMWF " + man.models.ifs : ""}; model ${man.model_version}; research forecast, not for flight`;
     download(`mach-corridor_${R.names.join("-")}_FL${R.fl}_navlog.csv`, [head, cols.join(","), ...rows.map(x => cols.map(c => /[,;]/.test(String(x[c])) ? `"${x[c]}"` : x[c]).join(","))].join("\n"), "text/csv");
   }
 
@@ -596,7 +596,7 @@ ${[wp(P.dep.id, "Airport", P.dep.lat, P.dep.lon, 0, true), ...P.wps.map((w) => w
     if (!R) return;
     const st = stretches(R), man = MC.S.man, base = `mach-corridor_${R.names.join("-")}_FL${R.fl}`;
     const props = { from: R.names[0], to: R.names[1], aircraft: R.ac.name, flight_level: R.fl, gfs_run: man.run_time, model_version: man.model_version || null,
-      note: "Research prototype, not for flight. Not an ARINC 633 flight plan: a waypoint list for display and analysis." };
+      note: "Research forecast, not for flight. Not an ARINC 633 flight plan: a waypoint list for display and analysis." };
     const gj = { type: "FeatureCollection", properties: props, features: st.map(x => ({ type: "Feature",
       properties: { type: x.type, mach: x.mach, from_nm: x.from_nm, to_nm: x.to_nm, eto_utc: x.eto }, geometry: { type: "LineString", coordinates: x.coords } })) };
     download(base + ".geojson", JSON.stringify(gj, null, 1), "application/geo+json");

@@ -27,7 +27,7 @@ T = {
   "lang": "en", "path": "about/", "other": "../es/", "other_label": "ES", "other_name": "Español", "home": "../",
   "title": "Mach Corridor: an open forecast of boomless supersonic flight",
   "desc": "Where a supersonic jet can fly today without its boom reaching the ground: a global forecast, validated against 3,500 weather balloons, with route planning, rocket booms and economics.",
-  "nav": [("Live map", "../"), ("Routes today", "../routes/"), ("Rocket booms", "../rockets.html")],
+  "nav": [("Map", "/"), ("Articles", "/learn/"), ("Method", "/learn/how-the-forecast-works/"), ("About the author", "/author/"), ("Privacy", "/privacy.html")],
   "hero_line": "An open, global forecast of where a supersonic jet can fly without its boom reaching the ground, updated four times a day.",
   "cta1": "Open the live map", "cta2": "Routes today", "cta3": "Rocket booms",
   "hero_cap": "Boomless cruise Mach at 55,000 ft in any direction, 23 Oct 2026 (GFS + ECMWF). Brighter = faster without a boom.",
@@ -119,7 +119,7 @@ T = {
   "lang": "es", "path": "es/", "other": "../about/", "other_label": "EN", "other_name": "English", "home": "../",
   "title": "Mach Corridor: un pronóstico abierto del vuelo supersónico sin estampido",
   "desc": "Dónde puede volar hoy un jet supersónico sin que su estampido llegue al suelo: un pronóstico global, validado con 3,500 globos sonda, con rutas, booms de cohetes y economía.",
-  "nav": [("Mapa en vivo", "../"), ("Rutas hoy", "../routes/"), ("Booms de cohetes", "../rockets.html")],
+  "nav": [("Mapa", "/"), ("Artículos", "/es/aprende/"), ("Método", "/es/aprende/como-funciona-el-pronostico/"), ("Sobre el autor", "/es/autor/"), ("Privacidad", "/privacy.html")],
   "hero_line": "Un pronóstico abierto y global de dónde puede volar un jet supersónico sin que su estampido llegue al suelo, actualizado cuatro veces al día.",
   "cta1": "Abrir el mapa en vivo", "cta2": "Rutas hoy", "cta3": "Booms de cohetes",
   "hero_cap": "Mach de crucero sin estampido a 55,000 pies en cualquier dirección, 23 oct 2026 (GFS + ECMWF). Más claro = más rápido sin boom.",
@@ -363,7 +363,7 @@ def page(L):
     <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
     <span class="name">Mach Corridor</span>
   </a>
-  <nav class="status" aria-label="Mach Corridor">{nav}<a class="lang" href="{L['other']}" hreflang="{'es' if L['lang'] == 'en' else 'en'}" title="{e(L['other_name'])}">{L['other_label']}</a></nav>
+  <nav class="status sitenav" aria-label="Mach Corridor">{nav}<a class="lang" href="{L['other']}" hreflang="{'es' if L['lang'] == 'en' else 'en'}" title="{e(L['other_name'])}">{L['other_label']}</a></nav>
 </header>
 <main class="at">
   <section class="hero" style="margin-top:0">

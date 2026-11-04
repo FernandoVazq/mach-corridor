@@ -1,13 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://machcorridor.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://machcorridor.com/about/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://machcorridor.com/es/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://machcorridor.com/rockets.html</loc><changefreq>hourly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://machcorridor.com/sound.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://machcorridor.com/fireballs.html</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://machcorridor.com/x59.html</loc><changefreq>hourly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://machcorridor.com/blast.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://machcorridor.com/routes/</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
-  <url><loc>https://machcorridor.com/privacy.html</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+  <url><loc>https://machcorridor.com/</loc><lastmod>2026-11-04</lastmod><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://machcorridor.com/about/</loc><lastmod>2026-11-04</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://machcorridor.com/es/</loc><lastmod>2026-11-04</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://machcorridor.com/learn/</loc><lastmod>2026-11-04</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/</loc><lastmod>2026-11-04</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://machcorridor.com/author/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://machcorridor.com/es/autor/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://machcorridor.com/learn/mach-cutoff/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/learn/how-the-forecast-works/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/learn/weather-balloon-validation/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/learn/concorde-and-the-1973-ban/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/learn/x-59-and-the-thump/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/que-es-el-mach-cutoff/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/como-funciona-el-pronostico/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/validacion-con-globos-sonda/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/concorde-y-la-prohibicion-de-1973/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/es/aprende/el-x-59-y-el-thump/</loc><lastmod>2026-11-04</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/rockets.html</loc><lastmod>2026-11-04</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://machcorridor.com/sound.html</loc><lastmod>2026-11-04</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/fireballs.html</loc><lastmod>2026-11-04</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/x59.html</loc><lastmod>2026-11-04</lastmod><changefreq>hourly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://machcorridor.com/blast.html</loc><lastmod>2026-11-04</lastmod><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/routes/</loc><lastmod>2026-11-04</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://machcorridor.com/privacy.html</loc><lastmod>2026-11-04</lastmod><changefreq>yearly</changefreq><priority>0.2</priority></url>
 </urlset>

@@ -65,7 +65,7 @@
     <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#061029"/><path d="M6 21 L16 9 L26 21" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M5 25 Q16 17 27 25" fill="none" stroke="#7FA6DB" stroke-width="2.2"/></svg>
     <span class="name">Mach Corridor</span>
   </a>
-  <div class="status"><a href="rockets.html">Rocket booms</a><a href="x59.html">X-59</a><a href="sound.html">Sound tonight</a><a href="./">Map</a></div>
+  <nav class="status sitenav" aria-label="Site"><a href="/">Map</a><a href="/learn/">Articles</a><a href="/learn/how-the-forecast-works/">Method</a><a href="/author/">About the author</a><a href="/privacy.html">Privacy</a></nav>
 </header>
 <main class="page fb2">
   <h1>Was that boom a fireball?</h1>
@@ -105,17 +105,18 @@
   </section>
 
   <section class="txt">
-    <details class="fold"><summary>Why fireballs boom <span class="sm">Mach 40 to 200, low enough for the shock to reach the ground.</span></summary><div class="fb">
-    <p>A meteoroid enters the air at 11 to 72 km/s, forty to two hundred times the speed of sound. Most burn up above 60 km, where the air is too thin for a boom to be heard. Larger ones survive deeper, below about 50 km, and their shock wave reaches the ground as a sharp boom or a rumble, one to several minutes after the flash: sound needs that long to come down from 20 to 50 km.</p></div></details>
-    <details class="fold"><summary>How the map works <span class="sm">Rays traced from the luminous path; strength from weak-shock theory.</span></summary><div class="fb">
-    <p>For every fireball with a known speed and direction, shock rays leave the luminous path below 60 km almost at right angles to it and are traced through the standard atmosphere until they reach the ground or turn back up. The coloured dots are where they land. Strength comes from ReVelle's weak-shock theory for a line source, sized from the impact energy; it is good to a factor of about 3, checked against the 2013 Chelyabinsk fireball.</p></div></details>
-    <details class="fold"><summary>Limits <span class="sm">No wind, no hills; only the big fireballs are listed.</span></summary><div class="fb">
-    <ul>
+    <section class="vis"><h2>Why some fireballs are heard and others are not</h2>
+    <p>Most fireballs in the list release their energy between about 20 and 50 km up. The lower a fireball is at its brightest, the less atmosphere its shock has to cross and the less it is bent away, so the low ones are the ones people hear; the chart above shows it at a glance. A steep path helps too, because the shock cone then points at the ground instead of skimming along the top of the atmosphere.</p>
+    <p>The boom always arrives well after the flash: for a fireball 30 km up, typically two to ten minutes later, depending on how far away you are. That delay is the easiest way to tell a fireball's boom from thunder or a quarry blast. The list only covers the larger events seen by US Government sensors, often published days or weeks later, so a small meteor you saw last night may not be here at all.</p></section>
+    <section class="vis"><h2>Why fireballs boom</h2><p class="sm2">Mach 40 to 200, low enough for the shock to reach the ground.</p><p>A meteoroid enters the air at 11 to 72 km/s, forty to two hundred times the speed of sound. Most burn up above 60 km, where the air is too thin for a boom to be heard. Larger ones survive deeper, below about 50 km, and their shock wave reaches the ground as a sharp boom or a rumble, one to several minutes after the flash: sound needs that long to come down from 20 to 50 km.</p></section>
+    <section class="vis"><h2>How the map works</h2><p class="sm2">Rays traced from the luminous path; strength from weak-shock theory.</p><p>For every fireball with a known speed and direction, shock rays leave the luminous path below 60 km almost at right angles to it and are traced through the standard atmosphere until they reach the ground or turn back up. The coloured dots are where they land. Strength comes from ReVelle's weak-shock theory for a line source, sized from the impact energy; it is good to a factor of about 3, checked against the 2013 Chelyabinsk fireball.</p></section>
+    <section class="vis"><h2>Limits</h2><p class="sm2">No wind, no hills; only the big fireballs are listed.</p><ul>
       <li>The atmosphere is the standard one, with no wind: the real edge of the zone moves with the weather of that night.</li>
       <li>The fireball's end height is assumed a little below its brightest point; fragmentation and the terminal burst are not modelled.</li>
       <li>CNEOS lists only the largest events. For the rest, report what you saw and heard to the American Meteor Society.</li>
-    </ul></div></details>
+    </ul></section>
     <p class="fine">Data: <a href="https://cneos.jpl.nasa.gov/fireballs/">NASA JPL CNEOS fireball data</a> (US Government sensors, public). Method and code: <a href="https://github.com/FernandoVazq/mach-corridor/blob/main/engine/bolide.py">engine/bolide.py</a>. <a href="privacy.html">Privacy</a>.</p>
+      <p class="fine tools">Tools: <a href="/">Live map</a> · <a href="/rockets.html">Rocket booms</a> · <a href="/sound.html">Sound tonight</a> · <a href="/fireballs.html">Fireballs</a> · <a href="/x59.html">X-59 carpet</a> · <a href="/blast.html">Blast windows</a> · <a href="/routes/">Routes today</a> · <a href="/learn/">Articles</a>. Contact: <a href="mailto:fernando.vazquez2@aol.com">fernando.vazquez2@aol.com</a></p>
   </section>
 </main>
 <script src="vendor/d3.min.js"></script>

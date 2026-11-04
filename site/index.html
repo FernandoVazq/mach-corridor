@@ -38,11 +38,8 @@
       <button role="tab" data-tab="method" aria-selected="false">Method</button>
     </nav>
     <div class="status">
-      <a href="about/" class="badge" title="What this is, how it was built and what it is worth">About</a>
-      <a href="routes/" class="badge" title="Which airline routes could fly supersonic without a boom today">Routes</a>
-      <a href="rockets.html" class="badge" title="Will I hear the sonic boom? Rocket launches, booster landings and capsule returns">Rocket booms</a><a href="sound.html" class="badge" title="How far will sound carry tonight? Also: fireball booms and the X-59">Sound</a>
+      <nav class="sitenav" aria-label="Site"><a href="/" aria-current="page">Map</a><a href="/learn/">Articles</a><a href="/learn/how-the-forecast-works/">Method</a><a href="/author/">About the author</a><a href="/privacy.html">Privacy</a></nav>
       <span id="runInfo">Loading forecast</span>
-      <button class="badge" id="protoBadge" title="Research prototype, not for flight planning">Prototype</button>
     </div>
   </header>
 
@@ -219,6 +216,14 @@
           </details>
           <p class="fine" id="optNote"></p>
         </div>
+      </section>
+
+      <section class="sec seeing" id="whatYouSee">
+        <h2>What you're seeing</h2>
+        <p>The map shows, for every place on Earth, the fastest an airliner could fly at that altitude without its sonic boom reaching the ground. That speed is called the Mach cutoff. Bright areas allow a high Mach number; dark areas allow little or nothing above the speed of sound. It is built from the latest NOAA GFS and ECMWF IFS weather forecasts and rebuilt within about an hour of each new run, so the corridors move with the weather.</p>
+        <p>Why the limit changes from place to place: sound travels faster in warm air than in cold air, and wind carries it. A boom starts at the aircraft, high in the cold air, and travels down into warmer air near the ground, where sound is faster. That bends the boom back upward. If the aircraft is slow enough over the ground, the boom turns back up before it lands, and people below hear nothing. A strong headwind or warm air near the ground raises the limit; a tailwind or a cold surface lowers it.</p>
+        <p>The value depends on the direction of flight. "Best" shows the best direction at each point, and the arrows point that way, usually into the wind. Pick a heading in the controls to see the limit for one direction, or plan a route and the map switches to that route's heading. Hatched areas are where the two weather models disagree, so trust them less; the safety margin is already larger wherever the forecast is uncertain. Over open ocean the boom does not matter, so aircraft can fly their full design speed there.</p>
+        <p>Click any point to see the limit at every altitude, or drag between two airports to plan a route that uses the corridors. To learn how it works, read <a href="/learn/mach-cutoff/">what the Mach cutoff is</a>, <a href="/learn/how-the-forecast-works/">how the forecast is made</a> and <a href="/learn/weather-balloon-validation/">how it compares with 3,500 weather balloons</a>. This is a research forecast, not a flight-planning tool.</p>
       </section>
 
       <section class="sec adslot" id="adSlot" hidden aria-label="Advertisement">
@@ -398,8 +403,8 @@
       <div class="tscroll" tabindex="0" role="region" aria-label="Rules by country"><table class="tbl rules" id="rulesTbl"></table></div>
       <p class="fine" id="rulesNote"></p>
       <h2>Limits</h2>
-      <details class="fold"><summary>Six limits <span class="sm">Research prototype; not for flight planning.</span></summary><div class="fb"><ul>
-        <li>Research prototype, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>
+      <details class="fold"><summary>Six limits <span class="sm">Forecast research tool; not for flight planning.</span></summary><div class="fb"><ul>
+        <li>A research forecast, not for flight planning, and not affiliated with Boom, NASA or the FAA.</li>
         <li>Loudness is v0: the primary boom from Carlson's simplified method (NASA TP-1122, within about 15% of flight data), cutoff legs from a linear caustic (Airy) model checked against FaINT; nonlinear focusing at the turning point itself is not modelled. Secondary booms: where the stratosphere would bring them down is checked on every supersonic leg over water, and legs that would put one on land are slowed to the cutoff Mach; their loudness is only estimated, from Concorde measurements scaled to the aircraft. Not a compliance determination under the proposed rule.</li>
         <li>The cushion under the turning point is checked against FaINT's F-18 measurements, not yet against an airliner-size boom (XB-1 data requested, #21).</li>
         <li>Climb or descent angle is not modelled (a −3° descent costs about 0.03 Mach). Each column is treated as uniform along the 40–90 km ray path; 3D ray tracing through the forecast changes the limit by 0.0022 Mach (standard deviation, no bias, 95% within 0.0045), well inside the margin.</li>
@@ -416,7 +421,7 @@
 
   <dialog id="efb" class="big efb" aria-labelledby="efbTitle">
     <div class="d3head">
-      <div><h2 id="efbTitle">Cockpit view <span id="efbRoute"></span></h2><p id="efbSub">Next 300 nm from the chosen point. Research prototype: not for flight.</p></div>
+      <div><h2 id="efbTitle">Cockpit view <span id="efbRoute"></span></h2><p id="efbSub">Next 300 nm from the chosen point. Research forecast: not for flight.</p></div>
       <form method="dialog"><button class="icon" aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.6"/></svg></button></form>
     </div>
     <label class="efbpos">Position along the route <input type="range" id="efbPos" min="0" max="100" step="1" value="0" aria-describedby="efbPosLbl"><span id="efbPosLbl"></span></label>
